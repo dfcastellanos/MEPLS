@@ -17,7 +17,7 @@
 #include <deal.II/lac/full_matrix.h>
 #include <deal.II/lac/sparse_matrix.h>
 #include <deal.II/lac/sparse_direct.h>
-#include <deal.II/lac/constraint_matrix.h>
+#include <deal.II/lac/affine_constraints.h>
 #include <deal.II/grid/tria.h>
 #include <deal.II/grid/grid_tools.h>
 #include <deal.II/dofs/dof_handler.h>
@@ -32,6 +32,7 @@
 #include <deal.II/lac/solver_cg.h>
 #include <deal.II/lac/precondition.h>
 #include <deal.II/base/symmetric_tensor.h>
+#include <deal.II/fe/fe_q.h>
 #include <deal.II/fe/fe_p1nc.h>
 
 #include <fstream>
@@ -523,7 +524,7 @@ class Solver
 	template<int D>
 	friend void impl::assemble_system_matrix(
 		dealii::SparseMatrix<double> &system_matrix,
-		dealii::ConstraintMatrix &constraints,
+		dealii::AffineConstraints<double> &constraints,
 		dealii::Vector<double> &rhs,
 		Solver<D> &solver);
 	template<int D>
@@ -537,7 +538,7 @@ class Solver
 		const unsigned int &element,
 		const dealii::SymmetricTensor<2, D> &eigenstrain,
 		dealii::Vector<double> &rhs,
-		dealii::ConstraintMatrix &constraints,
+		dealii::AffineConstraints<double> &constraints,
 		Solver<D> &solver);
 	template<int D>
 	friend void impl::make_element_maps(Solver<D> &solver);
@@ -547,7 +548,7 @@ class Solver
 	friend void impl::fix_node(
 		const std::vector<double> &node_coordinates,
 		const unsigned int &dof,
-		dealii::ConstraintMatrix &constraints,
+		dealii::AffineConstraints<double> &constraints,
 		Solver<D> &solver);
 };
 
@@ -713,7 +714,7 @@ class LeesEdwards: public Solver<dim>
 	 * See
 	 * <a href="https://www.dealii.org">deal.II</a>.*/
 
-	dealii::ConstraintMatrix constraints;
+	dealii::AffineConstraints<double> constraints;
 	/*!< Object containning the periodicity constarins and a fixed node
 	 * to avoid rigid body motions. See
 	 * <a href="https://www.dealii.org">deal.II</a>. */
@@ -1215,7 +1216,7 @@ class ShearBoundary: public Solver<dim>
 	dealii::SparseMatrix<double> system_matrix;
 	/*!< FEM stiffness matrix. */
 
-	dealii::ConstraintMatrix constraints;
+	dealii::AffineConstraints<double> constraints;
 	/*!< Object containning the periodicity constarins and a fixed node
 	 * to avoid rigid body motions. See
 	 * <a href="https://www.dealii.org">deal.II</a>. */
