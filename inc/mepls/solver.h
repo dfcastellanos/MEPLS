@@ -176,6 +176,8 @@ class Solver
 		C.resize(triangulation.n_active_cells());
 
 		impl::setup_default_elastic_properties(C);
+		impl::average_shape_function_gradients<dim>(*this);
+		impl::make_element_maps<dim>(*this);
 
 		const unsigned int dofs_per_cell = fe.dofs_per_cell;
 		cell_matrix_assembly_data.resize(triangulation.n_active_cells(),
@@ -376,7 +378,7 @@ class Solver
 	 * stress tensors in Voigt's notation. In this ways, the value is 3 if dim=2
 	 * and 6 if dim=3. */
 
-	const unsigned int element_order = 1;
+	unsigned int element_order = 1;
 	/*!< Order of the shape functions. */
 	
   protected:
@@ -606,6 +608,29 @@ class LeesEdwards: public Solver<dim>
 		/*!< Vector containing the elastic strain of each element. */
 	};
 
+	/*!< This struct contains the information about the internal state of the
+	 * solver, so the state of a solver can be modified and then reverted back
+	 * to a previous one.
+	 *
+	 * @note this object stores only those data members that are cleaned when
+	 * \ref Solver<dim>::clear() is called. */
+	struct State
+	{
+		double load;
+		dealii::Vector<double> solution;
+		std::vector<dealii::SymmetricTensor<2, dim> > elastic_strain;
+		std::vector<dealii::SymmetricTensor<2, dim> > stress;
+		std::vector<dealii::Tensor<2, dim> > deformation_gradient;
+		std::vector<dealii::SymmetricTensor<2, dim> > strain;
+		std::vector<dealii::SymmetricTensor<2, dim> > local_eigenstrain;
+		dealii::SymmetricTensor<2, dim> total_eigenstrain;
+		dealii::Vector<double> global_displacement;
+		dealii::Vector<double> rhs_load;
+		dealii::Vector<double> rhs_eigenstrain;
+		dealii::Vector<double> system_rhs;
+		dealii::SymmetricTensor<2, dim> external_strain;
+	};
+
   public:
 
 	LeesEdwards(unsigned int Nx_, unsigned int Ny_);
@@ -614,6 +639,14 @@ class LeesEdwards: public Solver<dim>
 	* @param Nx number of elements in the x-direction
 	* @param Ny number of elements in the y-direction
 	*/
+
+	State get_state() const;
+	/*!< Get the internal state of the solver. This state can be used to revert
+	 * its state at a later stage. */
+
+	void set_state(const State &state);
+	/*!< Set the internal state of the solver. This state can be used to revert
+	 * its state at a later stage. */
 
 	void setup_and_assembly() override;
 	void add_load_increment(double load_increment) override;
@@ -747,16 +780,52 @@ LeesEdwards<dim>::LeesEdwards(unsigned int Nx_, unsigned int Ny_)
 	:
 	Solver<dim>(Nx_, Ny_)
 {
-	solution.reinit(dof_handler.n_dofs());
 	global_displacement.reinit(dof_handler.n_dofs());
 	rhs_eigenstrain.reinit(dof_handler.n_dofs());
 	rhs_load.reinit(dof_handler.n_dofs());
 	system_rhs.reinit(dof_handler.n_dofs());
 	active_loading_mode = "xy";
-
-	impl::make_element_maps<dim>(*this);
-	impl::average_shape_function_gradients<dim>(*this);
 };
+
+
+template<int dim>
+typename LeesEdwards<dim>::State LeesEdwards<dim>::get_state() const
+{
+	State state;
+	state.load = load;
+	state.solution = solution;
+	state.elastic_strain = elastic_strain;
+	state.stress = stress;
+	state.deformation_gradient = deformation_gradient;
+	state.strain = strain;
+	state.local_eigenstrain = local_eigenstrain;
+	state.total_eigenstrain = total_eigenstrain;
+	state.global_displacement = global_displacement;
+	state.rhs_load = rhs_load;
+	state.rhs_eigenstrain = rhs_eigenstrain;
+	state.system_rhs = system_rhs;
+	state.external_strain = external_strain;
+
+	return state;
+}
+
+template<int dim>
+void LeesEdwards<dim>::set_state(const LeesEdwards<dim>::State &state)
+{
+	load = state.load;
+	solution = state.solution;
+	elastic_strain = state.elastic_strain;
+	stress = state.stress;
+	deformation_gradient = state.deformation_gradient;
+	strain = state.strain;
+	local_eigenstrain = state.local_eigenstrain;
+	total_eigenstrain = state.total_eigenstrain;
+	global_displacement = state.global_displacement;
+	rhs_load = state.rhs_load;
+	rhs_eigenstrain = state.rhs_eigenstrain;
+	system_rhs = state.system_rhs;
+	external_strain = state.external_strain;
+}
 
 
 template<int dim>
@@ -1276,13 +1345,6 @@ ShearBoundary<dim>::ShearBoundary(unsigned int Nx_, unsigned int Ny_)
 
 	system_rhs.reinit(dof_handler.n_dofs());
 	rhs_unit_load.reinit(dof_handler.n_dofs());
-
-	const unsigned int dofs_per_cell = fe.dofs_per_cell;
-	cell_matrix_assembly_data.resize(triangulation.n_active_cells(),
-									 dealii::FullMatrix<double>(dofs_per_cell, dofs_per_cell));
-
-	impl::make_element_maps<dim>(*this);
-	impl::average_shape_function_gradients<dim>(*this);
 }
 
 
