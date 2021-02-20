@@ -52,7 +52,7 @@ struct MacroState
 		time(0.),
 		n_elements(n_elements_)
 	{
-		/*! Constructor. Initialize the value of the magnitudes to zero. */
+		/*! Constructor. */
 
 		// Initialize the map of macroscopic magnitudes. The key-names given here
 		// will be used in other parts of the code to query the state of the
@@ -63,6 +63,36 @@ struct MacroState
 		monitor_map["pressure"] = &pressure;
 		monitor_map["time"] = &time;
 		monitor_map["total_strain"] = &total_strain;
+	};
+
+	MacroState & operator=(const MacroState &rhs)
+	{
+		/*! Assigment operator. Copy the rhs object into the lhs. */
+
+		av_plastic_strain = rhs.av_plastic_strain;
+		total_strain = rhs.total_strain;
+		load = rhs.load;
+		ext_stress = rhs.ext_stress;
+		pressure = rhs.pressure;
+		time = rhs.time;
+		n_elements = rhs.n_elements;
+
+		// monitor_map must not be copied, otherwise its pointers would
+		// point to the members of the object from where the copy is made
+
+		return *this;
+	};
+
+	MacroState(const MacroState &input_macrostate)
+	{
+		/*! Copy constructor. */
+
+		// use the constructor to initialize the monitor_map
+		MacroState( input_macrostate.n_elements );
+
+		// use the = operator to copy the state of all the members except
+		// the monitor map
+		*this = input_macrostate;
 	};
 
 	double operator[](const std::string &name) const
