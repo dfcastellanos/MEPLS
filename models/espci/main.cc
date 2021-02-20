@@ -402,6 +402,9 @@ int main(int argc, char *argv[])
 
 #if defined(OPENMP)
 
+			if(p.sim.n_rep < omp_get_max_threads())
+				p.sim.n_rep = omp_get_max_threads();
+
 			// create a seed to initialize the rnd engine of each thread
 			srand(p.sim.seed);
 			std::vector<unsigned int> seed_for_thread;
