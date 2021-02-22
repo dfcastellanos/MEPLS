@@ -181,15 +181,15 @@ void run(const parameters::Standard &p)
 
 	if(p.out.snapshots.find("slip_thresholds") != std::string::npos)
 		threshold_snapshots.push_back(
-			snapshot::Threshold<dim>(system, p.sim.monitor_name, 0.,
+			snapshot::Threshold(system, p.sim.monitor_name, 0.,
 								macrostate[p.sim.monitor_name]));
 	if(p.out.snapshots.find("stress") != std::string::npos)
 		stress_snapshots.push_back(
-			snapshot::Stress<dim>(system, p.sim.monitor_name, 0.,
+			snapshot::Stress(system, p.sim.monitor_name, 0.,
 							 macrostate[p.sim.monitor_name]));
 	if(p.out.snapshots.find("def_grad") != std::string::npos)
 		def_grad_snapshots.push_back(
-			snapshot::DefGrad<dim>(system, p.sim.monitor_name, 0.,
+			snapshot::DefGrad(system, p.sim.monitor_name, 0.,
 							  macrostate[p.sim.monitor_name]));
 
 	if(p.out.snapshots.find("local_probe") != std::string::npos)
@@ -262,16 +262,16 @@ void run(const parameters::Standard &p)
 
 			if(p.out.snapshots.find("slip_thresholds") != std::string::npos)
 				threshold_snapshots.push_back(
-					snapshot::Threshold<dim>(system, p.sim.monitor_name,
+					snapshot::Threshold(system, p.sim.monitor_name,
 										snapshot_check.desired_value,
 										macrostate[p.sim.monitor_name]));
 			if(p.out.snapshots.find("stress") != std::string::npos)
 				stress_snapshots.push_back(
-					snapshot::Stress<dim>(system, p.sim.monitor_name,
+					snapshot::Stress(system, p.sim.monitor_name,
 									 snapshot_check.desired_value, macrostate[p.sim.monitor_name]));
 			if(p.out.snapshots.find("def_grad") != std::string::npos)
 				def_grad_snapshots.push_back(
-					snapshot::DefGrad<dim>(system, p.sim.monitor_name,
+					snapshot::DefGrad(system, p.sim.monitor_name,
 									  snapshot_check.desired_value,
 									  macrostate[p.sim.monitor_name]));
 			if(p.out.snapshots.find("local_probe") != std::string::npos)
@@ -385,7 +385,7 @@ void run(const parameters::Standard &p)
 int main(int argc, char *argv[])
 {
 	cli::Parser parser(argc, argv);
-	parser.set_optional<std::string>("f", "file", "./default.prm",
+	parser.set_optional<std::string>("f", "file", "./default.cfg",
 									 "Name of the input configuration file");
 	parser.run_and_exit_if_error();
 

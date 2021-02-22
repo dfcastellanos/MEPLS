@@ -17,7 +17,7 @@
 #include <deal.II/lac/full_matrix.h>
 #include <deal.II/lac/sparse_matrix.h>
 #include <deal.II/lac/sparse_direct.h>
-#include <deal.II/lac/affine_constraints.h>
+#include <deal.II/lac/constraint_matrix.h>
 #include <deal.II/grid/tria.h>
 #include <deal.II/grid/grid_tools.h>
 #include <deal.II/dofs/dof_handler.h>
@@ -131,7 +131,7 @@ class Postprocessor: public dealii::DataPostprocessor<dim>
 
 	virtual dealii::UpdateFlags get_needed_update_flags() const
 	{
-		return dealii::update_values | dealii::update_gradients | dealii::update_quadrature_points;
+		return dealii::update_values | dealii::update_gradients | dealii::update_q_points;
 	}
 
 	std::vector<dealii::SymmetricTensor<2, dim> > &cell_stress;
@@ -144,7 +144,7 @@ template<int dim>
 void fix_node(
 	const std::vector<double> &node_coordinates,
 	const unsigned int &dof,
-	dealii::AffineConstraints<double> &constraints,
+	dealii::ConstraintMatrix &constraints,
 	Solver<dim> &solver)
 {
 	dealii::Point<dim> node;
@@ -278,7 +278,7 @@ void add_eigenstrain(
 	const unsigned int &element,
 	const dealii::SymmetricTensor<2, dim> &eigenstrain,
 	dealii::Vector<double> &rhs,
-	dealii::AffineConstraints<double> &constraints,
+	dealii::ConstraintMatrix &constraints,
 	Solver<dim> &solver)
 {
 	const unsigned int dofs_per_cell = solver.fe.dofs_per_cell;
@@ -380,7 +380,7 @@ void assemble_cell_system_matrix(
 template<int dim>
 void assemble_system_matrix(
 	dealii::SparseMatrix<double> &system_matrix,
-	dealii::AffineConstraints<double> &constraints,
+	dealii::ConstraintMatrix &constraints,
 	dealii::Vector<double> &rhs,
 	Solver<dim> &solver)
 {
