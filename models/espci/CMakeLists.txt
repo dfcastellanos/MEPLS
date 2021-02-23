@@ -43,8 +43,10 @@ option(DEFINE_DEBUG "Build the project using debugging code" OFF)
 if (DEFINE_DEBUG)
     add_definitions(-DDEBUG)
     set(CMAKE_BUILD_TYPE Debug)
+    message("-- Build type is debug")
+else()
+    message("-- Build type is release")
 endif (DEFINE_DEBUG)
-message("-- Build type is " ${CMAKE_BUILD_TYPE})
 
 # Set OPENMP macro with -DOPENMP=on
 option(OPENMP "Enable openMP parallelization" ON)
