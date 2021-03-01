@@ -74,17 +74,16 @@ struct Material
 
 	// modulus distribution
 	double average_G = 1.;
-	double average_G_quench = 1.;
 	double average_K = 1.;
 	double weibull_shape_G = 1.;
 	double weibull_shape_K = 1.;
 
 	// others
 	double coupling_constant = 0.1;
-	double temperature = 1e-2;
+	double temperature_liquid = 0.2;
+	double temperature_relaxation = 0.2;
 	double activation_rate = 1.;
 	unsigned int n_slip_systems = 1;
-	unsigned int n_slip_systems_quench = 1;
 
 	void declare_entries(dealii::ParameterHandler &prm)
 	{
@@ -106,8 +105,6 @@ struct Material
 
 		prm.declare_entry("average_G", mepls::utils::str::to_string(average_G),
 						  dealii::Patterns::Double(), "");
-		prm.declare_entry("average_G_quench", mepls::utils::str::to_string(average_G_quench),
-						  dealii::Patterns::Double(), "");
 		prm.declare_entry("average_K", mepls::utils::str::to_string(average_K),
 						  dealii::Patterns::Double(), "");
 		prm.declare_entry("weibull_shape_G", mepls::utils::str::to_string(weibull_shape_G),
@@ -126,15 +123,15 @@ struct Material
 						  dealii::Patterns::Double(0.0), "");
 		prm.declare_entry("coupling_constant", mepls::utils::str::to_string(coupling_constant),
 						  dealii::Patterns::Double(), "");
-		prm.declare_entry("temperature", mepls::utils::str::to_string(temperature),
+		prm.declare_entry("temperature_liquid", mepls::utils::str::to_string(temperature_liquid),
+						  dealii::Patterns::Double(0.0), "");
+		prm.declare_entry("temperature_relaxation", mepls::utils::str::to_string
+		(temperature_relaxation),
 						  dealii::Patterns::Double(0.0), "");
 		prm.declare_entry("activation_rate", mepls::utils::str::to_string(activation_rate),
 						  dealii::Patterns::Double(0.0), "");
 
 		prm.declare_entry("n_slip_systems", mepls::utils::str::to_string(n_slip_systems),
-						  dealii::Patterns::Integer(0), "");
-		prm.declare_entry("n_slip_systems_quench",
-						  mepls::utils::str::to_string(n_slip_systems_quench),
 						  dealii::Patterns::Integer(0), "");
 		prm.declare_entry("prestress", mepls::utils::str::to_string(prestress),
 						  dealii::Patterns::Bool(), "");
@@ -155,7 +152,6 @@ struct Material
 		prestress_std_av_pressure = prm.get_double("prestress_std_av_pressure");
 
 		average_G = prm.get_double("average_G");
-		average_G_quench = prm.get_double("average_G_quench");
 		average_K = prm.get_double("average_K");
 		weibull_shape_G = prm.get_double("weibull_shape_G");
 		weibull_shape_K = prm.get_double("weibull_shape_K");
@@ -166,11 +162,11 @@ struct Material
 		k_quench = prm.get_double("k_quench");
 		alpha_tau = prm.get_double("alpha_tau");
 		coupling_constant = prm.get_double("coupling_constant");
-		temperature = prm.get_double("temperature");
+		temperature_liquid = prm.get_double("temperature_liquid");
+		temperature_relaxation = prm.get_double("temperature_relaxation");
 		activation_rate = prm.get_double("activation_rate");
 
 		n_slip_systems = prm.get_integer("n_slip_systems");
-		n_slip_systems_quench = prm.get_integer("n_slip_systems_quench");
 		prestress = prm.get_bool("prestress");
 
 		prm.leave_subsection();
@@ -229,6 +225,7 @@ struct Simulation
 	 * Gaussian kernel used for blurring the strain field calculated from the elasticity solver. */
 
 	bool kmc_quench = true;
+	bool kmc_relaxation = true;
 	bool reload = true;
 	bool het_elasticity = false;
 	bool do_ee = true;
@@ -265,6 +262,8 @@ struct Simulation
 						  dealii::Patterns::Double(0.0), "");
 		prm.declare_entry("kmc_quench", mepls::utils::str::to_string(kmc_quench),
 						  dealii::Patterns::Bool(), "");
+		prm.declare_entry("kmc_relaxation", mepls::utils::str::to_string(kmc_relaxation),
+						  dealii::Patterns::Bool(), "");
 		prm.declare_entry("reload", mepls::utils::str::to_string(reload), dealii::Patterns::Bool(),
 						  "");
 		prm.declare_entry("het_elasticity", mepls::utils::str::to_string(het_elasticity),
@@ -295,6 +294,7 @@ struct Simulation
 		std_blur = prm.get_double("std_blur");
 		N_probe_list = mepls::utils::str::parse_list_integers(prm.get("N_probe_list"));
 		kmc_quench = prm.get_bool("kmc_quench");
+		kmc_relaxation = prm.get_bool("kmc_relaxation");
 		reload = prm.get_bool("reload");
 		het_elasticity = prm.get_bool("het_elasticity");
 		do_ee = prm.get_bool("do_ee");
@@ -451,9 +451,8 @@ public:
 		double angle = 0.;
 		double coupling_constant = 0.;
 		double alpha_tau = 0.;
-		double temperature = 1e-2;
 		double activation_rate = 1.;
-		unsigned int thermal = 0;
+		double temperature = 0.2;
 	};
 
 	Oriented(std::mt19937 &generator_, const Config &conf_)
@@ -514,8 +513,9 @@ public:
 		std::gamma_distribution<double> g_b(1 - conf.coupling_constant, 1);
 		double za = g_a(generator);
 		double zb = g_b(generator);
-		double eff_shear_stress_variation = -(eff_shear_stress + conf.thermal * (barrier + conf.temperature)) * za / (za + zb);
-//		double eff_shear_stress_variation = - (eff_shear_stress + conf.thermal*barrier ) * za/(za+zb);
+		bool thermal = conf.temperature > 0;
+		double eff_shear_stress_variation = -(eff_shear_stress + thermal * (barrier + conf.temperature)) * za / (za + zb);
+//		double eff_shear_stress_variation = - (eff_shear_stress + thermal*barrier ) * za/(za+zb);
 
 		M_Assert(eff_shear_stress *eff_shear_stress_variation<1,
 					 "Eff. shear stress variation does not reduce local stress. Is the orientation of plastic event according to local stress?");
@@ -568,10 +568,8 @@ public:
 		double weibull_shape_K = 1.;
 
 		double alpha_tau = 0.;
-		unsigned int thermal = 0;
-
 		double coupling_constant = 0.2;
-		double temperature = 1e-2;
+		double temperature = 0.2;
 		double activation_rate = 1.;
 
 		unsigned int n_slip_systems = 1;
@@ -638,7 +636,7 @@ public:
 		slip_conf.coupling_constant = conf.coupling_constant;
 		slip_conf.temperature = conf.temperature;
 		slip_conf.activation_rate = conf.activation_rate;
-		slip_conf.thermal = conf.thermal;
+		slip_conf.temperature = conf.temperature;
 
 		auto &threshold_distribution = *threshold_distribution_ptr;
 
@@ -694,13 +692,16 @@ public:
 		for(auto &slip : *this)
 		{
 			auto &slip_conf = static_cast<slip::Oriented<dim> *>(slip)->conf;
-			slip_conf.thermal = conf.thermal;
 			slip_conf.alpha_tau = conf.alpha_tau;
 			slip_conf.coupling_constant = conf.coupling_constant;
 			slip_conf.temperature = conf.temperature;
 			slip_conf.activation_rate = conf.activation_rate;
-			slip_conf.thermal = conf.thermal;
 		}
+
+		// slips must be informed. For example, if the temperature has changed,
+		// each slip must update its activation rate
+		for(auto &slip : *this)
+			slip->update();
 	}
 
 	void threshold_distribution(std::piecewise_linear_distribution<double> *threshold_distribution_ptr_)
@@ -739,6 +740,7 @@ struct MacroSummaryRow
 	float ext_stress = 0.;
 	float av_potential_energy = 0.;
 	float std_potential_energy = 0.;
+	float temperature = 0.;
 };
 
 
@@ -992,8 +994,10 @@ inline void file_attrs(H5::H5File &file, const parameters::Standard &p)
 		H5::PredType::NATIVE_UINT, &p.sim.seed);
 	file.createAttribute("coupling_constant", H5::PredType::NATIVE_DOUBLE, att_space).write(
 		H5::PredType::NATIVE_DOUBLE, &p.mat.coupling_constant);
-	file.createAttribute("temperature", H5::PredType::NATIVE_DOUBLE, att_space).write(
-		H5::PredType::NATIVE_DOUBLE, &p.mat.temperature);
+	file.createAttribute("temperature_liquid", H5::PredType::NATIVE_DOUBLE, att_space).write(
+		H5::PredType::NATIVE_DOUBLE, &p.mat.temperature_liquid);
+	file.createAttribute("temperature_relaxation", H5::PredType::NATIVE_DOUBLE, att_space).write(
+		H5::PredType::NATIVE_DOUBLE, &p.mat.temperature_relaxation);
 	file.createAttribute("activation_rate", H5::PredType::NATIVE_DOUBLE, att_space).write(
 		H5::PredType::NATIVE_DOUBLE, &p.mat.activation_rate);
 	file.createAttribute("prestress_av_pressure", H5::PredType::NATIVE_DOUBLE, att_space).write(
@@ -1069,6 +1073,8 @@ inline void evolution_history(H5::H5File &file,
 		mtype.insertMember("av_slip_threshold", HOFFSET(DataRow, av_slip_threshold),
 						   H5::PredType::NATIVE_FLOAT);
 		mtype.insertMember("std_slip_threshold", HOFFSET(DataRow, std_slip_threshold),
+						   H5::PredType::NATIVE_FLOAT);
+		mtype.insertMember("temperature", HOFFSET(DataRow, temperature),
 						   H5::PredType::NATIVE_FLOAT);
 
 		hsize_t d[] = {event_history.macro_evolution.size()};
@@ -1501,7 +1507,7 @@ inline std::string make_filename(const parameters::Standard &p)
 	elastic_properties << "-avG_" << std::fixed << std::setprecision(3) << p.mat.average_G;
 	lambda << "-lambda_" << std::fixed << std::setprecision(4) << p.mat.lambda;
 	k << "-k_" << std::fixed << std::setprecision(4) << p.mat.k;
-	temperature << "-T" << std::fixed << std::setprecision(2) << p.mat.temperature;
+	temperature << "-Tl_" << std::fixed << std::setprecision(2) << p.mat.temperature_liquid;
 	seed << "-seed_" << p.sim.seed;
 
 	file_descriptor_ostrg << L.str() << lambda.str() << k.str() << nslip.str()
@@ -1738,14 +1744,13 @@ std::vector<element::Anisotropic<dim> *> create_elements(const parameters::Stand
 	{
 		typename element::Anisotropic<dim>::Config conf;
 
-		conf.average_G = p.mat.average_G_quench;
+		conf.average_G = p.mat.average_G;
 		conf.average_K = p.mat.average_K;
 		conf.weibull_shape_G = p.mat.weibull_shape_G;
 		conf.weibull_shape_K = p.mat.weibull_shape_K;
 		conf.alpha_tau = p.mat.alpha_tau;
-		conf.n_slip_systems = p.mat.n_slip_systems_quench;
+		conf.n_slip_systems = p.mat.n_slip_systems;
 		conf.coupling_constant = p.mat.coupling_constant;
-		conf.temperature = p.mat.temperature;
 		conf.activation_rate = p.mat.activation_rate;
 		conf.number = n;
 

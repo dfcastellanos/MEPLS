@@ -80,8 +80,8 @@ void run(const parameters::Standard &p)
 	std::vector<GlobalPropertiesSnapshot<dim>> global_properties_snapshots;
 	auto patch_to_element_map = patches::make_patch_to_element_map(elements, p.sim.N_probe_list,
 																   p.sim.Nx, p.sim.Ny);
-
 	bool kmc_quench = p.sim.kmc_quench;
+	bool kmc_relaxation = p.sim.kmc_relaxation;
 	bool reload = p.sim.reload;
 	bool het_elasticity = p.sim.het_elasticity;
 	bool precalculate = not het_elasticity; // precalculate stress factors when doing local probes; only valid for homogeneous elasticity
@@ -117,8 +117,9 @@ void run(const parameters::Standard &p)
 	}
 
 	// assemble solver to be used in the simulation
-	elasticity_solver::LeesEdwards<dim> solver(p.sim.Nx, p.sim.Ny);M_Assert(elements.size() == solver.get_n_elements(),
-																			"Numbers of mesoscale and finite elements do not match");
+	elasticity_solver::LeesEdwards<dim> solver(p.sim.Nx, p.sim.Ny);
+	M_Assert(elements.size() == solver.get_n_elements(), "Numbers of mesoscale and finite "
+													  "elements do not match");
 	for(auto &element : elements)
 		solver.set_elastic_properties(element->number(), element->C());
 	solver.setup_and_assembly();
@@ -151,10 +152,9 @@ void run(const parameters::Standard &p)
 		//		av_pressure[1][1] = p.mat.prestress_av_pressure + av_pressure_fluctuation;
 		//		element->prestress( element->prestress() + av_pressure);
 
-		auto conf = element->config();
-		conf.thermal = 1;
-
-		element->config(conf);
+			auto conf = element->config();
+			conf.temperature = p.mat.temperature_liquid;
+			element->config(conf);
 	}
 
 
@@ -175,23 +175,19 @@ void run(const parameters::Standard &p)
 	for(auto &element : elements_espci)
 	{
 		auto conf = element->config();
-		conf.n_slip_systems = p.mat.n_slip_systems;
-		conf.average_G = p.mat.average_G;
-		conf.thermal = 0;
-
+		conf.temperature = 0;
 		element->config(conf);
 
 		element->threshold_distribution(
 			threshold_distribution_ptr); // next call to renew_stuctrua_properties will use this distribution
 	}
 
-
 	timer->leave_subsection("Creating quench");
 
 
-	/////////////////////////////////
-	//////  initiate loading ///////
-	///////////////////////////////
+	////////////////////////////
+	//////      AQS     ///////
+	//////////////////////////
 
 	history::EventAndMacro<dim> aqs_history("AQS");
 	system.set_history(aqs_history);
@@ -302,9 +298,84 @@ void run(const parameters::Standard &p)
 							p.sim.monitor_name + " limit reached");
 	}
 
+	auto solver_state_end_AQS = solver.get_state();
+	auto macrostate_end_AQS = system.macrostate;
+
 	if(p.out.verbosity and omp_get_thread_num() == 0)
 		std::cout << continue_simulation << std::endl;
 
+
+
+	//////////////////////////////////
+	//////  thermal relaxation //////
+	////////////////////////////////
+
+	history::EventAndMacro<dim> kmc_relaxation_hist("KMC_relaxation");
+
+	if(kmc_relaxation)
+	{
+		mepls::element::Vector<dim> elements_replica;
+		for(auto &element : elements_espci)
+			elements_replica.push_back( element->make_copy() );
+
+		// the solver state is copied, so it contains the eigenstrain and the load
+		// in this case the elements elastic field need not be converted into a
+		// prestress before
+		solver.set_state(solver_state_end_AQS);
+
+		auto system_replica = system.get_new_instance(elements_replica, solver,
+													  system.generator);
+		system_replica->macrostate = macrostate_end_AQS;
+		system_replica->set_history(kmc_relaxation_hist);
+
+		// initiate dynamics using copied system
+		mepls::dynamics::KMC<dim> kmc;
+		mepls::utils::ContinueSimulation continue_relaxing;
+		auto &macrostate = system_replica->macrostate;
+		while(continue_relaxing())
+		{
+			// modify the temp. with time as in the MD system
+			double t = macrostate["time"];
+			double tp = 7.3*100;
+			double T = t < tp ? 0.5*p.mat.temperature_relaxation*(t/tp+1) : p.mat.temperature_relaxation;
+
+			// update the elements temperature
+			for(auto &element : elements_replica)
+			{
+				auto element_espci = static_cast<espci::element::Anisotropic<dim> *>(element);
+				auto conf = element_espci->config();
+				conf.temperature = T;
+				element_espci->config(conf);
+			}
+
+			if(p.out.verbosity and omp_get_thread_num() == 0)
+				std::cout << kmc_relaxation_hist.index << " | " << std::fixed
+						  << macrostate["total_strain"]
+						  << " " << macrostate["ext_stress"]
+						  << " " << macrostate["pressure"]
+						  << " " << macrostate["time"]
+						  << std::endl;
+
+			kmc(*system_replica, continue_relaxing);
+			mepls::dynamics::relaxation(*system_replica, p.sim.fracture_limit, continue_relaxing);
+
+			kmc_relaxation_hist.add_macro( *system_replica );
+			// set the value of the temperature in the macro. evol. dataset
+			// TODO add_macro( *system_replica ) should have access to the
+			// elements' temperature and compute the average
+			kmc_relaxation_hist.macro_evolution.back().temperature = T;
+
+			continue_relaxing(std::abs(macrostate["time"]) < 5000, "System relaxed");
+		}
+
+		delete system_replica;
+
+		if(p.out.verbosity and omp_get_thread_num() == 0)
+		{
+			std::cout << continue_relaxing << std::endl;
+			std::cout << "Relaxing finished" << std::endl;
+		}
+	}
 
 	///////////////////////////////
 	//////  reloading step ///////
@@ -318,9 +389,17 @@ void run(const parameters::Standard &p)
 	{
 		timer->enter_subsection("Reloading");
 
+		// the solver state is copied, so it contains the eigenstrain and the load
+		// in this case the elements elastic field need not be converted into a
+		// prestress before
+		solver.set_state(solver_state_end_AQS);
+
+		system.macrostate = macrostate_end_AQS;
+
 		system.set_history(aqs_unloading);
 
 		utils::ContinueSimulation continue_unloading;
+		auto &macrosate = system.macrostate;
 		while(continue_unloading())
 		{
 			if(p.out.verbosity and omp_get_thread_num() == 0)
@@ -356,6 +435,8 @@ void run(const parameters::Standard &p)
 
 	if(kmc_quench)
 		write::evolution_history(file, kmc_history);
+	if(kmc_relaxation)
+		write::evolution_history(file, kmc_relaxation_hist);
 	write::evolution_history(file, aqs_history);
 	if(reload)
 	{
