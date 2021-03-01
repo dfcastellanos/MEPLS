@@ -166,6 +166,26 @@ void run(const parameters::Standard &p)
 		quench::run_thermal_evolution(system, kmc_history, p, continue_simulation);
 	quench::convert_state_to_quench(system);
 
+	//	Set the threshold renewal properties before performing any quench-state shear tests
+	auto weibull = [&](double x, double k, double lambda)
+	{ return std::pow(x, k - 1) * std::exp(-std::pow(x / lambda, k)); };
+	auto func = std::bind(weibull, std::placeholders::_1, p.mat.k, p.mat.lambda);
+	auto threshold_distribution_ptr = utils::rand::create_distribution(func, 1e-3, 0., 1e-7, 8);
+
+	for(auto &element : elements_espci)
+	{
+		auto conf = element->config();
+		conf.n_slip_systems = p.mat.n_slip_systems;
+		conf.average_G = p.mat.average_G;
+		conf.thermal = 0;
+
+		element->config(conf);
+
+		element->threshold_distribution(
+			threshold_distribution_ptr); // next call to renew_stuctrua_properties will use this distribution
+	}
+
+
 	timer->leave_subsection("Creating quench");
 
 
@@ -212,35 +232,15 @@ void run(const parameters::Standard &p)
 	timer->leave_subsection("Taking snapshots");
 
 
-	/* ----- struct. properties ----- */
+	/* ----- save struct. properties ----- */
 	std::vector<event::RenewSlip<dim>> renewal_vector;
 	for(auto &element : elements)
 		element->record_structural_properties(renewal_vector);
 	aqs_history.add(renewal_vector);
 
 
-	timer->enter_subsection("Running forward loading");
-
-	auto weibull = [&](double x, double k, double lambda)
-	{ return std::pow(x, k - 1) * std::exp(-std::pow(x / lambda, k)); };
-	auto func = std::bind(weibull, std::placeholders::_1, p.mat.k, p.mat.lambda);
-	auto threshold_distribution_ptr = utils::rand::create_distribution(func, 1e-3, 0., 1e-7, 8);
-
-	for(auto &element : elements_espci)
-	{
-		auto conf = element->config();
-		conf.n_slip_systems = p.mat.n_slip_systems;
-		conf.average_G = p.mat.average_G;
-		conf.thermal = 0;
-
-		element->config(conf);
-
-		element->threshold_distribution(
-			threshold_distribution_ptr); // next call to renew_stuctrua_properties will use this distribution
-	}
-
-
 	/* ---- simulation loop ----- */
+	timer->enter_subsection("Running forward loading");
 
 	dynamics::relaxation(system, p.sim.fracture_limit, continue_simulation);
 
