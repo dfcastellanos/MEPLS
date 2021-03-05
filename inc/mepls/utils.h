@@ -13,6 +13,7 @@
 #define RUN_SIM_UTILS_H
 
 #include <iostream>
+#include <fstream>
 #include <random>
 #include <math.h>
 #include <algorithm>
@@ -81,7 +82,7 @@ std::string test_is_passed(bool b)
 }
 
 template<int dim>
-void assert_test_result(
+void assert_result(
 	std::string name,
 	dealii::SymmetricTensor<4, dim> &actual,
 	dealii::SymmetricTensor<4, dim> &expected,
@@ -99,7 +100,7 @@ void assert_test_result(
 }
 
 template<int dim>
-void assert_test_result(
+void assert_result(
 	std::string name,
 	dealii::SymmetricTensor<2, dim> &actual,
 	dealii::SymmetricTensor<2, dim> &expected,
@@ -112,12 +113,12 @@ void assert_test_result(
 	 * (see \ref test_is_passed). */
 
 	double z = 100 * (actual - expected).norm() / expected.norm();
-	output_stream << " * " << name << ": " << actual << " ---- " << z << "% -> "
+	output_stream << " * " << name << ": val = " << actual << "  |  err = " << z << "%  |  result"
+																				 " = "
 				  << test_is_passed(z < tol_percent) << std::endl;
 }
 
-template<int dim>
-void assert_test_result(
+void assert_result(
 	std::string name,
 	double actual,
 	double expected,
@@ -130,7 +131,8 @@ void assert_test_result(
 	 * (see \ref test_is_passed). */
 
 	double z = 100 * std::abs((actual - expected) / expected);
-	output_stream << " * " << name << ": " << actual << " ---- " << z << "% -> "
+	output_stream << " * " << name << ": val = " << actual << "  |  err = " << z << "%  |  result"
+																				 " = "
 				  << test_is_passed(z < tol_percent) << std::endl;
 }
 
