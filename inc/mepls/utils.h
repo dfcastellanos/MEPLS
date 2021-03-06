@@ -113,7 +113,8 @@ void assert_result(
 	 * (see \ref test_is_passed). */
 
 	double z = 100 * (actual - expected).norm() / expected.norm();
-	output_stream << " * " << name << ": val = " << actual << "  |  err = " << z << "%  |  result"
+	output_stream << " * " << name << ": val = " << actual << "  |  expected = " << expected << "  |  "
+																					"result"
 																				 " = "
 				  << test_is_passed(z < tol_percent) << std::endl;
 }
@@ -131,7 +132,8 @@ void assert_result(
 	 * (see \ref test_is_passed). */
 
 	double z = 100 * std::abs((actual - expected) / expected);
-	output_stream << " * " << name << ": val = " << actual << "  |  err = " << z << "%  |  result"
+	output_stream << " * " << name << ": val = " << actual << "  |  expected = " << expected <<
+	"  |  result"
 																				 " = "
 				  << test_is_passed(z < tol_percent) << std::endl;
 }
