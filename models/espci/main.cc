@@ -216,7 +216,7 @@ void run(const parameters::Standard &p)
 
 
 	/* ---- simulation loop ----- */
-	timer->enter_subsection("Running forward loading");
+	timer->enter_subsection("Running AQS");
 
 	dynamics::relaxation(system, p.sim.fracture_limit, continue_simulation);
 
@@ -233,7 +233,7 @@ void run(const parameters::Standard &p)
 
 		if(snapshot_check(macrostate[p.sim.monitor_name]))
 		{
-			timer->leave_subsection("Running forward loading");
+			timer->leave_subsection("Running AQS");
 			timer->enter_subsection("Taking snapshots");
 
 			if(p.out.snapshots.find("slip_thresholds") != std::string::npos)
@@ -265,7 +265,7 @@ void run(const parameters::Standard &p)
 				}
 
 			timer->leave_subsection("Taking snapshots");
-			timer->enter_subsection("Running forward loading");
+			timer->enter_subsection("Running AQS");
 		}
 
 		aqs_history.add_macro(system);
@@ -284,6 +284,7 @@ void run(const parameters::Standard &p)
 	if(p.out.verbosity and omp_get_thread_num() == 0)
 		std::cout << continue_simulation << std::endl;
 
+	timer->leave_subsection("Running AQS");
 
 
 	//////////////////////////////////
