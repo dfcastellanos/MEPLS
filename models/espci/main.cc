@@ -290,6 +290,8 @@ void run(const parameters::Standard &p)
 	//////  thermal relaxation //////
 	////////////////////////////////
 
+	timer->enter_subsection("Thermal relaxation");
+
 	history::EventAndMacro<dim> kmc_relaxation_hist("KMC_relaxation");
 
 	if(kmc_relaxation)
@@ -356,6 +358,8 @@ void run(const parameters::Standard &p)
 			std::cout << "Relaxing finished" << std::endl;
 		}
 	}
+
+	timer->leave_subsection("Thermal relaxation");
 
 	///////////////////////////////
 	//////  reloading step ///////
