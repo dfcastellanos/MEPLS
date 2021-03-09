@@ -278,6 +278,9 @@ void run(const parameters::Standard &p)
 							p.sim.monitor_name + " limit reached");
 	}
 
+	// record also the final state
+	aqs_history.add_macro(system);
+
 	auto solver_state_end_AQS = solver.get_state();
 	auto macrostate_end_AQS = system.macrostate;
 
@@ -298,8 +301,21 @@ void run(const parameters::Standard &p)
 	if(kmc_relaxation)
 	{
 		mepls::element::Vector<dim> elements_replica;
-		for(auto &element : elements_espci)
-			elements_replica.push_back( element->make_copy() );
+		for(auto &element_espci : elements_espci)
+		{
+			auto element = element_espci->make_copy();
+
+			// The copy returns a pointer to a base class object, but we need
+			// the derived type config. struct. Since herewe have certainty that
+			// the dynamic type is espci::element::Anisotropic<dim>, it is safe
+			// to simply cast the pointer
+			auto element_casted = static_cast<espci::element::Anisotropic<dim> *>(element);
+			auto conf = element_casted->config();
+			conf.temperature = p.mat.temperature_relaxation;
+			element_casted->config(conf);
+
+			elements_replica.push_back( element );
+		}
 
 		// the solver state is copied, so it contains the eigenstrain and the load
 		// in this case the elements elastic field need not be converted into a
@@ -317,19 +333,6 @@ void run(const parameters::Standard &p)
 		auto &macrostate = system_replica->macrostate;
 		while(continue_relaxing())
 		{
-			// modify the temp. with time as in the MD system
-			double t = macrostate["time"];
-			double tp = 7.3*100;
-			double T = t < tp ? 0.5*p.mat.temperature_relaxation*(t/tp+1) : p.mat.temperature_relaxation;
-
-			// update the elements temperature
-			for(auto &element : elements_replica)
-			{
-				auto element_espci = static_cast<espci::element::Anisotropic<dim> *>(element);
-				auto conf = element_espci->config();
-				conf.temperature = T;
-				element_espci->config(conf);
-			}
 
 			if(p.out.verbosity and omp_get_thread_num() == 0)
 				std::cout << kmc_relaxation_hist.index << " | " << std::fixed
@@ -343,12 +346,8 @@ void run(const parameters::Standard &p)
 			mepls::dynamics::relaxation(*system_replica, p.sim.fracture_limit, continue_relaxing);
 
 			kmc_relaxation_hist.add_macro( *system_replica );
-			// set the value of the temperature in the macro. evol. dataset
-			// TODO add_macro( *system_replica ) should have access to the
-			// elements' temperature and compute the average
-			kmc_relaxation_hist.macro_evolution.back().temperature = T;
 
-			continue_relaxing(std::abs(macrostate["time"]) < 5000, "System relaxed");
+			continue_relaxing(macrostate["ext_stress"] > 0, "System relaxed");
 		}
 
 		delete system_replica;

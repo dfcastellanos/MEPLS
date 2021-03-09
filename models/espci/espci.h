@@ -720,7 +720,6 @@ struct MacroSummaryRow
 	float ext_stress = 0.;
 	float av_potential_energy = 0.;
 	float std_potential_energy = 0.;
-	float temperature = 0.;
 };
 
 
@@ -1053,8 +1052,6 @@ inline void evolution_history(H5::H5File &file,
 		mtype.insertMember("av_slip_threshold", HOFFSET(DataRow, av_slip_threshold),
 						   H5::PredType::NATIVE_FLOAT);
 		mtype.insertMember("std_slip_threshold", HOFFSET(DataRow, std_slip_threshold),
-						   H5::PredType::NATIVE_FLOAT);
-		mtype.insertMember("temperature", HOFFSET(DataRow, temperature),
 						   H5::PredType::NATIVE_FLOAT);
 
 		hsize_t d[] = {event_history.macro_evolution.size()};
