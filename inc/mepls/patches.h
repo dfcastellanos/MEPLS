@@ -545,7 +545,7 @@ void analyze_patch_ensemble(
 								   dgamma);
 
 #ifdef DEBUG
-			dealii::SymmetricTensor<2,dim> M = utils::make_schmidt_tensor<dim>(theta);
+			dealii::SymmetricTensor<2,dim> M = utils::tensor::make_schmid<dim>(theta);
 			double eff_ss = M*patch_properties.stress_ss;
 			double eff_oi = M*patch_properties.stress_oi;
 			M_Assert(eff_oi>eff_ss, "resolved shear stress on the shearing plane at the onset of instability is lower than at the stable state");
@@ -735,7 +735,7 @@ void analyze_patch_ensemble_opt(
 
 
 #ifdef DEBUG
-			dealii::SymmetricTensor<2,dim> M = utils::make_schmidt_tensor<dim>(theta);
+			dealii::SymmetricTensor<2,dim> M = utils::tensor::make_schmid<dim>(theta);
 			double eff_ss = M*patch_properties.stress_ss;
 			double eff_oi = M*patch_properties.stress_oi;
 			M_Assert(eff_oi>eff_ss, "resolved shear stress on the shearing plane at the onset of instability is lower than at the stable state");
