@@ -822,15 +822,15 @@ class PatchPropertiesSnapshot
 		/*!< Component xy of the stress tensor averaged over the elements composing
 		 * the patch. The operation is performed in the oi-state. */
 
-		double ss_pe = 0.;
+		float ss_pe = 0.;
 		/*!< Elastic energy averaged over the elements composing the patch. The
 		 * operation is performed in the ss-state. */
 
-		double oi_pe = 0.;
+		float oi_pe = 0.;
 		/*!< Elastic energy averaged over the elements composing the patch. The
 		 * operation is performed in the oi-state. */
 
-		double ee_pe = 0.;
+		float ee_pe = 0.;
 		/*!< Elastic energy averaged over the elements composing the patch. The
 		 * operation is performed in the ee-state. */
 
