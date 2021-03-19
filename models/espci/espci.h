@@ -707,19 +707,19 @@ struct MacroSummaryRow
 {
 	/*! Struct to store system-scale properties */
 
-	float av_vm_plastic_strain = 0.;
-	float std_vm_plastic_strain = 0.;
-	float av_vm_stress = 0.;
-	float av_pressure = 0.;
-	float std_vm_stress = 0.;
-	float std_pressure = 0.;
-	float av_slip_threshold = 0.;
-	float std_slip_threshold = 0.;
+	double av_vm_plastic_strain = 0.;
+	double std_vm_plastic_strain = 0.;
+	double av_vm_stress = 0.;
+	double av_pressure = 0.;
+	double std_vm_stress = 0.;
+	double std_pressure = 0.;
+	double av_slip_threshold = 0.;
+	double std_slip_threshold = 0.;
 	double time = 0.;
-	float total_strain = 0.;
-	float ext_stress = 0.;
-	float av_potential_energy = 0.;
-	float std_potential_energy = 0.;
+	double total_strain = 0.;
+	double ext_stress = 0.;
+	double av_potential_energy = 0.;
+	double std_potential_energy = 0.;
 };
 
 
@@ -1034,25 +1034,25 @@ inline void evolution_history(H5::H5File &file,
 
 		H5::CompType mtype(sizeof(DataRow));
 		mtype.insertMember("time", HOFFSET(DataRow, time), H5::PredType::NATIVE_DOUBLE);
-		mtype.insertMember("total_strain", HOFFSET(DataRow, total_strain), H5::PredType::NATIVE_FLOAT);
-		mtype.insertMember("ext_stress", HOFFSET(DataRow, ext_stress), H5::PredType::NATIVE_FLOAT);
+		mtype.insertMember("total_strain", HOFFSET(DataRow, total_strain), H5::PredType::NATIVE_DOUBLE);
+		mtype.insertMember("ext_stress", HOFFSET(DataRow, ext_stress), H5::PredType::NATIVE_DOUBLE);
 		mtype.insertMember("av_vm_plastic_strain", HOFFSET(DataRow, av_vm_plastic_strain),
-						   H5::PredType::NATIVE_FLOAT);
+						   H5::PredType::NATIVE_DOUBLE);
 		mtype.insertMember("std_vm_plastic_strain", HOFFSET(DataRow, std_vm_plastic_strain),
-						   H5::PredType::NATIVE_FLOAT);
-		mtype.insertMember("av_vm_stress", HOFFSET(DataRow, av_vm_stress), H5::PredType::NATIVE_FLOAT);
+						   H5::PredType::NATIVE_DOUBLE);
+		mtype.insertMember("av_vm_stress", HOFFSET(DataRow, av_vm_stress), H5::PredType::NATIVE_DOUBLE);
 		mtype.insertMember("std_vm_stress", HOFFSET(DataRow, std_vm_stress),
-						   H5::PredType::NATIVE_FLOAT);
-		mtype.insertMember("av_pressure", HOFFSET(DataRow, av_pressure), H5::PredType::NATIVE_FLOAT);
-		mtype.insertMember("std_pressure", HOFFSET(DataRow, std_pressure), H5::PredType::NATIVE_FLOAT);
+						   H5::PredType::NATIVE_DOUBLE);
+		mtype.insertMember("av_pressure", HOFFSET(DataRow, av_pressure), H5::PredType::NATIVE_DOUBLE);
+		mtype.insertMember("std_pressure", HOFFSET(DataRow, std_pressure), H5::PredType::NATIVE_DOUBLE);
 		mtype.insertMember("av_potential_energy", HOFFSET(DataRow, av_potential_energy),
-						   H5::PredType::NATIVE_FLOAT);
+						   H5::PredType::NATIVE_DOUBLE);
 		mtype.insertMember("std_potential_energy", HOFFSET(DataRow, std_potential_energy),
-						   H5::PredType::NATIVE_FLOAT);
+						   H5::PredType::NATIVE_DOUBLE);
 		mtype.insertMember("av_slip_threshold", HOFFSET(DataRow, av_slip_threshold),
-						   H5::PredType::NATIVE_FLOAT);
+						   H5::PredType::NATIVE_DOUBLE);
 		mtype.insertMember("std_slip_threshold", HOFFSET(DataRow, std_slip_threshold),
-						   H5::PredType::NATIVE_FLOAT);
+						   H5::PredType::NATIVE_DOUBLE);
 
 		hsize_t d[] = {event_history.macro_evolution.size()};
 		H5::DataSpace space(1, d);
