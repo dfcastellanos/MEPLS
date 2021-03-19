@@ -42,8 +42,12 @@ enum Values
 
 	kinetic_monte_carlo = 3, /*!< An event created by \ref dynamics::kmc_step. */
 
-	relaxation_step = 4
-	/*!< An event created by \ref dynamics::relaxation. */
+	relaxation_step = 4, /*!< An event created by \ref dynamics::relaxation. */
+
+	prestress = 5,
+	/*!< An driving event explicitly created by the user to represent the prestress. */
+
+	variation_stiffness = 6 /*!< A driving event signaling a global stiffness variation. */
 };
 
 } // protocol
