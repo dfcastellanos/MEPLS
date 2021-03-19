@@ -720,6 +720,10 @@ struct MacroSummaryRow
 	double ext_stress = 0.;
 	double av_potential_energy = 0.;
 	double std_potential_energy = 0.;
+	double av_shear_modulus = 0.;
+	double av_bulk_modulus = 0.;
+	double std_shear_modulus = 0.;
+	double std_bulk_modulus = 0.;
 };
 
 
@@ -761,22 +765,31 @@ class EventAndMacro: public mepls::history::History<dim>
 		double av_slip_threshold2 = 0.;
 		double av_potential_energy2 = 0.;
 		unsigned int n_total_slip = 0;
+		double av_shear_modulus2 = 0.;
+		double av_bulk_modulus2 = 0.;
 
 		for(auto &element : elements)
 		{
+			auto &C = element->C();
+			double G = C[0][1][0][1];
+			double B = 0.5*(C[0][0][0][0]+C[0][0][1][1]);
+
 			double vm_plastic_strain = element->integrated_vm_eigenstrain();
 			double vm_stress = mepls::utils::get_von_mises_equivalent_stress(element->stress());
 			double pressure = -dealii::trace(element->stress()) / double(dim);
-			double potential_energy = 0.5 * dealii::invert(
-				element->C()) * element->stress() * element->stress();
+			double potential_energy = 0.5 * dealii::invert(C) * element->stress() * element->stress();
 			data.av_vm_plastic_strain += vm_plastic_strain;
 			data.av_vm_stress += vm_stress;
 			data.av_pressure += pressure;
 			data.av_potential_energy += potential_energy;
+			data.av_shear_modulus += G;
+			data.av_bulk_modulus += B;
 			av_vm_plastic_strain2 += vm_plastic_strain * vm_plastic_strain;
 			av_vm_stress2 += vm_stress * vm_stress;
 			av_pressure2 += pressure * pressure;
 			av_potential_energy2 += potential_energy * potential_energy;
+			av_shear_modulus2 += G*G;
+			av_bulk_modulus2 += B*B;
 			for(auto &slip : *element)
 			{
 				data.av_slip_threshold += slip->threshold;
@@ -792,11 +805,15 @@ class EventAndMacro: public mepls::history::History<dim>
 		data.av_pressure /= N;
 		data.av_potential_energy /= N;
 		data.av_slip_threshold /= double(n_total_slip);
+		data.av_shear_modulus /= N;
+		data.av_bulk_modulus /= N;
 		av_vm_plastic_strain2 /= N;
 		av_vm_stress2 /= N;
 		av_pressure2 /= N;
 		av_potential_energy2 /= N;
 		av_slip_threshold2 /= double(n_total_slip);
+		av_shear_modulus2 /= N;
+		av_bulk_modulus2 /= N;
 		data.std_vm_plastic_strain = std::sqrt(
 			av_vm_plastic_strain2 - data.av_vm_plastic_strain * data.av_vm_plastic_strain);
 		data.std_vm_stress = std::sqrt(av_vm_stress2 - data.av_vm_stress * data.av_vm_stress);
@@ -805,6 +822,10 @@ class EventAndMacro: public mepls::history::History<dim>
 			av_potential_energy2 - data.av_potential_energy * data.av_potential_energy);
 		data.std_slip_threshold = std::sqrt(
 			av_slip_threshold2 - data.av_slip_threshold * data.av_slip_threshold);
+		data.std_shear_modulus = std::sqrt(
+			av_shear_modulus2 - data.av_shear_modulus * data.av_shear_modulus);
+		data.std_bulk_modulus = std::sqrt(
+			av_bulk_modulus2 - data.av_bulk_modulus * data.av_bulk_modulus);
 
 		data.time = macrostate["time"];
 		data.total_strain = macrostate["total_strain"];
@@ -1052,6 +1073,14 @@ inline void evolution_history(H5::H5File &file,
 		mtype.insertMember("av_slip_threshold", HOFFSET(DataRow, av_slip_threshold),
 						   H5::PredType::NATIVE_DOUBLE);
 		mtype.insertMember("std_slip_threshold", HOFFSET(DataRow, std_slip_threshold),
+						   H5::PredType::NATIVE_DOUBLE);
+		mtype.insertMember("av_shear_modulus", HOFFSET(DataRow, av_shear_modulus),
+						   H5::PredType::NATIVE_DOUBLE);
+		mtype.insertMember("std_shear_modulus", HOFFSET(DataRow, std_shear_modulus),
+						   H5::PredType::NATIVE_DOUBLE);
+		mtype.insertMember("av_bulk_modulus", HOFFSET(DataRow, av_bulk_modulus),
+						   H5::PredType::NATIVE_DOUBLE);
+		mtype.insertMember("std_bulk_modulus", HOFFSET(DataRow, std_bulk_modulus),
 						   H5::PredType::NATIVE_DOUBLE);
 
 		hsize_t d[] = {event_history.macro_evolution.size()};
