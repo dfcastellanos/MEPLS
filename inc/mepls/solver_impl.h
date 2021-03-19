@@ -247,6 +247,7 @@ void assemble_unitary_eigenstrains(Solver<dim> &solver)
 	std::vector<dealii::Vector<double>> eigenstrain_rhs_at_element(solver.n_components);
 	typename dealii::DoFHandler<dim>::active_cell_iterator cell = solver.dof_handler.begin_active(), endc = solver.dof_handler.end();
 
+	solver.unitary_eigenstrains_rhs.resize(solver.get_n_elements());
 	unsigned int element = 0;
 	for(; cell != endc; ++cell, ++element)
 	{
@@ -268,8 +269,40 @@ void assemble_unitary_eigenstrains(Solver<dim> &solver)
 		assemble_eigenstrain_rhs(eigenstrain, cell_rhs, cell, solver);
 		eigenstrain_rhs_at_element[2] = cell_rhs;
 
-		solver.unitary_eigenstrains_rhs.push_back(eigenstrain_rhs_at_element);
+		solver.unitary_eigenstrains_rhs[element] = eigenstrain_rhs_at_element;
 	}
+}
+
+
+template<int dim>
+void assemble_unitary_eigenstrains_unique(Solver<dim> &solver)
+{
+	dealii::Vector<double> cell_rhs;
+	dealii::SymmetricTensor<2, dim> eigenstrain;
+	std::vector<dealii::Vector<double>> eigenstrain_rhs_at_element(solver.n_components);
+	typename dealii::DoFHandler<dim>::active_cell_iterator cell = solver.dof_handler.begin_active();
+
+	eigenstrain[0][0] = 1.;
+	eigenstrain[1][1] = 0.;
+	eigenstrain[0][1] = 0.;
+	assemble_eigenstrain_rhs(eigenstrain, cell_rhs, cell, solver);
+	eigenstrain_rhs_at_element[0] = cell_rhs;
+
+	eigenstrain[0][0] = 0.;
+	eigenstrain[1][1] = 1.;
+	eigenstrain[0][1] = 0.;
+	assemble_eigenstrain_rhs(eigenstrain, cell_rhs, cell, solver);
+	eigenstrain_rhs_at_element[1] = cell_rhs;
+
+	eigenstrain[0][0] = 0.;
+	eigenstrain[1][1] = 0.;
+	eigenstrain[0][1] = 1.;
+	assemble_eigenstrain_rhs(eigenstrain, cell_rhs, cell, solver);
+	eigenstrain_rhs_at_element[2] = cell_rhs;
+
+	solver.unitary_eigenstrains_rhs.resize(solver.get_n_elements());
+	for(unsigned int element = 0; element < solver.get_n_elements(); ++element)
+		solver.unitary_eigenstrains_rhs[element] = eigenstrain_rhs_at_element;
 }
 
 
