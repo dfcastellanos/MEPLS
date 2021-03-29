@@ -1814,7 +1814,7 @@ void perform_reloading(mepls::system::System<dim> &system,
 		mepls::dynamics::finite_extremal_dynamics_step(1e-4 * 0.5, *system_replica, is_forward);
 		mepls::dynamics::relaxation(*system_replica, p.sim.fracture_limit, continue_loading);
 
-		continue_loading(std::abs(macrostate["total_strain"]) < 0.4 / 2., "System unloaded");
+		continue_loading(std::abs(macrostate["total_strain"]) < 0.4 / 2., "total_strain limit reached");
 	}
 
 	delete system_replica;
