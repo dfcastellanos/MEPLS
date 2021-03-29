@@ -88,18 +88,21 @@ void run(const parameters::Standard &p)
 
 	if(not het_elasticity)
 	{
-		// make sure that properties are heterogeneous, even if we set weibull shapes to very big values,
-		// this ensures a perfect homogeneity
-		auto CC = utils::tensor::make_mandel_anisotropic_stiffness<dim>(p.mat.average_K, p.mat.average_G,
-																		p.mat.average_G, 0.);
+		// If the properties are homogeneous, set them here since the elements,
+		// by default, get their properties from a pdf upon their construction.
+		// (even if the disorder is very small, this procedure ensures a perfect
+		// homogeneity)
+		auto CC = utils::tensor::make_mandel_anisotropic_stiffness<dim>(p.mat.average_K_quench, p.mat.average_G_quench,
+																		p.mat.average_G_quench, 0.);
 		for(auto &element : elements)
 			element->C(utils::tensor::mandel_to_standard_rank4<dim>(CC));
 	}
 
-	// assemble solver to be used in the simulation
 	elasticity_solver::LeesEdwards<dim> solver(p.sim.Nx, p.sim.Ny);
 	M_Assert(elements.size() == solver.get_n_elements(), "Numbers of mesoscale and finite "
 													  "elements do not match");
+
+	// initial (default) assembly using the quench elastic properties.
 	for(auto &element : elements)
 		solver.set_elastic_properties(element->number(), element->C());
 	solver.setup_and_assembly();
@@ -144,6 +147,7 @@ void run(const parameters::Standard &p)
 	system.set_history(kmc_history);
 	if(kmc_quench)
 		quench::run_thermal_evolution(system, kmc_history, p, continue_simulation);
+	dynamics::relaxation(system, p.sim.fracture_limit, continue_simulation);
 	quench::convert_state_to_quench(system);
 
 	//	Set the threshold renewal properties before performing any quench-state shear tests
@@ -218,14 +222,69 @@ void run(const parameters::Standard &p)
 	/* ---- simulation loop ----- */
 	timer->enter_subsection("Running AQS");
 
-	dynamics::relaxation(system, p.sim.fracture_limit, continue_simulation);
-
-
 	continue_simulation(system.macrostate[p.sim.monitor_name] < p.sim.monitor_limit,
 						p.sim.monitor_name + " limit reached");
 
+	// adding an (empty) driving event will record the average prestress
+	// (which can be slightly non-zero due to numerical accuray) as the
+	// first event in the history
+	event::Driving<dim> prestress_event;
+	prestress_event.activation_protocol = mepls::dynamics::Protocol::prestress;
+	system.add(prestress_event);
+
+	double G_old = 0.;
 	while(continue_simulation())
 	{
+		double x = std::exp(-macrostate["av_vm_plastic_strain"]/p.mat.gamma_pl_trans);
+		double G_stat = p.mat.average_G;
+		double G_quench = p.mat.average_G_quench;
+		double G_new = (G_quench-G_stat)*x + G_stat;
+
+		// reassemble the elastic properties if the change if the shear
+		// modulus is big enough, if it's different enough from the stationary
+		// value and only if we are using homogeneous elastic properties
+		if( not het_elasticity and std::abs(G_new/G_old-1)>0.001 and std::abs(G_old/G_stat-1)>0.005 )
+		{
+			timer->leave_subsection("Running AQS");
+			timer->enter_subsection("Reassembling with new stiffness");
+
+			G_old = G_new;
+
+			double K_stat = p.mat.average_K;
+			double K_quench = p.mat.average_K_quench;
+			double K_new = (K_quench-K_stat)*x + K_stat;
+
+			auto CC = utils::tensor::make_mandel_anisotropic_stiffness<dim>(K_new, G_new,
+																			G_new, 0.);
+			auto C = utils::tensor::mandel_to_standard_rank4<dim>(CC);
+
+			for(auto &element : elements)
+				element->C(C);
+
+			solver.reassemble_with_new_stiffness(C);
+
+			// we call add which will inform the macrostate and the elements
+			// about the change in external stress due to the change in global
+			// stiffness and will also record that change in the history
+			const std::vector<event::Plastic<dim>> added_yielding;
+			event::Driving<dim> driving_event_variation_stiffness;
+			driving_event_variation_stiffness.activation_protocol = mepls::dynamics::Protocol::variation_stiffness;
+			system.add(driving_event_variation_stiffness);
+
+			auto state = solver.get_state();
+			mepls::element::calculate_local_stress_coefficients_central(elements, solver);
+			mepls::element::calculate_ext_stress_coefficients(elements, solver);
+			solver.set_state(state);
+
+			// relax to ensure there are no unstable elements after the change
+			// in the elastic properties (if the shear modulus rises with strain,
+			// that will lead to stress rises that can unstabilise elements)
+			dynamics::relaxation(system, p.sim.fracture_limit, continue_simulation);
+
+			timer->leave_subsection("Reassembling with new stiffness");
+			timer->enter_subsection("Running AQS");
+		}
+
 		if(p.out.verbosity and omp_get_thread_num() == 0)
 			std::cout << aqs_history.index << " | " << std::fixed << macrostate["total_strain"]
 					  << " " << macrostate["ext_stress"] << " " << macrostate["pressure"]

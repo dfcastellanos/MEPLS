@@ -54,9 +54,12 @@ struct Material
 
 	// modulus distribution
 	double average_G = 1.;
+	double average_G_quench = 1.;
 	double average_K = 1.;
+	double average_K_quench = 1.;
 	double weibull_shape_G = 1.;
 	double weibull_shape_K = 1.;
+	double gamma_pl_trans = 0.1;
 
 	// others
 	double coupling_constant = 0.1;
@@ -85,11 +88,17 @@ struct Material
 
 		prm.declare_entry("average_G", mepls::utils::str::to_string(average_G),
 						  dealii::Patterns::Double(), "");
+		prm.declare_entry("average_G_quench", mepls::utils::str::to_string(average_G_quench),
+						  dealii::Patterns::Double(), "");
 		prm.declare_entry("average_K", mepls::utils::str::to_string(average_K),
+						  dealii::Patterns::Double(), "");
+		prm.declare_entry("average_K_quench", mepls::utils::str::to_string(average_K_quench),
 						  dealii::Patterns::Double(), "");
 		prm.declare_entry("weibull_shape_G", mepls::utils::str::to_string(weibull_shape_G),
 						  dealii::Patterns::Double(), "");
 		prm.declare_entry("weibull_shape_K", mepls::utils::str::to_string(weibull_shape_K),
+						  dealii::Patterns::Double(), "");
+		prm.declare_entry("gamma_pl_trans", mepls::utils::str::to_string(gamma_pl_trans),
 						  dealii::Patterns::Double(), "");
 
 		prm.declare_entry("lambda", mepls::utils::str::to_string(lambda),
@@ -132,9 +141,12 @@ struct Material
 		prestress_std_av_pressure = prm.get_double("prestress_std_av_pressure");
 
 		average_G = prm.get_double("average_G");
+		average_G_quench = prm.get_double("average_G_quench");
 		average_K = prm.get_double("average_K");
+		average_K_quench = prm.get_double("average_K_quench");
 		weibull_shape_G = prm.get_double("weibull_shape_G");
 		weibull_shape_K = prm.get_double("weibull_shape_K");
+		gamma_pl_trans = prm.get_double("gamma_pl_trans");
 
 		lambda = prm.get_double("lambda");
 		lambda_quench = prm.get_double("lambda_quench");
@@ -1750,8 +1762,8 @@ std::vector<element::Anisotropic<dim> *> create_elements(const parameters::Stand
 	{
 		typename element::Anisotropic<dim>::Config conf;
 
-		conf.average_G = p.mat.average_G;
-		conf.average_K = p.mat.average_K;
+		conf.average_G = p.mat.average_G_quench;
+		conf.average_K = p.mat.average_K_quench;
 		conf.weibull_shape_G = p.mat.weibull_shape_G;
 		conf.weibull_shape_K = p.mat.weibull_shape_K;
 		conf.alpha_tau = p.mat.alpha_tau;
