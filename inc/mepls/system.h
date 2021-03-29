@@ -36,7 +36,7 @@ class Element;
  * updated by registering the occurence of external load variation events
  * (event::Driving) and plastic activity in the form of slip events
  * (event::Plastic). The values of the macroscopic magnitudes (with keys
- * "av_plastic_strain", "load", "ext_stress", "pressure", "time" and
+ * "av_vm_plastic_strain", "load", "ext_stress", "pressure", "time" and
  * "total_strain") are then retrieved using the \ref operator[] with the key of
  * the magnitude. */
 template<int dim>
@@ -44,7 +44,7 @@ struct MacroState
 {
 	MacroState(unsigned int n_elements_)
 		:
-		av_plastic_strain(0.),
+		av_vm_plastic_strain(0.),
 		total_strain(0.),
 		load(0.),
 		ext_stress(0.),
@@ -57,7 +57,7 @@ struct MacroState
 		// Initialize the map of macroscopic magnitudes. The key-names given here
 		// will be used in other parts of the code to query the state of the
 		// different macroscale magnitudes
-		monitor_map["av_plastic_strain"] = &av_plastic_strain;
+		monitor_map["av_vm_plastic_strain"] = &av_vm_plastic_strain;
 		monitor_map["load"] = &load;
 		monitor_map["ext_stress"] = &ext_stress;
 		monitor_map["pressure"] = &pressure;
@@ -69,7 +69,7 @@ struct MacroState
 	{
 		/*! Assigment operator. Copy the rhs object into the lhs. */
 
-		av_plastic_strain = rhs.av_plastic_strain;
+		av_vm_plastic_strain = rhs.av_vm_plastic_strain;
 		total_strain = rhs.total_strain;
 		load = rhs.load;
 		ext_stress = rhs.ext_stress;
@@ -125,7 +125,7 @@ struct MacroState
 		/*! Update the macroscopic quantities using the information contained in
 		 * the input \ref event::Plastic object. */
 
-		av_plastic_strain += event.dplastic_strain / double(n_elements);
+		av_vm_plastic_strain += event.dplastic_strain / double(n_elements);
 		time += event.dtime;
 	};
 
@@ -133,7 +133,7 @@ struct MacroState
 	{
 		/*! Reset the value of all the magnitudes to zero. */
 
-		av_plastic_strain = 0.;
+		av_vm_plastic_strain = 0.;
 		total_strain = 0.;
 		load = 0.;
 		ext_stress = 0.;
@@ -141,7 +141,7 @@ struct MacroState
 	};
 
   private:
-	double av_plastic_strain;
+	double av_vm_plastic_strain;
 	/*!< Average plastic strain. It is defined as the sum of the von Mises
 	 * equivalent plastic strain introduced by all events slip events, divided by
 	 * the number of mesoscale elements in the system.
@@ -178,7 +178,7 @@ struct MacroState
 	/*!< Map relating the names of the macroscopic magnitudes to pointers to
 	 * their values. Consequently, when the value of a magnitude with a certain
 	 * name is requested, the map returns the current value of the magnitude.
-	 * Existing keys are "av_plastic_strain", "load", "ext_stress", "pressure",
+	 * Existing keys are "av_vm_plastic_strain", "load", "ext_stress", "pressure",
 	 * "time" and "total_strain". */
 
 	unsigned int n_elements;

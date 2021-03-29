@@ -233,7 +233,7 @@ struct Simulation
 		prm.declare_entry("trigger", trigger, dealii::Patterns::Selection(
 			"extremal_dynamics|kmc|finite_extremal_dynamics"), "");
 		prm.declare_entry("monitor_name", monitor_name, dealii::Patterns::Selection(
-			"av_plastic_strain|load|ext_stress|time|total_strain"), "");
+			"av_vm_plastic_strain|load|ext_stress|time|total_strain"), "");
 		prm.declare_entry("monitor_limit", mepls::utils::str::to_string(monitor_limit),
 						  dealii::Patterns::Double(0.0), "");
 		prm.declare_entry("fracture_limit", mepls::utils::str::to_string(fracture_limit),
