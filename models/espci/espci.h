@@ -186,9 +186,6 @@ struct Simulation
 	double initial_load = 0.;
 	/*!< Value of the load applied at the beginning of the simulation.  */
 
-	std::string loading_mode = "pure_shear";
-	/*!< Loading conditions, e.g., pure shear, compression etc. */
-
 	std::string control_mode = "displacement";
 	/*!< Mode of driving the system. It can be displacement or traction controlled (equivalent to
 	 * strain or stress controlled). */
@@ -212,10 +209,6 @@ struct Simulation
 	 * which is very big. Such value can, in most cases, indicate that the material has fractured
 	 *  and therefore the simulation must stop. */
 
-	double std_blur = 0.;
-	/*!< Value of the standard deviation (in units of the mesoscale element linear length) of the
-	 * Gaussian kernel used for blurring the strain field calculated from the elasticity solver. */
-
 	bool kmc_quench = true;
 	bool kmc_relaxation = true;
 	bool reload = true;
@@ -236,8 +229,6 @@ struct Simulation
 		prm.declare_entry("Ny", mepls::utils::str::to_string(Ny), dealii::Patterns::Integer(0), "");
 		prm.declare_entry("seed", mepls::utils::str::to_string(seed), dealii::Patterns::Integer(0),
 						  "");
-		prm.declare_entry("loading_mode", loading_mode, dealii::Patterns::Selection(
-			"pure_shear|pure_shear_pbc|simple_shear|compression"), "");
 		prm.declare_entry("initial_load", mepls::utils::str::to_string(initial_load),
 						  dealii::Patterns::Double(0.0), "");
 		prm.declare_entry("control_mode", control_mode,
@@ -249,8 +240,6 @@ struct Simulation
 		prm.declare_entry("monitor_limit", mepls::utils::str::to_string(monitor_limit),
 						  dealii::Patterns::Double(0.0), "");
 		prm.declare_entry("fracture_limit", mepls::utils::str::to_string(fracture_limit),
-						  dealii::Patterns::Double(0.0), "");
-		prm.declare_entry("std_blur", mepls::utils::str::to_string(std_blur),
 						  dealii::Patterns::Double(0.0), "");
 		prm.declare_entry("kmc_quench", mepls::utils::str::to_string(kmc_quench),
 						  dealii::Patterns::Bool(), "");
@@ -276,14 +265,12 @@ struct Simulation
 		Nx = prm.get_integer("Nx");
 		Ny = prm.get_integer("Ny");
 		seed = prm.get_integer("seed");
-		loading_mode = prm.get("loading_mode");
 		initial_load = prm.get_double("initial_load");
 		control_mode = prm.get("control_mode");
 		trigger = prm.get("trigger");
 		monitor_name = prm.get("monitor_name");
 		monitor_limit = prm.get_double("monitor_limit");
 		fracture_limit = prm.get_double("fracture_limit");
-		std_blur = prm.get_double("std_blur");
 		N_probe_list = mepls::utils::str::parse_list_integers(prm.get("N_probe_list"));
 		kmc_quench = prm.get_bool("kmc_quench");
 		kmc_relaxation = prm.get_bool("kmc_relaxation");
