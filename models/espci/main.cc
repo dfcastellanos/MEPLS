@@ -150,20 +150,11 @@ void run(const parameters::Standard &p)
 	dynamics::relaxation(system, p.sim.fracture_limit, continue_simulation);
 	quench::convert_state_to_quench(system);
 
-	//	Set the threshold renewal properties before performing any quench-state shear tests
-	auto weibull = [&](double x, double k, double lambda)
-	{ return std::pow(x, k - 1) * std::exp(-std::pow(x / lambda, k)); };
-	auto func = std::bind(weibull, std::placeholders::_1, p.mat.k, p.mat.lambda);
-	auto threshold_distribution_ptr = utils::rand::create_distribution(func, 1e-3, 0., 1e-7, 8);
-
 	for(auto &element : elements_espci)
 	{
 		auto conf = element->config();
 		conf.temperature = 0;
 		element->config(conf);
-
-		element->threshold_distribution(
-			threshold_distribution_ptr); // next call to renew_stuctrua_properties will use this distribution
 	}
 
 	timer->leave_subsection("Creating quench");
@@ -235,14 +226,13 @@ void run(const parameters::Standard &p)
 	double G_old = 0.;
 	while(continue_simulation())
 	{
-		double x = std::exp(-macrostate["av_vm_plastic_strain"]/p.mat.gamma_pl_trans);
-		double G_stat = p.mat.average_G;
-		double G_quench = p.mat.average_G_quench;
-		double G_new = (G_quench-G_stat)*x + G_stat;
-
 		// reassemble the elastic properties if the change if the shear
 		// modulus is big enough, if it's different enough from the stationary
 		// value and only if we are using homogeneous elastic properties
+		double x_global = std::exp(-macrostate["av_vm_plastic_strain"]/p.mat.gamma_pl_trans);
+		double G_stat = p.mat.average_G;
+		double G_quench = p.mat.average_G_quench;
+		double G_new = (G_quench-G_stat)*x_global + G_stat;
 		if( not het_elasticity and std::abs(G_new/G_old-1)>0.001 and std::abs(G_old/G_stat-1)>0.005 )
 		{
 			timer->leave_subsection("Running AQS");
@@ -252,7 +242,7 @@ void run(const parameters::Standard &p)
 
 			double K_stat = p.mat.average_K;
 			double K_quench = p.mat.average_K_quench;
-			double K_new = (K_quench-K_stat)*x + K_stat;
+			double K_new = (K_quench-K_stat)*x_global + K_stat;
 
 			auto CC = utils::tensor::make_mandel_anisotropic_stiffness<dim>(K_new, G_new,
 																			G_new, 0.);
@@ -284,6 +274,16 @@ void run(const parameters::Standard &p)
 			timer->leave_subsection("Reassembling with new stiffness");
 			timer->enter_subsection("Running AQS");
 		}
+
+		for(auto &element : elements_espci)
+		{
+			auto conf = element->config();
+			double x_local = std::exp(-element->integrated_vm_eigenstrain()/p.mat.gamma_pl_trans);
+			conf.k = (p.mat.k_quench - p.mat.k)*x_local + p.mat.k;
+			conf.lambda = (p.mat.lambda_quench - p.mat.lambda)*x_local + p.mat.lambda;
+			element->config(conf);
+		}
+
 
 		if(p.out.verbosity and omp_get_thread_num() == 0)
 			std::cout << aqs_history.index << " | " << std::fixed << macrostate["total_strain"]

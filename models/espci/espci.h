@@ -550,6 +550,8 @@ public:
 		double coupling_constant = 0.2;
 		double temperature = 0.2;
 		double activation_rate = 1.;
+		double k = 2;
+		double lambda = 1.;
 
 		unsigned int n_slip_systems = 1;
 		unsigned int number = 0;
@@ -557,12 +559,10 @@ public:
 	};
 
 
-	Anisotropic(std::piecewise_linear_distribution<double> &threshold_distribution_,
-				std::mt19937 &generator_,
+	Anisotropic(std::mt19937 &generator_,
 				const Config &conf_)
 		:
 		mepls::element::Element<dim>(),
-		threshold_distribution_ptr(&threshold_distribution_),
 		generator(generator_),
 		unif_distribution(0, 1),
 		conf(conf_)
@@ -578,7 +578,6 @@ public:
 	Anisotropic(Anisotropic *input_element)
 		:
 		mepls::element::Element<dim>(),
-		threshold_distribution_ptr(input_element->threshold_distribution_ptr),
 		generator(input_element->generator),
 		unif_distribution(0, 1),
 		conf(input_element->conf)
@@ -617,8 +616,6 @@ public:
 		slip_conf.activation_rate = conf.activation_rate;
 		slip_conf.temperature = conf.temperature;
 
-		auto &threshold_distribution = *threshold_distribution_ptr;
-
 		//			slip_conf.angle = 0;
 		//			slip_conf.threshold = threshold_distribution(generator);
 		//			this->add_slip_system( new slip::Oriented<dim>(generator, slip_conf) );
@@ -631,19 +628,19 @@ public:
 			double alpha2 = unif_distribution(generator) * M_PI;
 
 			slip_conf.angle = alpha2;
-			slip_conf.threshold = threshold_distribution(generator);
+			slip_conf.threshold = mepls::utils::rand::get_weibull_rand(conf.k, conf.lambda, unif_distribution(generator));
 			this->add_slip_system(new slip::Oriented<dim>(generator, slip_conf));
 
 			slip_conf.angle = alpha2 + M_PI / 2.;
-			slip_conf.threshold = threshold_distribution(generator);
+			slip_conf.threshold = mepls::utils::rand::get_weibull_rand(conf.k, conf.lambda, unif_distribution(generator));
 			this->add_slip_system(new slip::Oriented<dim>(generator, slip_conf));
 
 			slip_conf.angle = alpha2 + M_PI / 4.;
-			slip_conf.threshold = threshold_distribution(generator);
+			slip_conf.threshold = mepls::utils::rand::get_weibull_rand(conf.k, conf.lambda, unif_distribution(generator));
 			this->add_slip_system(new slip::Oriented<dim>(generator, slip_conf));
 
 			slip_conf.angle = alpha2 + M_PI / 4. + M_PI / 2.;
-			slip_conf.threshold = threshold_distribution(generator);
+			slip_conf.threshold = mepls::utils::rand::get_weibull_rand(conf.k, conf.lambda, unif_distribution(generator));
 			this->add_slip_system(new slip::Oriented<dim>(generator, slip_conf));
 		}
 	}
@@ -683,13 +680,7 @@ public:
 			slip->update();
 	}
 
-	void threshold_distribution(std::piecewise_linear_distribution<double> *threshold_distribution_ptr_)
-	{
-		threshold_distribution_ptr = threshold_distribution_ptr_;
-	}
-
 protected:
-	std::piecewise_linear_distribution<double> *threshold_distribution_ptr;
 	std::mt19937 &generator;
 	std::uniform_real_distribution<double> unif_distribution;
 	Config conf;
@@ -1737,12 +1728,6 @@ template<int dim>
 std::vector<element::Anisotropic<dim> *> create_elements(const parameters::Standard &p,
 														 std::mt19937 &generator)
 {
-	auto weibull = [&](double x, double k, double lambda)
-	{ return std::pow(x, k - 1) * std::exp(-std::pow(x / lambda, k)); };
-	auto func = std::bind(weibull, std::placeholders::_1, p.mat.k_quench, p.mat.lambda_quench);
-	auto threshold_distribution_ptr = mepls::utils::rand::create_distribution(func, 1e-3, 0., 1e-7,
-																			  8);
-
 	std::vector<element::Anisotropic<dim> *> elements;
 
 	for(double n = 0; n < p.sim.Nx * p.sim.Ny; ++n)
@@ -1754,13 +1739,15 @@ std::vector<element::Anisotropic<dim> *> create_elements(const parameters::Stand
 		conf.weibull_shape_G = p.mat.weibull_shape_G;
 		conf.weibull_shape_K = p.mat.weibull_shape_K;
 		conf.alpha_tau = p.mat.alpha_tau;
+		conf.k = p.mat.k_quench;
+		conf.lambda = p.mat.lambda_quench;
 		conf.n_slip_systems = p.mat.n_slip_systems;
 		conf.coupling_constant = p.mat.coupling_constant;
 		conf.activation_rate = p.mat.activation_rate;
 		conf.number = n;
 
 		elements.push_back(
-			new element::Anisotropic<dim>(*threshold_distribution_ptr, generator, conf));
+			new element::Anisotropic<dim>(generator, conf));
 	}
 
 	if(p.mat.prestress)
