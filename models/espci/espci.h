@@ -1513,10 +1513,13 @@ namespace quench
 {
 
 template<int dim>
-void make_eshelby_prestress(std::vector<element::Anisotropic<dim> *> &elements,
-							const parameters::Standard &p,
-							std::mt19937 &generator)
+void make_eshelby_prestress(mepls::system::System<dim> &system,
+							const parameters::Standard &p)
 {
+	auto &elements = system.elements;
+	auto &solver = system.solver;
+	auto &generator = system.generator;
+
 	std::vector<dealii::SymmetricTensor<dim, 2>> eigenstrain(p.sim.Nx * p.sim.Ny);
 
 	std::normal_distribution<double> normal_dist_shear(0., p.mat.prestress_std_shear);
@@ -1541,22 +1544,12 @@ void make_eshelby_prestress(std::vector<element::Anisotropic<dim> *> &elements,
 	}
 
 	/* ---------------- add eigenstrain and get stress -----------------*/
-	mepls::elasticity_solver::LeesEdwards<dim> solver(p.sim.Nx, p.sim.Ny);
-
-	// since we only want to get a stress field with the desired values and that fulfills stress
-	// equilibrium, it doesn't matter which elastic properties we used to obtain it. It will only
-	// affect the values of the eigenstrain necessary to generate such stress field.
-	assert(solver.get_n_elements() == elements.size());
-	for(auto &element : elements)
-		solver.set_elastic_properties(element->number(), element->C());
-
-	solver.setup_and_assembly();
+	solver.clear();
 
 	for(unsigned int n = 0; n < eigenstrain.size(); ++n)
 		solver.add_eigenstrain(n, eigenstrain[n]);
 
 	solver.solve();
-
 
 	// ensure that the average stress is 0 (it is not 0 because the eigenstrain is distributed with
 	// average 0 but it fluctuates around it)
@@ -1572,6 +1565,8 @@ void make_eshelby_prestress(std::vector<element::Anisotropic<dim> *> &elements,
 	assert(stress.size() == elements.size());
 	for(unsigned int n = 0; n < stress.size(); ++n)
 		elements[n]->prestress(stress[n]);
+
+	solver.clear();
 }
 
 
@@ -1651,9 +1646,9 @@ void equilibrate_initial_structure_relaxation(mepls::system::System<dim> &system
 
 template<int dim>
 void run_thermal_evolution(mepls::system::System<dim> &system,
-								history::EventAndMacro<dim> &history,
-												const parameters::Standard &p,
-												mepls::utils::ContinueSimulation &continue_simulation)
+							history::EventAndMacro<dim> &history,
+							const parameters::Standard &p,
+							mepls::utils::ContinueSimulation &continue_simulation)
 {
 	mepls::dynamics::KMC<dim> kmc;
 	auto &KMC_macro_evolution = history.macro_evolution;
@@ -1742,14 +1737,6 @@ std::vector<element::Anisotropic<dim> *> create_elements(const parameters::Stand
 		elements.push_back(
 			new element::Anisotropic<dim>(generator, conf));
 	}
-
-	if(p.mat.prestress)
-		quench::make_eshelby_prestress<dim>(elements, p, generator);
-
-	// renew the properties, so they take into account the prestress
-	for(auto &element : elements)
-		element->renew_structural_properties();
-
 
 	return elements;
 }

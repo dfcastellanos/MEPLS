@@ -126,6 +126,17 @@ void run(const parameters::Standard &p)
 
 	timer->enter_subsection("Creating quench");
 
+	if(p.mat.prestress)
+	{
+		quench::make_eshelby_prestress<dim>(system, p);
+		quench::equilibrate_initial_structure_rejection(system, p, generator);
+	}
+
+//	 renew the properties, so they take into account the prestress
+//	for(auto &element : elements)
+//		element->renew_structural_properties();
+
+
 	std::normal_distribution<double> pressure_average_dist(0., p.mat.prestress_std_av_pressure);
 	double av_pressure_fluctuation = pressure_average_dist(generator);
 	for(auto &element : elements_espci)
@@ -139,9 +150,6 @@ void run(const parameters::Standard &p)
 			conf.temperature = p.mat.temperature_liquid;
 			element->config(conf);
 	}
-
-
-	//   quench::equilibrate_initial_structure_rejection(system, p, generator);
 
 	history::EventAndMacro<dim> kmc_history("KMC_quench");
 	system.set_history(kmc_history);
