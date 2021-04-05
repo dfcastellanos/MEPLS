@@ -1016,13 +1016,6 @@ inline void file_attrs(H5::H5File &file, const parameters::Standard &p)
 	}
 	{
 		H5std_string strwritebuf;
-		strwritebuf = p.sim.loading_mode;
-		H5::StrType strdatatype(H5::PredType::C_S1, strwritebuf.size());
-		file.createAttribute("loading_mode", strdatatype, att_space).write(strdatatype,
-																		   strwritebuf);
-	}
-	{
-		H5std_string strwritebuf;
 		strwritebuf = p.sim.control_mode;
 		H5::StrType strdatatype(H5::PredType::C_S1, strwritebuf.size());
 		file.createAttribute("control_mode", strdatatype, att_space).write(strdatatype,
