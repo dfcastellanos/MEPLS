@@ -171,7 +171,7 @@ struct Material
 struct Simulation
 {
 	unsigned int n_theta = 1;
-	std::vector<int> N_probe_list;
+	std::vector<int> N_patch_list;
 	unsigned int n_rep = 1;
 
 	unsigned int Nx = 32;
@@ -224,7 +224,7 @@ struct Simulation
 						  dealii::Patterns::Integer(0), "");
 		prm.declare_entry("n_theta", mepls::utils::str::to_string(n_theta),
 						  dealii::Patterns::Integer(0), "");
-		prm.declare_entry("N_probe_list", "", dealii::Patterns::FileName(), "");
+		prm.declare_entry("N_patch_list", "", dealii::Patterns::FileName(), "");
 		prm.declare_entry("Nx", mepls::utils::str::to_string(Nx), dealii::Patterns::Integer(0), "");
 		prm.declare_entry("Ny", mepls::utils::str::to_string(Ny), dealii::Patterns::Integer(0), "");
 		prm.declare_entry("seed", mepls::utils::str::to_string(seed), dealii::Patterns::Integer(0),
@@ -271,7 +271,7 @@ struct Simulation
 		monitor_name = prm.get("monitor_name");
 		monitor_limit = prm.get_double("monitor_limit");
 		fracture_limit = prm.get_double("fracture_limit");
-		N_probe_list = mepls::utils::str::parse_list_integers(prm.get("N_probe_list"));
+		N_patch_list = mepls::utils::str::parse_list_integers(prm.get("N_patch_list"));
 		kmc_quench = prm.get_bool("kmc_quench");
 		kmc_relaxation = prm.get_bool("kmc_relaxation");
 		reload = prm.get_bool("reload");
@@ -298,7 +298,7 @@ struct Output
 
 	std::string snapshots = "";
 	/*!< Select the type of snapshots to take. The string must contains some of the following types:
-	 *  threshold, stress, def_grad, local_probe. */
+	 *  threshold, stress, def_grad, patches. */
 
 	double snapshots_min = 0.;
 	/*!< Minimum value of the magnitude \ref Simulation.monitor_name from which snapshots should
@@ -766,7 +766,7 @@ public:
 		auto system_replica = system.get_new_instance(copy_elements, solver, system.generator);
 
 		// we can use the tools for patches to study the full system response
-		mepls::patches::PatchPropertiesTensorial<dim> probed_stress;
+		mepls::patches::PatchPropertiesTensorial<dim> patch_properties;
 
 		// external loading is shear with only epsxy!=0.
 		double theta = 0.;
@@ -774,16 +774,16 @@ public:
 		// to compare with the MD full system global_properties, the external strain discrete
 		// incremement is here 1e-4 (different from the 1e-3 used for the patches)
 		double dgamma = 1e-4;
-		mepls::patches::apply_patch_shear_test<dim>(probed_stress, *system_replica,
+		mepls::patches::apply_patch_shear_test<dim>(patch_properties, *system_replica,
 													continue_shear_test, false, dgamma);
 
-		global_properties.oi_eps = probed_stress.resolved_elastic_shear_strain_oi;
-		global_properties.ss_00 = probed_stress.stress_ss[0][0];
-		global_properties.ss_11 = probed_stress.stress_ss[1][1];
-		global_properties.ss_01 = probed_stress.stress_ss[0][1];
-		global_properties.oi_00 = probed_stress.stress_oi[0][0];
-		global_properties.oi_11 = probed_stress.stress_oi[1][1];
-		global_properties.oi_01 = probed_stress.stress_oi[0][1];
+		global_properties.oi_eps = patch_properties.resolved_elastic_shear_strain_oi;
+		global_properties.ss_00 = patch_properties.stress_ss[0][0];
+		global_properties.ss_11 = patch_properties.stress_ss[1][1];
+		global_properties.ss_01 = patch_properties.stress_ss[0][1];
+		global_properties.oi_00 = patch_properties.stress_oi[0][0];
+		global_properties.oi_11 = patch_properties.stress_oi[1][1];
+		global_properties.oi_01 = patch_properties.stress_oi[0][1];
 
 		solver.clear();
 
@@ -1010,7 +1010,7 @@ inline void patch_info(H5::H5File &file,
 
 	for(auto &x : patch_to_element_map)
 	{
-		unsigned int n_probe = x.first;
+		unsigned int n_patch = x.first;
 		std::vector<std::vector<unsigned int>> v = x.second;
 
 		unsigned int nrow = v.size();
@@ -1026,7 +1026,7 @@ inline void patch_info(H5::H5File &file,
 		H5::DataSpace dataspace(2, dimsf);
 
 		H5::DataType datatype(H5::PredType::NATIVE_UINT);
-		H5::DataSet dataset = file.createDataSet("/patch_info/" + std::to_string(n_probe), datatype,
+		H5::DataSet dataset = file.createDataSet("/patch_info/" + std::to_string(n_patch), datatype,
 												 dataspace);
 
 		dataset.write(varray, H5::PredType::NATIVE_UINT);
@@ -1223,8 +1223,8 @@ inline void snapshots(H5::H5File &file,
 
 	{   /* --------- write local probing snapshots ----------- */
 
-		if(not H5Lexists(file.getId(), (path + "/local_probe").c_str(), H5P_DEFAULT))
-			file.createGroup(path + "/local_probe");
+		if(not H5Lexists(file.getId(), (path + "/patches").c_str(), H5P_DEFAULT))
+			file.createGroup(path + "/patches");
 
 		using DataRow = typename mepls::patches::PatchPropertiesSnapshot<dim>::DataRow;
 		H5::CompType mtype(sizeof(DataRow));
@@ -1254,7 +1254,7 @@ inline void snapshots(H5::H5File &file,
 			hsize_t d[] = {snapshot.data.size()};
 			H5::DataSpace space(1, d);
 			H5::DataSet dataset = file
-				.createDataSet(path + "/local_probe/" + std::to_string(n++), mtype, space);
+				.createDataSet(path + "/patches/" + std::to_string(n++), mtype, space);
 			dataset.write(snapshot.data.data(), mtype);
 
 			H5::DataSpace att_space(H5S_SCALAR);
@@ -1264,7 +1264,7 @@ inline void snapshots(H5::H5File &file,
 				   .write(H5::PredType::NATIVE_DOUBLE, &snapshot.recorded_target);
 			dataset.createAttribute("index", H5::PredType::NATIVE_UINT, att_space)
 				   .write(H5::PredType::NATIVE_UINT, &snapshot.output_index);
-			dataset.createAttribute("N_probe", H5::PredType::NATIVE_UINT, att_space)
+			dataset.createAttribute("N_patch", H5::PredType::NATIVE_UINT, att_space)
 				   .write(H5::PredType::NATIVE_UINT, &snapshot.N);
 			H5::StrType strdatatype(H5::PredType::C_S1, 32);
 			H5std_string strwritebuf(snapshot.monitor_name);

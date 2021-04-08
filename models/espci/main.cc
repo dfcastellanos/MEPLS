@@ -58,14 +58,15 @@ void run(const parameters::Standard &p)
 	std::vector<snapshot::DefGrad<dim> > def_grad_snapshots;
 	std::vector<patches::PatchPropertiesSnapshot<dim> > patch_prop_snapshots;
 	std::vector<GlobalPropertiesSnapshot<dim>> global_properties_snapshots;
-	auto patch_to_element_map = patches::make_patch_to_element_map(elements, p.sim.N_probe_list,
+	auto patch_to_element_map = patches::make_patch_to_element_map(elements, p.sim.N_patch_list,
 																   p.sim.Nx, p.sim.Ny);
 	bool kmc_quench = p.sim.kmc_quench;
 	bool kmc_relaxation = p.sim.kmc_relaxation;
 	bool reload = p.sim.reload;
 	bool het_elasticity = p.sim.het_elasticity;
-	bool precalculate = not het_elasticity; // precalculate stress factors when doing local probes; only valid for homogeneous elasticity
-	bool do_ee = p.sim.do_ee; // relax from oi state to ee when doing local probes
+	bool precalculate = not het_elasticity; // precalculate stress factors when doing patch tests;
+	// only valid for homogeneous elasticity
+	bool do_ee = p.sim.do_ee; // relax from oi state to ee when doing patch tests
 
 	std::vector<double> theta_list;
 	if(p.sim.n_theta == 4)
@@ -191,16 +192,16 @@ void run(const parameters::Standard &p)
 			snapshot::DefGrad(system, p.sim.monitor_name, 0.,
 							  macrostate[p.sim.monitor_name]));
 
-	if(p.out.snapshots.find("local_probe") != std::string::npos)
-		for(auto n_probe : p.sim.N_probe_list)
+	if(p.out.snapshots.find("patches") != std::string::npos)
+		for(auto n_patch : p.sim.N_patch_list)
 		{
 			if(p.out.verbosity and omp_get_thread_num() == 0)
-				std::cout << ">>> " << n_probe << std::endl;
+				std::cout << ">>> " << n_patch << std::endl;
 			patch_prop_snapshots.push_back(
 				patches::PatchPropertiesSnapshot<dim>(system,
 													  p.sim.monitor_name, 0.,
 													  macrostate[p.sim.monitor_name],
-													  n_probe, theta_list, precalculate,
+													  n_patch, theta_list, precalculate,
 													  do_ee));
 		}
 
@@ -319,17 +320,17 @@ void run(const parameters::Standard &p)
 					snapshot::DefGrad(system, p.sim.monitor_name,
 									  snapshot_check.desired_value,
 									  macrostate[p.sim.monitor_name]));
-			if(p.out.snapshots.find("local_probe") != std::string::npos)
-				for(auto n_probe : p.sim.N_probe_list)
+			if(p.out.snapshots.find("patches") != std::string::npos)
+				for(auto n_patch : p.sim.N_patch_list)
 				{
 					if(p.out.verbosity and omp_get_thread_num() == 0)
-						std::cout << ">>> " << n_probe << std::endl;
+						std::cout << ">>> " << n_patch << std::endl;
 					patch_prop_snapshots.push_back(
 						patches::PatchPropertiesSnapshot<dim>(system,
 															  p.sim.monitor_name,
 															  snapshot_check.desired_value,
 															  macrostate[p.sim.monitor_name],
-															  n_probe,
+															  n_patch,
 															  theta_list, precalculate, do_ee));
 				}
 

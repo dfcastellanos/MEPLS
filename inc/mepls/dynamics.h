@@ -188,12 +188,12 @@ std::pair<event::Driving<dim>, event::Plastic<dim>> find_weakest_slip(
 
 	M_Assert(not std::isnan(load_increment_event.dload), "");M_Assert(
 		not(std::abs(load_increment_event.dload) > 1e20 and elements.size() == 1),
-		"Maybe no possitive load increment was found for a single-element local probe test?");M_Assert(
+		"Maybe no positive load increment was found for a single-element-patch test?");M_Assert(
 		std::abs(load_increment_event.dload) < 1e20,
 		"Maybe no load increment with the right sign was found?");M_Assert(
 		load_increment_event.dload != 0., "");M_Assert(sign * load_increment_event.dload > 0.,
 													   "");M_Assert(weakest_slip != nullptr,
-																	"Maybe no possitive load increment was found?");M_Assert(
+																	"Maybe no positive load increment was found?");M_Assert(
 		weakest_slip->parent->number() < elements.size(), "");
 
 	event::Plastic<dim> weakest_slip_event(weakest_slip);

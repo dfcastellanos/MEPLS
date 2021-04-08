@@ -469,7 +469,7 @@ void analyze_patch_ensemble(
 	auto &generator = system.generator;
 	auto &elements = system.elements;
 
-	// pointers to elements composing the set which is to be probed
+	// pointers to elements composing the patch which is to be tested
 	element::Vector<dim> patch_elements;
 
 	// pointers to copies of the probing elements to avoid modifying the
@@ -861,7 +861,7 @@ class PatchPropertiesSnapshot
 		bool optimized,
 		bool do_ee)
 		:
-		recorded_mag("local_probe"),
+		recorded_mag("patches"),
 		monitor_name(monitor_mag_),
 		desired_target(desired_target_),
 		recorded_target(recorded_target_),
