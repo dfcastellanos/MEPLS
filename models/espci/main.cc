@@ -231,6 +231,8 @@ void run(const parameters::Standard &p)
 	prestress_event.activation_protocol = mepls::dynamics::Protocol::prestress;
 	system.add(prestress_event);
 
+	aqs_history.add_macro(system);
+
 	double G_old = 0.;
 	while(continue_simulation())
 	{
@@ -335,18 +337,18 @@ void run(const parameters::Standard &p)
 			timer->enter_subsection("Running AQS");
 		}
 
-		aqs_history.add_macro(system);
 
 		/* ---- dyanmics ----- */
 		dynamics::finite_extremal_dynamics_step(1e-4 * 0.5, system);
+		aqs_history.add_macro(system);
+
 		dynamics::relaxation(system, p.sim.fracture_limit, continue_simulation);
+		aqs_history.add_macro(system);
+
 
 		continue_simulation(system.macrostate[p.sim.monitor_name] < p.sim.monitor_limit,
 							p.sim.monitor_name + " limit reached");
 	}
-
-	// record also the final state
-	aqs_history.add_macro(system);
 
 	auto solver_state_end_AQS = solver.get_state();
 	auto macrostate_end_AQS = system.macrostate;
@@ -398,6 +400,8 @@ void run(const parameters::Standard &p)
 		mepls::dynamics::KMC<dim> kmc;
 		mepls::utils::ContinueSimulation continue_relaxing;
 		auto &macrostate = system_replica->macrostate;
+		kmc_relaxation_hist.add_macro( *system_replica );
+
 		while(continue_relaxing())
 		{
 
@@ -410,8 +414,9 @@ void run(const parameters::Standard &p)
 						  << std::endl;
 
 			kmc(*system_replica, continue_relaxing);
-			mepls::dynamics::relaxation(*system_replica, p.sim.fracture_limit, continue_relaxing);
+			kmc_relaxation_hist.add_macro( *system_replica );
 
+			mepls::dynamics::relaxation(*system_replica, p.sim.fracture_limit, continue_relaxing);
 			kmc_relaxation_hist.add_macro( *system_replica );
 
 			continue_relaxing(macrostate["ext_stress"] > 0, "System relaxed");
@@ -451,6 +456,8 @@ void run(const parameters::Standard &p)
 
 		utils::ContinueSimulation continue_unloading;
 		auto &macrosate = system.macrostate;
+		aqs_unloading.add_macro(system);
+
 		while(continue_unloading())
 		{
 			if(p.out.verbosity and omp_get_thread_num() == 0)
@@ -458,10 +465,11 @@ void run(const parameters::Standard &p)
 						  << macrostate["total_strain"] << " " << macrostate["ext_stress"] << " "
 						  << macrostate["pressure"] << std::endl;
 
+			dynamics::finite_extremal_dynamics_step(1e-4 * 0.5, system, false);
 			aqs_unloading.add_macro(system);
 
-			dynamics::finite_extremal_dynamics_step(1e-4 * 0.5, system, false);
 			dynamics::relaxation(system, p.sim.fracture_limit, continue_unloading);
+			aqs_unloading.add_macro(system);
 
 			continue_unloading(macrostate["ext_stress"] > 0, "System unloaded");
 		}

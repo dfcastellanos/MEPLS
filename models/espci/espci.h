@@ -1622,6 +1622,8 @@ void perform_reloading(mepls::system::System<dim> &system,
 
 	// initiate dynamics using copied system
 	mepls::utils::ContinueSimulation continue_loading;
+	history.add_macro( *system_replica );
+
 	while(continue_loading())
 	{
 		if(p.out.verbosity and omp_get_thread_num() == 0)
@@ -1629,10 +1631,11 @@ void perform_reloading(mepls::system::System<dim> &system,
 					  << " " << macrostate["ext_stress"] << " " << macrostate["pressure"]
 					  << std::endl;
 
+		mepls::dynamics::finite_extremal_dynamics_step(1e-4 * 0.5, *system_replica, is_forward);
 		history.add_macro( *system_replica );
 
-		mepls::dynamics::finite_extremal_dynamics_step(1e-4 * 0.5, *system_replica, is_forward);
 		mepls::dynamics::relaxation(*system_replica, p.sim.fracture_limit, continue_loading);
+		history.add_macro( *system_replica );
 
 		continue_loading(std::abs(macrostate["total_strain"]) < 0.4 / 2., "total_strain limit reached");
 	}
