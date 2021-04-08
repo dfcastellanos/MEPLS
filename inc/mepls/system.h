@@ -201,7 +201,7 @@ namespace system
  * The class is composed of different members that represent different aspects
  * of the material: a vector \ref elements of element objects which represent
  * discrete non-overlapping mesoscale material regions; an elasticity solver
- * (\ref solver) to compute the elastic fields; the member \ref event_history to
+ * (\ref solver) to compute the elastic fields; the member \ref history to
  * register the details of each event occurring in the system. Normally,
  * system objects are operated by the algorithms in \ref dynamics controlling
  * its evolution using the events defined in \ref event. The operation is done
@@ -218,7 +218,7 @@ class System
 		:
 		generator(generator_),
 		macrostate(elements_.size()),
-		event_history(&default_history),
+		history(&default_history),
 		elements(elements_),
 		solver(solver_)
 	{
@@ -310,9 +310,9 @@ class System
 	 * @warning the user is responsible for deleting the returned object. */
 
 
-	void set_history(history::History<dim> &event_history_)
+	void set_history(history::History<dim> &history_)
 	{
-		event_history = &event_history_;
+		history = &history_;
 	}
 
 	std::mt19937 &generator;
@@ -323,7 +323,7 @@ class System
 
 	history::History<dim> default_history;
 
-	history::History<dim> *event_history;
+	history::History<dim> *history;
 	/*!< History of added plastic and driving events. */
 
 	element::Vector<dim> &elements;
@@ -420,7 +420,7 @@ class Standard: public System<dim>
 		 * input driving event (see event::Driving<dim>::dload). The elastic
 		 * fields are computed with \ref solver, and the \ref elements are informed
 		 * about their values. The \ref macrostate is updated. The input driving
-		 * event is registered in the \ref event_history. */
+		 * event is registered in the \ref history. */
 
 		solver.add_load_increment(driving_event.dload);
 
@@ -428,7 +428,7 @@ class Standard: public System<dim>
 
 		solve_elastic_problem(added_yielding, driving_event);
 
-		event_history->add(driving_event);
+		history->add(driving_event);
 
 		macrostate.update(driving_event);
 	}
@@ -444,17 +444,17 @@ class Standard: public System<dim>
 		 * their respective parent elements (see \ref slip::Slip<dim>::parent).
 		 * The elastic fields are computed with \ref solver and the \ref elements
 		 * are informed about their values. The \ref macrostate is updated. The
-		 * input plastic events are registered in the \ref event_history. All the
+		 * input plastic events are registered in the \ref history. All the
 		 * elements in which a slip event took place get their structural
 		 * properties renewed, as defined by \ref
 		 * element::Element<dim>::renew_structural_properties(). The new structural
 		 * properties are resgitered as events of type \ref
-		 * event::RenewSlip<dim> in \ref event_history.
+		 * event::RenewSlip<dim> in \ref history.
 		 *
 		 * @note since plastic deformation changes the external stress (if the
 		 * system is displacement-controlled) or the total strain (if the system
 		 * is traction-controlled), such changes in the external conditions are
-		 * registered in the \ref event_history as driving events
+		 * registered in the \ref history as driving events
 		 * (\ref event::Driving).*/
 
 		if(added_yielding.size() == 0)
@@ -492,7 +492,7 @@ class Standard: public System<dim>
 			combined_renew_instruct.push_back(renew_instruct);
 			combined_platic_events.push_back(plastic_event);
 		}
-		event_history->add(combined_platic_events);
+		history->add(combined_platic_events);
 
 
 
@@ -500,7 +500,7 @@ class Standard: public System<dim>
 		// (external stress drops occur if the system is displacement-controlled)
 		event::Driving<dim> driving_variation_event;
 		solve_elastic_problem(added_yielding, driving_variation_event);
-		event_history->add(driving_variation_event);
+		history->add(driving_variation_event);
 		macrostate.update(driving_variation_event);
 
 #ifdef DEBUG
@@ -523,13 +523,13 @@ class Standard: public System<dim>
 			element->renew_structural_properties(r);
 			element->record_structural_properties(renewal_vector);
 		}
-		event_history->add(renewal_vector);
+		history->add(renewal_vector);
 
 		added_yielding.clear();
 	}
 
 	using system::System<dim>::macrostate;
-	using system::System<dim>::event_history;
+	using system::System<dim>::history;
 	using system::System<dim>::generator;
 	using system::System<dim>::elements;
 	using system::System<dim>::solver;
@@ -679,7 +679,7 @@ class ShuffledKernel: public Standard<dim>
 	}
 
 	using system::Standard<dim>::macrostate;
-	using system::Standard<dim>::event_history;
+	using system::Standard<dim>::history;
 	using system::Standard<dim>::generator;
 	using system::Standard<dim>::elements;
 	using system::Standard<dim>::solver;
@@ -823,7 +823,7 @@ class HomogeneousKernel: public Standard<dim>
 	}
 
 	using system::Standard<dim>::macrostate;
-	using system::Standard<dim>::event_history;
+	using system::Standard<dim>::history;
 	using system::Standard<dim>::generator;
 	using system::Standard<dim>::elements;
 	using system::Standard<dim>::solver;

@@ -865,7 +865,7 @@ class PatchPropertiesSnapshot
 		monitor_name(monitor_mag_),
 		desired_target(desired_target_),
 		recorded_target(recorded_target_),
-		output_index(system.event_history->index()),
+		output_index(system.history->index()),
 		N(N_)
 	{
 
