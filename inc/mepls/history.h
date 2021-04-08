@@ -24,6 +24,12 @@ template<int dim>
 class Slip;
 }
 
+namespace system
+{
+template<int dim>
+class System;
+}
+
 /*! This namespace contains Event classes, which are meant to represent
  * the occurrence of different kinds of discrete events within the system.
  * It contains as well as the History class which is used to register the
@@ -206,6 +212,27 @@ struct RenewSlipRow
 	float slip_angle;
 };
 
+struct MacroSummaryRow
+{
+	/*! Struct to store system-scale properties */
+	double av_stress_00 = 0.;
+	double av_stress_11 = 0.;
+	double av_stress_01 = 0.;
+	double std_stress_00 = 0.;
+	double std_stress_11 = 0.;
+	double std_stress_01 = 0.;
+	double av_vm_plastic_strain = 0.;
+	double std_vm_plastic_strain = 0.;
+	double av_vm_stress = 0.;
+	double std_vm_stress = 0.;
+	double av_potential_energy = 0.;
+	double std_potential_energy = 0.;
+	double time = 0.;
+	double total_strain = 0.;
+	double ext_stress = 0.;
+	unsigned int index = 0;
+};
+
 
 /*! This class registers the occurrence of events. The data contained in
  * the event objects are reformated into structs in a way that makes easier
@@ -241,10 +268,11 @@ class History
 {
   public:
 
-	History()
+	History(const std::string &name_ = "history")
 		:
 		index(0),
-		closed(false)
+		closed(false),
+		name(name_)
 	{
 		/*! Constructor. */
 	}
@@ -351,7 +379,100 @@ class History
 		driving.clear();
 		plastic.clear();
 		renew.clear();
+		macro_evolution.clear();
 		index = 0;
+	}
+
+
+   virtual void add_macro(const mepls::system::System<dim> &system)
+   {
+      if(closed)
+         return;
+
+		MacroSummaryRow data;
+
+		const auto &elements = system.elements;
+		const auto &macrostate = system.macrostate;
+
+		double sum_stress_00 = 0.;
+		double sum_stress_11 = 0.;
+		double sum_stress_01 = 0.;
+		double sum_vm_plastic_strain = 0.;
+		double sum_vm_stress = 0.;
+		double sum_potential_energy = 0.;
+
+		double sum2_stress_00 = 0.;
+		double sum2_stress_11 = 0.;
+		double sum2_stress_01 = 0.;
+		double sum2_vm_plastic_strain = 0.;
+		double sum2_vm_stress = 0.;
+		double sum2_potential_energy = 0.;
+
+		for(auto &element : elements)
+		{
+			auto &stress = element->stress();
+
+			sum_stress_00 += stress[0][0];
+			sum2_stress_00 += stress[0][0]*stress[0][0];
+
+			sum_stress_11 += stress[1][1];
+			sum2_stress_11 += stress[1][1]*stress[1][1];
+
+			sum_stress_01 += stress[0][1];
+			sum2_stress_01 += stress[0][1]*stress[0][1];
+
+			double vm_plastic_strain = element->integrated_vm_eigenstrain();
+			sum_vm_plastic_strain += vm_plastic_strain;
+			sum2_vm_plastic_strain += vm_plastic_strain * vm_plastic_strain;
+
+			double vm_stress = mepls::utils::get_von_mises_equivalent_stress(element->stress());
+			sum_vm_stress += vm_stress;
+			sum2_vm_stress += vm_stress * vm_stress;
+
+			double potential_energy = 0.5 * dealii::invert(element->C()) * element->stress() * element->stress();
+			sum_potential_energy += potential_energy;
+			sum2_potential_energy += potential_energy * potential_energy;
+		}
+
+		double N = double(elements.size());
+
+		data.av_stress_00 = sum_stress_00/N;
+		data.av_stress_11 = sum_stress_11/N;
+		data.av_stress_01 = sum_stress_01/N;
+		data.av_vm_stress = sum_vm_stress/N;
+		data.av_vm_plastic_strain = sum_vm_plastic_strain/N;
+		data.av_potential_energy = sum_potential_energy/N;
+
+		data.std_stress_00 = std::sqrt(
+			sum2_stress_00/N - data.av_stress_00 * data.av_stress_00);
+
+		data.std_stress_11 = std::sqrt(
+			sum2_stress_11/N - data.av_stress_11 * data.av_stress_11);
+
+		data.std_stress_01 = std::sqrt(
+			sum2_stress_01/N - data.av_stress_01 * data.av_stress_01);
+
+		data.std_vm_plastic_strain = std::sqrt(
+			sum2_vm_plastic_strain/N - data.av_vm_plastic_strain * data.av_vm_plastic_strain);
+
+		data.std_vm_stress = std::sqrt(sum2_vm_stress/N - data.av_vm_stress * data.av_vm_stress);
+
+		data.std_potential_energy = std::sqrt(
+			sum2_potential_energy/N - data.av_potential_energy * data.av_potential_energy);
+
+		data.time = macrostate["time"];
+		data.total_strain = macrostate["total_strain"];
+		data.ext_stress = macrostate["ext_stress"];
+
+		data.index = index;
+
+      macro_evolution.push_back(data);
+   }
+
+
+	unsigned int current_index()
+	{
+		return index;
 	}
 
 	std::vector<DrivingRow> driving;
@@ -365,6 +486,10 @@ class History
 	std::vector<RenewSlipRow> renew;
 	/*!< Vector to store the information contained in objects of the class
 	 * \ref event::RenewSlip reformated as \ref History.RenewSlipRow. */
+
+	std::vector<MacroSummaryRow> macro_evolution;
+
+	std::string name;
 
 	unsigned int index;
 	/*!< This member keeps track of the index to be assigned to the next

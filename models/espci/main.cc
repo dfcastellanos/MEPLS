@@ -151,7 +151,7 @@ void run(const parameters::Standard &p)
 			element->config(conf);
 	}
 
-	history::EventAndMacro<dim> kmc_history("KMC_quench");
+	history::History<dim> kmc_history("KMC_quench");
 	system.set_history(kmc_history);
 	if(kmc_quench)
 		quench::run_thermal_evolution(system, kmc_history, p, continue_simulation);
@@ -172,7 +172,7 @@ void run(const parameters::Standard &p)
 	//////      AQS     ///////
 	//////////////////////////
 
-	history::EventAndMacro<dim> aqs_history("AQS");
+	history::History<dim> aqs_history("AQS");
 	system.set_history(aqs_history);
 
 	/* ----- snapshots ----- */
@@ -363,7 +363,7 @@ void run(const parameters::Standard &p)
 
 	timer->enter_subsection("Thermal relaxation");
 
-	history::EventAndMacro<dim> kmc_relaxation_hist("KMC_relaxation");
+	history::History<dim> kmc_relaxation_hist("KMC_relaxation");
 
 	if(kmc_relaxation)
 	{
@@ -432,9 +432,9 @@ void run(const parameters::Standard &p)
 	//////  reloading step ///////
 	/////////////////////////////
 
-	history::EventAndMacro<dim> aqs_unloading("AQS_unloading");
-	history::EventAndMacro<dim> aqs_reload_forward("AQS_reload_forward");
-	history::EventAndMacro<dim> aqs_reload_backward("AQS_reload_backward");
+	history::History<dim> aqs_unloading("AQS_unloading");
+	history::History<dim> aqs_reload_forward("AQS_reload_forward");
+	history::History<dim> aqs_reload_backward("AQS_reload_backward");
 
 	if(reload)
 	{

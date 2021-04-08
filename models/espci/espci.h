@@ -689,151 +689,6 @@ protected:
 } // namespace element
 
 
-namespace history
-{
-
-
-struct MacroSummaryRow
-{
-	/*! Struct to store system-scale properties */
-
-	double av_vm_plastic_strain = 0.;
-	double std_vm_plastic_strain = 0.;
-	double av_vm_stress = 0.;
-	double av_pressure = 0.;
-	double std_vm_stress = 0.;
-	double std_pressure = 0.;
-	double av_slip_threshold = 0.;
-	double std_slip_threshold = 0.;
-	double time = 0.;
-	double total_strain = 0.;
-	double ext_stress = 0.;
-	double av_potential_energy = 0.;
-	double std_potential_energy = 0.;
-	double av_shear_modulus = 0.;
-	double av_bulk_modulus = 0.;
-	double std_shear_modulus = 0.;
-	double std_bulk_modulus = 0.;
-};
-
-
-
-template<int dim>
-class EventAndMacro: public mepls::history::History<dim>
-{
-  public:
-
-	EventAndMacro(const std::string &name_ = "history")
-		:
-		mepls::history::History<dim>(),
-		name(name_)
-	{
-		/*! Constructor. */
-	}
-
-
-	void clear()
-	{
-		macro_evolution.clear();
-		mepls::history::History<dim>::clear();
-	}
-
-
-   void add_macro(const mepls::system::System<dim> &system)
-   {
-      if(closed)
-         return;
-
-		MacroSummaryRow data;
-
-		const auto &elements = system.elements;
-		const auto &macrostate = system.macrostate;
-
-		double av_vm_plastic_strain2 = 0.;
-		double av_vm_stress2 = 0.;
-		double av_pressure2 = 0.;
-		double av_slip_threshold2 = 0.;
-		double av_potential_energy2 = 0.;
-		unsigned int n_total_slip = 0;
-		double av_shear_modulus2 = 0.;
-		double av_bulk_modulus2 = 0.;
-
-		for(auto &element : elements)
-		{
-			auto &C = element->C();
-			double G = C[0][1][0][1];
-			double B = 0.5*(C[0][0][0][0]+C[0][0][1][1]);
-
-			double vm_plastic_strain = element->integrated_vm_eigenstrain();
-			double vm_stress = mepls::utils::get_von_mises_equivalent_stress(element->stress());
-			double pressure = -dealii::trace(element->stress()) / double(dim);
-			double potential_energy = 0.5 * dealii::invert(C) * element->stress() * element->stress();
-			data.av_vm_plastic_strain += vm_plastic_strain;
-			data.av_vm_stress += vm_stress;
-			data.av_pressure += pressure;
-			data.av_potential_energy += potential_energy;
-			data.av_shear_modulus += G;
-			data.av_bulk_modulus += B;
-			av_vm_plastic_strain2 += vm_plastic_strain * vm_plastic_strain;
-			av_vm_stress2 += vm_stress * vm_stress;
-			av_pressure2 += pressure * pressure;
-			av_potential_energy2 += potential_energy * potential_energy;
-			av_shear_modulus2 += G*G;
-			av_bulk_modulus2 += B*B;
-			for(auto &slip : *element)
-			{
-				data.av_slip_threshold += slip->threshold;
-				av_slip_threshold2 += slip->threshold * slip->threshold;
-				++n_total_slip;
-			}
-
-		}
-
-		double N = double(elements.size());
-		data.av_vm_plastic_strain /= N;
-		data.av_vm_stress /= N;
-		data.av_pressure /= N;
-		data.av_potential_energy /= N;
-		data.av_slip_threshold /= double(n_total_slip);
-		data.av_shear_modulus /= N;
-		data.av_bulk_modulus /= N;
-		av_vm_plastic_strain2 /= N;
-		av_vm_stress2 /= N;
-		av_pressure2 /= N;
-		av_potential_energy2 /= N;
-		av_slip_threshold2 /= double(n_total_slip);
-		av_shear_modulus2 /= N;
-		av_bulk_modulus2 /= N;
-		data.std_vm_plastic_strain = std::sqrt(
-			av_vm_plastic_strain2 - data.av_vm_plastic_strain * data.av_vm_plastic_strain);
-		data.std_vm_stress = std::sqrt(av_vm_stress2 - data.av_vm_stress * data.av_vm_stress);
-		data.std_pressure = std::sqrt(av_pressure2 - data.av_pressure * data.av_pressure);
-		data.std_potential_energy = std::sqrt(
-			av_potential_energy2 - data.av_potential_energy * data.av_potential_energy);
-		data.std_slip_threshold = std::sqrt(
-			av_slip_threshold2 - data.av_slip_threshold * data.av_slip_threshold);
-		data.std_shear_modulus = std::sqrt(
-			av_shear_modulus2 - data.av_shear_modulus * data.av_shear_modulus);
-		data.std_bulk_modulus = std::sqrt(
-			av_bulk_modulus2 - data.av_bulk_modulus * data.av_bulk_modulus);
-
-		data.time = macrostate["time"];
-		data.total_strain = macrostate["total_strain"];
-		data.ext_stress = macrostate["ext_stress"];
-
-      macro_evolution.push_back(data);
-   }
-
-	std::vector<MacroSummaryRow> macro_evolution;
-	std::string name;
-
-	using mepls::history::History<dim>::closed;
-	using mepls::history::History<dim>::index;
-};
-
-
-} // history
-
 template<int dim>
 class GlobalPropertiesSnapshot
 {
@@ -1026,15 +881,15 @@ inline void file_attrs(H5::H5File &file, const parameters::Standard &p)
 
 template<int dim>
 inline void evolution_history(H5::H5File &file,
-						  const typename history::EventAndMacro<dim> &event_history)
+						  const typename mepls::history::History<dim> &history)
 {
-	std::string path = "/"+event_history.name;
+	std::string path = "/"+history.name;
 	if(not H5Lexists(file.getId(), path.c_str(), H5P_DEFAULT))
 		file.createGroup(path.c_str());
 
 	{   /* --------- write macro evolution ----------- */
 
-		using DataRow = history::MacroSummaryRow;
+		using DataRow = mepls::history::MacroSummaryRow;
 
 		H5::CompType mtype(sizeof(DataRow));
 		mtype.insertMember("time", HOFFSET(DataRow, time), H5::PredType::NATIVE_DOUBLE);
@@ -1047,30 +902,29 @@ inline void evolution_history(H5::H5File &file,
 		mtype.insertMember("av_vm_stress", HOFFSET(DataRow, av_vm_stress), H5::PredType::NATIVE_DOUBLE);
 		mtype.insertMember("std_vm_stress", HOFFSET(DataRow, std_vm_stress),
 						   H5::PredType::NATIVE_DOUBLE);
-		mtype.insertMember("av_pressure", HOFFSET(DataRow, av_pressure), H5::PredType::NATIVE_DOUBLE);
-		mtype.insertMember("std_pressure", HOFFSET(DataRow, std_pressure), H5::PredType::NATIVE_DOUBLE);
 		mtype.insertMember("av_potential_energy", HOFFSET(DataRow, av_potential_energy),
 						   H5::PredType::NATIVE_DOUBLE);
 		mtype.insertMember("std_potential_energy", HOFFSET(DataRow, std_potential_energy),
 						   H5::PredType::NATIVE_DOUBLE);
-		mtype.insertMember("av_slip_threshold", HOFFSET(DataRow, av_slip_threshold),
+		mtype.insertMember("av_stress_00", HOFFSET(DataRow, av_stress_00),
 						   H5::PredType::NATIVE_DOUBLE);
-		mtype.insertMember("std_slip_threshold", HOFFSET(DataRow, std_slip_threshold),
+		mtype.insertMember("std_stress_00", HOFFSET(DataRow, std_stress_00),
 						   H5::PredType::NATIVE_DOUBLE);
-		mtype.insertMember("av_shear_modulus", HOFFSET(DataRow, av_shear_modulus),
+		mtype.insertMember("av_stress_11", HOFFSET(DataRow, av_stress_11),
 						   H5::PredType::NATIVE_DOUBLE);
-		mtype.insertMember("std_shear_modulus", HOFFSET(DataRow, std_shear_modulus),
+		mtype.insertMember("std_stress_11", HOFFSET(DataRow, std_stress_11),
 						   H5::PredType::NATIVE_DOUBLE);
-		mtype.insertMember("av_bulk_modulus", HOFFSET(DataRow, av_bulk_modulus),
+		mtype.insertMember("av_stress_01", HOFFSET(DataRow, av_stress_01),
 						   H5::PredType::NATIVE_DOUBLE);
-		mtype.insertMember("std_bulk_modulus", HOFFSET(DataRow, std_bulk_modulus),
+		mtype.insertMember("std_stress_01", HOFFSET(DataRow, std_stress_01),
 						   H5::PredType::NATIVE_DOUBLE);
+		mtype.insertMember("index", HOFFSET(DataRow, index), H5::PredType::NATIVE_UINT);
 
-		hsize_t d[] = {event_history.macro_evolution.size()};
+		hsize_t d[] = {history.macro_evolution.size()};
 		H5::DataSpace space(1, d);
 		H5::DataSet dataset = file.createDataSet(path + "/macro_evolution", mtype, space);
 
-		dataset.write(event_history.macro_evolution.data(), mtype);
+		dataset.write(history.macro_evolution.data(), mtype);
 	}
 
 	{   /* --------- write driving event history ----------- */
@@ -1088,11 +942,11 @@ inline void evolution_history(H5::H5File &file,
 		mtype.insertMember("activation_protocol", HOFFSET(DataRow, activation_protocol),
 						   H5::PredType::NATIVE_UINT);
 
-		hsize_t d[] = {event_history.driving.size()};
+		hsize_t d[] = {history.driving.size()};
 		H5::DataSpace space(1, d);
 		H5::DataSet dataset = file.createDataSet(path + "/driving_events", mtype, space);
 
-		dataset.write(event_history.driving.data(), mtype);
+		dataset.write(history.driving.data(), mtype);
 	}
 
 	{   /* --------- write plastic event history ----------- */
@@ -1116,26 +970,26 @@ inline void evolution_history(H5::H5File &file,
 		mtype.insertMember("activation_protocol", HOFFSET(DataRow, activation_protocol),
 						   H5::PredType::NATIVE_UINT);
 
-		hsize_t d[] = {event_history.plastic.size()};
+		hsize_t d[] = {history.plastic.size()};
 		H5::DataSpace space(1, d);
 		H5::DataSet dataset = file.createDataSet(path + "/plastic_events", mtype, space);
 
-		dataset.write(event_history.plastic.data(), mtype);
+		dataset.write(history.plastic.data(), mtype);
 	}
 
 	//	   {   /* --------- write renewal event history ----------- */
-	//		  using DataRow = typename history::EventAndMacro<dim>::RenewSlipRow;
+	//		  using DataRow = typename mepls::history::History<dim>::RenewSlipRow;
 	//	      H5::CompType mtype( sizeof(DataRow) );
 	//	      mtype.insertMember( "index", HOFFSET(DataRow, index), H5::PredType::NATIVE_UINT);
 	//	      mtype.insertMember( "element", HOFFSET(DataRow, element), H5::PredType::NATIVE_UINT);
 	//	      mtype.insertMember( "threshold", HOFFSET(DataRow, threshold), H5::PredType::NATIVE_FLOAT);
 	//	      mtype.insertMember( "slip_angle", HOFFSET(DataRow, slip_angle), H5::PredType::NATIVE_FLOAT);
 	//
-	//	      hsize_t d[] = {event_history.renew.size()};
+	//	      hsize_t d[] = {history.renew.size()};
 	//	      H5::DataSpace space( 1, d );
 	//	      H5::DataSet dataset = file.createDataSet(path+"/renew", mtype, space);
 	//
-	//	      dataset.write( event_history.renew.data(), mtype );
+	//	      dataset.write( history.renew.data(), mtype );
 	//	   }
 
 }
@@ -1646,7 +1500,7 @@ void equilibrate_initial_structure_relaxation(mepls::system::System<dim> &system
 
 template<int dim>
 void run_thermal_evolution(mepls::system::System<dim> &system,
-							history::EventAndMacro<dim> &history,
+							mepls::history::History<dim> &history,
 							const parameters::Standard &p,
 							mepls::utils::ContinueSimulation &continue_simulation)
 {
@@ -1744,7 +1598,7 @@ std::vector<element::Anisotropic<dim> *> create_elements(const parameters::Stand
 
 template<int dim>
 void perform_reloading(mepls::system::System<dim> &system,
-					   history::EventAndMacro<dim> &event_history,
+					   mepls::history::History<dim> &event_history,
 					   bool is_forward,
 					   const parameters::Standard &p)
 {
