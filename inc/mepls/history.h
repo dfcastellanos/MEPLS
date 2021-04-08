@@ -268,18 +268,18 @@ class History
 {
   public:
 
-	History(const std::string &name_ = "history")
+	History(const std::string &inputname_ = "history")
 		:
-		index(0),
-		closed(false),
-		name(name_)
+		index_(0),
+		closed_(false),
+		name_(inputname_)
 	{
 		/*! Constructor. */
 	}
 
 	void close()
 	{
-		closed = true;
+		closed_ = true;
 	}
 
 	void add_row(const event::Driving<dim> &event)
@@ -294,7 +294,7 @@ class History
 		row.dload = event.dload;
 		row.dtime = event.dtime;
 		row.activation_protocol = event.activation_protocol;
-		row.index = index;
+		row.index = index_;
 		driving.push_back(row);
 	}
 
@@ -313,7 +313,7 @@ class History
 		row.acting_stress_11 = float(event.acting_stress[1][1]);
 		row.acting_stress_01 = float(event.acting_stress[0][1]);
 		row.activation_protocol = event.activation_protocol;
-		row.index = index;
+		row.index = index_;
 		plastic.push_back(row);
 	}
 
@@ -326,7 +326,7 @@ class History
 		row.element = event.element_number;
 		row.threshold = float(event.threshold);
 		row.slip_angle = float(event.slip_angle);
-		row.index = index;
+		row.index = index_;
 		renew.push_back(row);
 	}
 
@@ -337,11 +337,11 @@ class History
 		 * overloaded functions \ref History.add_row(). It calls
 		 * \ref History.add_row() and updates by one unit \ref History.index. */
 
-		if(closed)
+		if(closed_)
 			return;
 
 		add_row(event);
-		++index;
+		++index_;
 	}
 
 	template<typename EventType>
@@ -351,12 +351,12 @@ class History
 		 * takes a vector of events instead. Those events are added with
 		 * the same \ref History.index. */
 
-		if(closed)
+		if(closed_)
 			return;
 
 		for(auto &event : event_vector)
 			add_row(event);
-		++index;
+		++index_;
 	}
 
 	template<typename EventType>
@@ -366,12 +366,12 @@ class History
 		 * &event_vector) but takes a vector of pointers to events. Those events
 		 * are added with the same \ref History.index. */
 
-		if(closed)
+		if(closed_)
 			return;
 
 		for(auto &event : event_vector)
 			add_row(*event);
-		++index;
+		++index_;
 	}
 
 	void clear()
@@ -380,13 +380,13 @@ class History
 		plastic.clear();
 		renew.clear();
 		macro_evolution.clear();
-		index = 0;
+		index_ = 0;
 	}
 
 
    virtual void add_macro(const mepls::system::System<dim> &system)
    {
-      if(closed)
+      if(closed_)
          return;
 
 		MacroSummaryRow data;
@@ -464,15 +464,19 @@ class History
 		data.total_strain = macrostate["total_strain"];
 		data.ext_stress = macrostate["ext_stress"];
 
-		data.index = index;
+		data.index = index_;
 
       macro_evolution.push_back(data);
    }
 
-
-	unsigned int current_index()
+	std::string name() const
 	{
-		return index;
+		return name_;
+	}
+
+	unsigned int index() const
+	{
+		return index_;
 	}
 
 	std::vector<DrivingRow> driving;
@@ -489,9 +493,10 @@ class History
 
 	std::vector<MacroSummaryRow> macro_evolution;
 
-	std::string name;
 
-	unsigned int index;
+  protected:
+
+	unsigned int index_;
 	/*!< This member keeps track of the index to be assigned to the next
 	 * registered event. It acts as a global identifier of each
 	 * event, independent of its type. Hence, it corresponds to the order
@@ -506,8 +511,10 @@ class History
 	 * It allows reconstructing the simulation history by merging different
 	 * datasets in the right way. */
 
-	bool closed;
+	bool closed_;
 	/*!< If true, no further events are added. */
+
+	std::string name_;
 };
 
 

@@ -206,7 +206,7 @@ void run(const parameters::Standard &p)
 
 	if(p.out.snapshots.find("global_properties") != std::string::npos)
 		global_properties_snapshots.push_back(
-			GlobalPropertiesSnapshot<dim>(system, solver, aqs_history.index, p.sim.monitor_name,
+			GlobalPropertiesSnapshot<dim>(system, solver, aqs_history.index(), p.sim.monitor_name,
 										  0., macrostate[p.sim.monitor_name]));
 	timer->leave_subsection("Taking snapshots");
 
@@ -294,7 +294,7 @@ void run(const parameters::Standard &p)
 
 
 		if(p.out.verbosity and omp_get_thread_num() == 0)
-			std::cout << aqs_history.index << " | " << std::fixed << macrostate["total_strain"]
+			std::cout << aqs_history.index() << " | " << std::fixed << macrostate["total_strain"]
 					  << " " << macrostate["ext_stress"] << " " << macrostate["pressure"]
 					  << std::endl;
 
@@ -402,7 +402,7 @@ void run(const parameters::Standard &p)
 		{
 
 			if(p.out.verbosity and omp_get_thread_num() == 0)
-				std::cout << kmc_relaxation_hist.index << " | " << std::fixed
+				std::cout << kmc_relaxation_hist.index() << " | " << std::fixed
 						  << macrostate["total_strain"]
 						  << " " << macrostate["ext_stress"]
 						  << " " << macrostate["pressure"]
@@ -454,7 +454,7 @@ void run(const parameters::Standard &p)
 		while(continue_unloading())
 		{
 			if(p.out.verbosity and omp_get_thread_num() == 0)
-				std::cout << aqs_unloading.index << " | " << std::fixed
+				std::cout << aqs_unloading.index() << " | " << std::fixed
 						  << macrostate["total_strain"] << " " << macrostate["ext_stress"] << " "
 						  << macrostate["pressure"] << std::endl;
 

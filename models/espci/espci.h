@@ -883,7 +883,7 @@ template<int dim>
 inline void evolution_history(H5::H5File &file,
 						  const typename mepls::history::History<dim> &history)
 {
-	std::string path = "/"+history.name;
+	std::string path = "/"+history.name();
 	if(not H5Lexists(file.getId(), path.c_str(), H5P_DEFAULT))
 		file.createGroup(path.c_str());
 
@@ -1598,7 +1598,7 @@ std::vector<element::Anisotropic<dim> *> create_elements(const parameters::Stand
 
 template<int dim>
 void perform_reloading(mepls::system::System<dim> &system,
-					   mepls::history::History<dim> &event_history,
+					   mepls::history::History<dim> &history,
 					   bool is_forward,
 					   const parameters::Standard &p)
 {
@@ -1618,18 +1618,18 @@ void perform_reloading(mepls::system::System<dim> &system,
 	auto system_replica = system.get_new_instance(elements_replica, system.solver,
 												  system.generator);
 	auto &macrostate = system_replica->macrostate;
-	system_replica->set_history(event_history);
+	system_replica->set_history(history);
 
 	// initiate dynamics using copied system
 	mepls::utils::ContinueSimulation continue_loading;
 	while(continue_loading())
 	{
 		if(p.out.verbosity and omp_get_thread_num() == 0)
-			std::cout << event_history.index << " | " << std::fixed << macrostate["total_strain"]
+			std::cout << history.index() << " | " << std::fixed << macrostate["total_strain"]
 					  << " " << macrostate["ext_stress"] << " " << macrostate["pressure"]
 					  << std::endl;
 
-		event_history.add_macro( *system_replica );
+		history.add_macro( *system_replica );
 
 		mepls::dynamics::finite_extremal_dynamics_step(1e-4 * 0.5, *system_replica, is_forward);
 		mepls::dynamics::relaxation(*system_replica, p.sim.fracture_limit, continue_loading);
