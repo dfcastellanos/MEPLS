@@ -246,6 +246,27 @@ class System
 		return elements.end();
 	}
 
+	typename element::Vector<dim>::iterator begin() const
+	{
+		/*! Beginning of the iteration over the system. It corresponds to the
+		 * beginning of the vector containing the elements composing the system.*/
+
+		return elements.begin();
+	}
+
+	typename element::Vector<dim>::iterator end() const
+	{
+		/*! End of the iteration over the system. It corresponds to the end of the
+		 * vector containing the elements composing in the system. */
+
+		return elements.end();
+	}
+
+	unsigned int size() const
+	{
+		return elements.size();
+	}
+
 	virtual void solve_elastic_problem(
 		const std::vector<event::Plastic<dim>> &added_yielding,
 		event::Driving<dim> &driving_event) = 0;

@@ -348,7 +348,7 @@ void relaxation(
 		/* ---- add & perform the events ----- */
 		system.add(events_relax_step);
 
-		continue_simulation(ongoing_size / double(system.elements.size()) < fracture_limit,
+		continue_simulation(ongoing_size / double(system.size()) < fracture_limit,
 							" fractured (avalanche size limit reached)");
 	}
 
