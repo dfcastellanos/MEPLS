@@ -575,12 +575,12 @@ public:
 	}
 
 
-	Anisotropic(Anisotropic *input_element)
+	Anisotropic(Anisotropic *element)
 		:
-		mepls::element::Element<dim>(),
-		generator(input_element->generator),
+		mepls::element::Element<dim>(element),
+		generator(element->generator),
 		unif_distribution(0, 1),
-		conf(input_element->conf)
+		conf(element->conf)
 	{
 	}
 
@@ -645,10 +645,14 @@ public:
 		}
 	}
 
-
-	mepls::element::Element<dim> *make_copy_impl() override
+	Anisotropic<dim> *make_copy_impl() override
 	{
 		return new Anisotropic<dim>(this);
+	}
+
+	Anisotropic<dim> *make_copy()
+	{
+		return make_copy_impl();
 	}
 
 	const Config &config() const

@@ -205,6 +205,23 @@ class Element
 		this->type("element");
 	}
 
+	Element(Element *element)
+	{
+		this->C( element->C() );
+		this->S( element->S());
+		this->eigenstrain( element->eigenstrain() );
+		this->integrated_vm_eigenstrain( element->integrated_vm_eigenstrain() );
+		this->ext_stress_coeff( element->ext_stress_coeff() );
+		this->prestress( element->prestress() );
+		this->elastic_stress( element->elastic_stress() );
+		this->def_grad( element->def_grad() );
+		this->type( element->type() );
+		this->number( element->number() );
+
+		for(auto &slip : *element)
+			this->add_slip_system( slip->make_copy() );
+	}
+
 	virtual ~Element()
 	{
 		/*! Virtual destructor */
@@ -256,17 +273,6 @@ class Element
 	 * when \ref renew_structural_properties is called. This abstract function
 	 * is to be implemented by derived classes. */
 
-	virtual mepls::element::Element<dim> *make_copy_impl()
-	{
-		/*! Specify how the members of a derived element class must be copied
-		 * when \ref make_copy is called. */
-
-		M_Assert(false, "Copying of the current type of element not implemented.");
-
-		abort();
-	}
-
-
 	mepls::element::Element<dim> *make_copy()
 	{
 		/*! Return a pointer to a dynamically allocated copy of the object. The
@@ -274,23 +280,7 @@ class Element
 		 *
 		 * @warning the user is responsible for deleting the allocated copy. */
 
-		mepls::element::Element<dim> *element_copy = make_copy_impl();
-
-		element_copy->C(C_);
-		element_copy->S(S_);
-		element_copy->eigenstrain(eigenstrain_);
-		element_copy->integrated_vm_eigenstrain(integrated_vm_eigenstrain_);
-		element_copy->ext_stress_coeff(ext_stress_coeff_);
-		element_copy->prestress(prestress_);
-		element_copy->elastic_stress(elastic_stress_);
-		element_copy->def_grad(def_grad_);
-		element_copy->type(type_);
-		element_copy->number(number_);
-
-		for(auto &slip : *this)
-			element_copy->add_slip_system(slip->make_copy());
-
-		return element_copy;
+		return make_copy_impl();
 	}
 
 	void add_eigenstrain(const dealii::SymmetricTensor<2, dim> &eigenstrain_increment)
@@ -649,6 +639,16 @@ class Element
 		 * integrated_vm_eigenstrain_ member when a element object is copied. */
 
 		integrated_vm_eigenstrain_ = input_integrated_vm_eigenstrain;
+	}
+
+	virtual mepls::element::Element<dim> *make_copy_impl()
+	{
+		/*! Dynamically allocate a new object of the derive class type and
+		 * return a pointer to it. */
+
+		M_Assert(false, "Copying of the current type of element not implemented.");
+
+		abort();
 	}
 };
 

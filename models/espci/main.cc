@@ -371,20 +371,15 @@ void run(const parameters::Standard &p)
 	if(kmc_relaxation)
 	{
 		mepls::element::Vector<dim> elements_replica;
-		for(auto &element_espci : elements_espci)
+		for(auto &element : elements_espci)
 		{
-			auto element = element_espci->make_copy();
+			auto element_copy = element->make_copy();
 
-			// The copy returns a pointer to a base class object, but we need
-			// the derived type config. struct. Since herewe have certainty that
-			// the dynamic type is espci::element::Anisotropic<dim>, it is safe
-			// to simply cast the pointer
-			auto element_casted = static_cast<espci::element::Anisotropic<dim> *>(element);
-			auto conf = element_casted->config();
+			auto conf = element_copy->config();
 			conf.temperature = p.mat.temperature_relaxation;
-			element_casted->config(conf);
+			element_copy->config(conf);
 
-			elements_replica.push_back( element );
+			elements_replica.push_back( element_copy );
 		}
 
 		// the solver state is copied, so it contains the eigenstrain and the load
