@@ -524,8 +524,6 @@ class Standard: public System<dim>
 			element->record_structural_properties(renewal_vector);
 		}
 		history->add(renewal_vector);
-
-		added_yielding.clear();
 	}
 
 	using system::System<dim>::macrostate;
