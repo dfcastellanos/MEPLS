@@ -507,6 +507,9 @@ void analyze_patch_ensemble(
 				auto element = patch_elements[n];
 				auto element_copy = element->make_copy();
 
+				element_copy->set_zero_deformation();
+				element_copy->prestress(element->stress());
+
 				original_element_numbers[n] = element->number();
 
 				// number it according to the patch system 1D index, which
