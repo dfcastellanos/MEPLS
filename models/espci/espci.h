@@ -555,7 +555,6 @@ public:
 
 		unsigned int n_slip_systems = 1;
 		unsigned int number = 0;
-		dealii::SymmetricTensor<2, dim> prestress;
 	};
 
 
@@ -567,8 +566,9 @@ public:
 		unif_distribution(0, 1),
 		conf(conf_)
 	{
+		// TODO remove prestress from config struct (we never use
+		//  that to set the prestress)
 		this->number(conf.number);
-		this->prestress(conf.prestress);
 
 		renew_elastic_properties();
 		renew_thresholds();
@@ -612,7 +612,6 @@ public:
 		typename slip::Oriented<dim>::Config slip_conf;
 		slip_conf.alpha_tau = conf.alpha_tau;
 		slip_conf.coupling_constant = conf.coupling_constant;
-		slip_conf.temperature = conf.temperature;
 		slip_conf.activation_rate = conf.activation_rate;
 		slip_conf.temperature = conf.temperature;
 
