@@ -29,7 +29,6 @@
 *	cli::Parser parser(argc, argv);
 *	parser.set_optional<bool>("t", "test", false, "If given, run in test mode");
 *	parser.set_optional<std::string>("f", "file", "./default.cfg", "Name of the input configuration file");
-*	parser.set_required<std::string>("m", "model", "Select the model to run. Options are: ww8 and espci");
 *	parser.run_and_exit_if_error();
 */
 

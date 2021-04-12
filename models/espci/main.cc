@@ -29,8 +29,12 @@ namespace espci
 using namespace mepls;
 
 template<int dim>
-void run(const parameters::Standard &p)
+class Simulation : public mepls::utils::Launcher<parameters::Standard>
 {
+
+void run_impl(const parameters::Standard &p) override
+{
+
 
 	// TODO here, dim=2 at least for how we set the average pressure
 
@@ -513,7 +517,10 @@ void run(const parameters::Standard &p)
 
 	if(p.out.verbosity and omp_get_thread_num() == 0)
 		timer->print_summary();
-}
+} // run
+
+}; // simulation launcher
+
 
 } // espci
 
@@ -527,74 +534,21 @@ int main(int argc, char *argv[])
 
 	dealii::deallog.depth_console(0);
 
+
+	espci::parameters::Standard p;
+
 	try
 	{
-
-		espci::parameters::Standard p;
-
-		try
-		{
-			p.load_file(parser.get<std::string>("f"));
-
-#if defined(OPENMP)
-
-			if(p.sim.n_rep < omp_get_max_threads())
-				p.sim.n_rep = omp_get_max_threads();
-
-			// create a seed to initialize the rnd engine of each thread
-			srand(p.sim.seed);
-			std::vector<unsigned int> seed_for_thread;
-			for(unsigned int n = 0; n < omp_get_max_threads(); ++n)
-				seed_for_thread.push_back(rand());
-
-#pragma omp parallel
-			{
-				auto pp = p;
-				unsigned int np = omp_get_num_threads();
-				unsigned int id = omp_get_thread_num();
-				unsigned int nmin = id * std::floor(p.sim.n_rep / omp_get_max_threads());
-				unsigned int nmax = (id + 1) * std::floor(p.sim.n_rep / omp_get_max_threads());
-				std::mt19937 generator_of_seeds(seed_for_thread[id]);
-
-				for(unsigned int n = nmin; n < nmax; ++n)
-				{
-					if(id == 0 and p.out.verbosity)
-						std::cout << double(n) / double(nmax) * 100 << "%" << std::endl;
-
-					generator_of_seeds.discard(1000);
-					pp.sim.seed = generator_of_seeds();
-
-					espci::run<2>(pp);
-				}
-
-			} // parallel region
-
-			#else
-			espci::run<2>(p);
-			#endif // defined(OPENMP)
-
-		}
-		catch(dealii::PathSearch::ExcFileNotFound &)
-		{
-			p.generate_file(parser.get<std::string>("f"));
-			std::cout << "Configuration file " << parser.get<std::string>("f") << " created" << std::endl;
-		}
-
+		p.load_file(parser.get<std::string>("f"));
 	}
-	catch(std::exception &exc)
+	catch(dealii::PathSearch::ExcFileNotFound &)
 	{
-		std::cerr << std::endl << std::endl << "----------------------------------------------------" << std::endl;
-		std::cerr << "Exception on processing: " << std::endl << exc.what() << std::endl << "Aborting!" << std::endl
-				  << "----------------------------------------------------" << std::endl;
-		return 1;
-	}
-	catch(...)
-	{
-		std::cerr << std::endl << std::endl << "----------------------------------------------------" << std::endl;
-		std::cerr << "Unknown exception!" << std::endl << "Aborting!" << std::endl
-				  << "----------------------------------------------------" << std::endl;
-		return 1;
+		p.generate_file(parser.get<std::string>("f"));
+		std::cout << "Configuration file " << parser.get<std::string>("f") << " created" << std::endl;
 	}
 
-	return 0;
+	espci::Simulation<2> sim;
+	int result = sim.run(p);
+
+	return result;
 }
