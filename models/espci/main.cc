@@ -290,16 +290,6 @@ void run_impl(const parameters::Standard &p) override
 			timer->enter_subsection("Running AQS");
 		}
 
-		for(auto &element : elements_espci)
-		{
-			auto conf = element->config();
-			double x_local = std::exp(-element->integrated_vm_eigenstrain()/p.mat.gamma_pl_trans);
-			conf.k = (p.mat.k_quench - p.mat.k)*x_local + p.mat.k;
-			conf.lambda = (p.mat.lambda_quench - p.mat.lambda)*x_local + p.mat.lambda;
-			element->config(conf);
-		}
-
-
 		if(p.out.verbosity and omp_get_thread_num() == 0)
 			std::cout << aqs_history.index() << " | " << std::fixed << macrostate["total_strain"]
 					  << " " << macrostate["ext_stress"] << " " << macrostate["pressure"]

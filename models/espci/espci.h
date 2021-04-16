@@ -551,7 +551,10 @@ public:
 		double temperature = 0.2;
 		double activation_rate = 1.;
 		double k = 2;
+		double k_quench = 2;
 		double lambda = 1.;
+		double lambda_quench = 1.;
+		double gamma_pl_trans = 1.;
 
 		unsigned int n_slip_systems = 1;
 		unsigned int number = 0;
@@ -609,6 +612,10 @@ public:
 	{
 		this->remove_slip_systems();
 
+		double x = std::exp(-this->integrated_vm_eigenstrain()/conf.gamma_pl_trans);
+		double k = (conf.k_quench - conf.k)*x + conf.k;
+		double lambda = (conf.lambda_quench - conf.lambda)*x + conf.lambda;
+
 		typename slip::Oriented<dim>::Config slip_conf;
 		slip_conf.alpha_tau = conf.alpha_tau;
 		slip_conf.coupling_constant = conf.coupling_constant;
@@ -627,19 +634,19 @@ public:
 			double alpha2 = unif_distribution(generator) * M_PI;
 
 			slip_conf.angle = alpha2;
-			slip_conf.threshold = mepls::utils::rand::get_weibull_rand(conf.k, conf.lambda, unif_distribution(generator));
+			slip_conf.threshold = mepls::utils::rand::get_weibull_rand(k, lambda, unif_distribution(generator));
 			this->add_slip_system(new slip::Oriented<dim>(generator, slip_conf));
 
 			slip_conf.angle = alpha2 + M_PI / 2.;
-			slip_conf.threshold = mepls::utils::rand::get_weibull_rand(conf.k, conf.lambda, unif_distribution(generator));
+			slip_conf.threshold = mepls::utils::rand::get_weibull_rand(k, lambda, unif_distribution(generator));
 			this->add_slip_system(new slip::Oriented<dim>(generator, slip_conf));
 
 			slip_conf.angle = alpha2 + M_PI / 4.;
-			slip_conf.threshold = mepls::utils::rand::get_weibull_rand(conf.k, conf.lambda, unif_distribution(generator));
+			slip_conf.threshold = mepls::utils::rand::get_weibull_rand(k, lambda, unif_distribution(generator));
 			this->add_slip_system(new slip::Oriented<dim>(generator, slip_conf));
 
 			slip_conf.angle = alpha2 + M_PI / 4. + M_PI / 2.;
-			slip_conf.threshold = mepls::utils::rand::get_weibull_rand(conf.k, conf.lambda, unif_distribution(generator));
+			slip_conf.threshold = mepls::utils::rand::get_weibull_rand(k, lambda, unif_distribution(generator));
 			this->add_slip_system(new slip::Oriented<dim>(generator, slip_conf));
 		}
 	}
@@ -1584,12 +1591,15 @@ std::vector<element::Anisotropic<dim> *> create_elements(const parameters::Stand
 		conf.weibull_shape_G = p.mat.weibull_shape_G;
 		conf.weibull_shape_K = p.mat.weibull_shape_K;
 		conf.alpha_tau = p.mat.alpha_tau;
-		conf.k = p.mat.k_quench;
-		conf.lambda = p.mat.lambda_quench;
+		conf.k_quench = p.mat.k_quench;
+		conf.k = p.mat.k;
+		conf.lambda_quench = p.mat.lambda_quench;
+		conf.lambda = p.mat.lambda;
 		conf.n_slip_systems = p.mat.n_slip_systems;
 		conf.coupling_constant = p.mat.coupling_constant;
 		conf.activation_rate = p.mat.activation_rate;
 		conf.number = n;
+		conf.gamma_pl_trans = p.mat.gamma_pl_trans;
 
 		elements.push_back(
 			new element::Anisotropic<dim>(generator, conf));
