@@ -534,6 +534,19 @@ class Element
 		update_stress();
 	}
 
+	void clear_eigenstrain()
+	{
+		/*! Clear the eigenstrain of the element. Its elastic state remains
+		 *  unchanged.
+		 *  @note this calls sets the integrated von Mises eigenstrain to
+		 *  zero. */
+
+		eigenstrain_.clear();
+		integrated_vm_eigenstrain_ = 0.;
+	}
+
+
+
   private:
 
 	dealii::SymmetricTensor<2, dim> eigenstrain_;

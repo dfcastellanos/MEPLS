@@ -134,41 +134,58 @@ void run_impl(const parameters::Standard &p) override
 	if(p.mat.prestress)
 	{
 		quench::make_eshelby_prestress<dim>(system, p);
+
+		// renew the properties, so they take into account the prestress
+		// this matters if there is pressure sensitivity. This call ensures
+		// that all the elements are renewed at least once, since the structure
+		// equilibration done after this, will renew only the unstable ones
+		for(auto &element : elements)
+			element->renew_structural_properties();
+
 		quench::equilibrate_initial_structure_rejection(system, p, generator);
 	}
 
-//	 renew the properties, so they take into account the prestress
-//	for(auto &element : elements)
-//		element->renew_structural_properties();
 
-
-	std::normal_distribution<double> pressure_average_dist(0., p.mat.prestress_std_av_pressure);
-	double av_pressure_fluctuation = pressure_average_dist(generator);
-	for(auto &element : elements_espci)
-	{
-		//		dealii::SymmetricTensor<2,dim> av_pressure;
-		//		av_pressure[0][0] = p.mat.prestress_av_pressure + av_pressure_fluctuation;
-		//		av_pressure[1][1] = p.mat.prestress_av_pressure + av_pressure_fluctuation;
-		//		element->prestress( element->prestress() + av_pressure);
-
-			auto conf = element->config();
-			conf.temperature = p.mat.temperature_liquid;
-			element->config(conf);
-	}
+//	std::normal_distribution<double> pressure_average_dist(0., p.mat.prestress_std_av_pressure);
+//	double av_pressure_fluctuation = pressure_average_dist(generator);
+//	for(auto &element : elements_espci)
+//	{
+//		//		dealii::SymmetricTensor<2,dim> av_pressure;
+//		//		av_pressure[0][0] = p.mat.prestress_av_pressure + av_pressure_fluctuation;
+//		//		av_pressure[1][1] = p.mat.prestress_av_pressure + av_pressure_fluctuation;
+//		//		element->prestress( element->prestress() + av_pressure);
+//	}
 
 	history::History<dim> kmc_history("KMC_quench");
 	system.set_history(kmc_history);
 	if(kmc_quench)
-		quench::run_thermal_evolution(system, kmc_history, p, continue_simulation);
-	dynamics::relaxation(system, p.sim.fracture_limit, continue_simulation);
-	quench::convert_state_to_quench(system);
-
-	for(auto &element : elements_espci)
 	{
-		auto conf = element->config();
-		conf.temperature = 0;
-		element->config(conf);
+		for(auto &element : elements_espci)
+		{
+			auto conf = element->config();
+			conf.temperature = p.mat.temperature_liquid;
+			element->config(conf);
+		}
+
+		quench::run_thermal_evolution(system, kmc_history, p, continue_simulation);
+		dynamics::relaxation(system, p.sim.fracture_limit, continue_simulation);
+
+		for(auto &element : elements_espci)
+		{
+			// the eigenstrain added during the thermal evolution should not
+			// appear as eigenstrain after the quench is performed (but it's
+			// effects should remain, which is achieved by not cleaning the solver)
+			element->clear_eigenstrain();
+
+			auto conf = element->config();
+			conf.temperature = 0;
+			element->config(conf);
+		}
+
+		system.macrostate.clear();
 	}
+
+
 
 	timer->leave_subsection("Creating quench");
 
@@ -228,6 +245,7 @@ void run_impl(const parameters::Standard &p) override
 
 	continue_simulation(system.macrostate[p.sim.monitor_name] < p.sim.monitor_limit,
 						p.sim.monitor_name + " limit reached");
+
 
 	// adding an (empty) driving event will record the average prestress
 	// (which can be slightly non-zero due to numerical accuray) as the

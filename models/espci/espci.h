@@ -1413,24 +1413,10 @@ void make_eshelby_prestress(mepls::system::System<dim> &system,
 	for(unsigned int n = 0; n < eigenstrain.size(); ++n)
 		solver.add_eigenstrain(n, eigenstrain[n]);
 
-	solver.solve();
-
-	// ensure that the average stress is 0 (it is not 0 because the eigenstrain is distributed with
-	// average 0 but it fluctuates around it)
-	dealii::SymmetricTensor<dim, 2> av_stress;
-	auto stress = solver.get_stress();
-	for(auto &tensor : stress)
-		av_stress += tensor;
-	av_stress /= double(stress.size());
-
-	for(auto &tensor : stress)
-		tensor -= av_stress;
-
-	assert(stress.size() == elements.size());
-	for(unsigned int n = 0; n < stress.size(); ++n)
-		elements[n]->prestress(stress[n]);
-
-	solver.clear();
+	// dummy event to make the system update the elastic state of the elements
+	mepls::event::Driving<dim> prestress_event;
+	prestress_event.activation_protocol = mepls::dynamics::Protocol::prestress;
+	system.add(prestress_event);
 }
 
 
@@ -1551,23 +1537,6 @@ void run_thermal_evolution(mepls::system::System<dim> &system,
 	}
 }
 
-
-template<int dim>
-void convert_state_to_quench(mepls::system::System<dim> &system)
-{
-	// as a consequente of the evolution, now the elements have elastic strain fields giving rise
-	// to stress. However, we don't want elastic fields when initiating the simulation. Therefore,
-	// we convert the total local stress into a new prestress, and clean the rest of the
-	// deformation history of the element and of the system
-	for(auto &element : system)
-	{
-		dealii::SymmetricTensor<2, dim> new_prestress = element->stress();
-		element->state_to_prestress();
-	}
-
-	system.solver.clear();
-	system.macrostate.clear();
-}
 
 } // namespace quench
 
