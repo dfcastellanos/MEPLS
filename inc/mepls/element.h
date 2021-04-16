@@ -517,18 +517,16 @@ class Element
 		return type_;
 	}
 
-	void set_zero_deformation()
+	void state_to_prestress()
 	{
-		/*! Reset the deformation history of the element, but not its structural
-		 * properties. Thus, eigenstrain, integrated von Mises eigenstrain,
-		 * stress, elastic stress, prestress, and deformation gradient are set
-		 * to 0. The slip system and elastic properties are not modified,
-		 * however, the slip systems are informed about the new parent's stress
-		 * state. */
+		/*! Set the current total stress as prestress and clean the rest of
+		 * the deformation history, i.e. the eigenstrain, integrated von Mises
+		 * eigenstrain, elastic stress, and deformation gradient. */
+
+		prestress_ = stress_;
 
 		eigenstrain_.clear();
 		integrated_vm_eigenstrain_ = 0.;
-		prestress_.clear();
 		elastic_stress_.clear();
 		stress_.clear();
 		def_grad_.clear();
@@ -615,7 +613,7 @@ class Element
 		 * \boldsymbol{\Sigma}_{\rm el}\f$. Afterwards, update the stress state
 		 * of the slip systems owned by the element. */
 
-		stress_ = this->prestress() + this->elastic_stress();
+		stress_ = prestress_ + elastic_stress_;
 
 		for(auto &slip : *this)
 			slip->update();

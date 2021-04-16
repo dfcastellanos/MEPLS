@@ -1498,8 +1498,7 @@ void equilibrate_initial_structure_relaxation(mepls::system::System<dim> &system
 	for(auto &element : system)
 	{
 		dealii::SymmetricTensor<2, dim> new_prestress = element->stress();
-		element->set_zero_deformation();
-		element->prestress(new_prestress);
+		element->state_to_prestress();
 	}
 	system.solver.clear();
 
@@ -1563,8 +1562,7 @@ void convert_state_to_quench(mepls::system::System<dim> &system)
 	for(auto &element : system)
 	{
 		dealii::SymmetricTensor<2, dim> new_prestress = element->stress();
-		element->set_zero_deformation();
-		element->prestress(new_prestress);
+		element->state_to_prestress();
 	}
 
 	system.solver.clear();
@@ -1623,8 +1621,7 @@ void perform_reloading(mepls::system::System<dim> &system,
 	for(auto &element : system)
 	{
 		auto element_copy = element->make_copy();
-		element_copy->set_zero_deformation();
-		element_copy->prestress(element->stress());
+		element_copy->state_to_prestress();
 		elements_replica.push_back(element_copy);
 	}
 
