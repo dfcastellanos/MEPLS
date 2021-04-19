@@ -466,7 +466,6 @@ class Standard: public System<dim>
 		// events from the map into a vector so they can be added simultaneously
 		// to the history with the same output index
 		std::vector<event::Plastic<dim>> combined_platic_events;
-		std::vector<element::RenewInstruct<dim>> combined_renew_instruct;
 		for(auto &plastic_event : added_yielding)
 		{
 			auto *slip = plastic_event.slip;
@@ -478,18 +477,12 @@ class Standard: public System<dim>
 			plastic_event.dplastic_strain = utils::get_von_mises_equivalent_strain(
 				eigenstrain_increment);
 
-			element::RenewInstruct<dim> renew_instruct;
-			renew_instruct.slip_properties = true;
-			renew_instruct.elastic_properties = false;
-			renew_instruct.plastic_event = plastic_event;
-
 			element->add_eigenstrain(eigenstrain_increment);
 
 			macrostate.update(plastic_event);
 
 			solver.add_eigenstrain(element->number(), eigenstrain_increment);
 
-			combined_renew_instruct.push_back(renew_instruct);
 			combined_platic_events.push_back(plastic_event);
 		}
 		history->add(combined_platic_events);
@@ -516,11 +509,11 @@ class Standard: public System<dim>
 		// renew the structural properties of the elements in which a plastic
 		// event has taken place
 		std::vector<event::RenewSlip<dim>> renewal_vector;
-		for(auto &r : combined_renew_instruct)
+		for(auto &plastic_event : added_yielding)
 		{
-			auto *slip = r.plastic_event.slip;
+			auto *slip = plastic_event.slip;
 			auto *element = slip->parent;
-			element->renew_structural_properties(r);
+			element->renew_structural_properties(plastic_event);
 			element->record_structural_properties(renewal_vector);
 		}
 		history->add(renewal_vector);

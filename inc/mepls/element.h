@@ -153,25 +153,6 @@ class Slip
 namespace element
 {
 
-/*! This struct carries the information about how the microstructural properties
- * must be renewed within a mesoscale element after a slip event has taken
- * place within that element. */
-template<int dim>
-struct RenewInstruct
-{
-	bool slip_properties = true;
-	/*!< Renew the slip systems owned by the element. */
-
-	bool elastic_properties = false;
-	/*!< Renew the elastic properties of the element. */
-
-	event::Plastic<dim> plastic_event;
-	/*!< Plastic event responsible of the change of microstructural properties.
-	 * Its details, such as, e.g., the amplitude of the plastic deformation, can
-	 * be taken into account during the renewal process. */
-};
-
-
 /*! Element objects represent local mesoscale regions of a material. The state
  * of an element is defined by continuum mechanics magnitudes (stress, strain
  * and eigenstrain tensors) and slip systems present in the represented mesoscale
@@ -245,7 +226,7 @@ class Element
 		}
 	}
 
-	void renew_structural_properties(RenewInstruct<dim> &renew_instruct)
+	void renew_structural_properties(mepls::event::Plastic<dim> &plastic_event)
 	{
 		/*! Renew the structural properties of the element (e.g., renewing slip
 		 * thresholds, slip angles, elastic properties, etc.). Specific renewal
@@ -254,7 +235,7 @@ class Element
 		 * carries information that might be taken into account when renewing
 		 * the properties. */
 
-		renew_structural_properties_impl(renew_instruct);
+		renew_structural_properties_impl(plastic_event);
 	}
 
 	void renew_structural_properties()
@@ -263,11 +244,11 @@ class Element
 		 * conviniency, takes no input. It wraps the original function and
 		 * passes to it a default-initialised RenewInstruct object. */
 
-		RenewInstruct<dim> renew_instruct;
-		renew_structural_properties(renew_instruct);
+		mepls::event::Plastic<dim> plastic_event;
+		renew_structural_properties(plastic_event);
 	}
 
-	virtual void renew_structural_properties_impl(RenewInstruct<dim> &renew_instruct) = 0;
+	virtual void renew_structural_properties_impl(mepls::event::Plastic<dim> &plastic_event) = 0;
 
 	/*!< Define how the element slip and elastic properties are to be renewed
 	 * when \ref renew_structural_properties is called. This abstract function

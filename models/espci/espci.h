@@ -588,12 +588,12 @@ public:
 	}
 
 
-	void renew_structural_properties_impl(mepls::element::RenewInstruct<dim> &renew_instruct) override
+	void renew_structural_properties_impl(mepls::event::Plastic<dim> &plastic_event) override
 	{
-		if(renew_instruct.elastic_properties)
+		if(plastic_event.renew_elastic_properties)
 			renew_elastic_properties();
 
-		if(renew_instruct.slip_properties)
+		if(plastic_event.renew_slip_properties)
 			renew_thresholds();
 	}
 
@@ -1429,8 +1429,6 @@ void equilibrate_initial_structure_rejection(mepls::system::System<dim> &system,
 
 	if(p.out.verbosity and omp_get_thread_num() == 0)
 		std::cout << ">> Equilibrating initial structure... " << std::endl;
-
-	mepls::element::RenewInstruct<dim> renew_instuct;
 
 	for(auto &element : system)
 	{

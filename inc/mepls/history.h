@@ -45,10 +45,7 @@ struct Plastic
 	Plastic(slip::Slip<dim> *slip_)
 		:
 		slip(slip_),
-		dplastic_strain(0.),
-		dtime(0.),
 		acting_stress(slip_->parent->stress()),
-		activation_protocol(0),
 		element(slip_->parent->number())
 	{
 		/*! Constructor.
@@ -60,10 +57,6 @@ struct Plastic
 	};
 
 	Plastic()
-		:
-		dplastic_strain(0.),
-		dtime(0.),
-		activation_protocol(0)
 	{
 		/*! Constructor.
 		 *
@@ -74,11 +67,11 @@ struct Plastic
 	slip::Slip<dim> *slip;
 	/*!<  Pointer to the Slip object which has been activated. */
 
-	double dplastic_strain;
+	double dplastic_strain = 0.;
 	/*!< Scalar effective plastic shear strain (see \ref
 	 * element::Element.vm_eigenstrain). */
 
-	double dtime;
+	double dtime = 0.;
 	/*!< Duration of the event. */
 
 	dealii::SymmetricTensor<2, dim> eigenstrain;
@@ -90,12 +83,18 @@ struct Plastic
 	/*!< Stress tensor acting on the parent element (see \ref base::Slip.parent)
 	 * at the moment of the platic event. */
 
-	unsigned int activation_protocol;
+	unsigned int activation_protocol = 0;
 	/*!< Dynamics protocol (see \ref dynamics::Protocol) by which the plastic
 	 * event has been triggered. */
 
-	unsigned int element;
+	unsigned int element = 0;
 	/*!< Number of the element in which the plastic deformation takes place. */
+
+	bool renew_slip_properties = true;
+	/*!< Renew the slip systems owned by the active slip's parent element. */
+
+	bool renew_elastic_properties = false;
+	/*!< Renew the elastic properties of the active slip's parent element. */
 };
 
 
