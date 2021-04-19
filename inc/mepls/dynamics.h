@@ -67,7 +67,7 @@ class KMC
 		/*! Constructor. */
 	}
 
-	void operator()(system::System<dim> &system, utils::ContinueSimulation &continue_simulation)
+	void operator()(system::System<dim> &system)
 	{
 		/*! Select a thermally activated slip system using the Kinetic Monte Carlo
 		 * method and perform its associated plastic event. The selection is made

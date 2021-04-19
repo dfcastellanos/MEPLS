@@ -421,7 +421,7 @@ void run_impl(const parameters::Standard &p) override
 						  << " " << macrostate["time"]
 						  << std::endl;
 
-			kmc(*system_replica, continue_relaxing);
+			kmc(*system_replica);
 			kmc_relaxation_hist.add_macro( *system_replica );
 
 			mepls::dynamics::relaxation(*system_replica, p.sim.fracture_limit, continue_relaxing);

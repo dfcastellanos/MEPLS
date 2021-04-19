@@ -1503,16 +1503,16 @@ void run_thermal_evolution(mepls::system::System<dim> &system,
 	std::vector<double> rolling_av_stress;
 	double rolling_av_stress_old = 0.;
 	double rolling_av_stress_new = 0.;
-	bool continue_kmc = true;
+	mepls::utils::ContinueSimulation continue_kmc;
 	unsigned int i = 0;
 	unsigned int n = 100;
 
-	while(continue_kmc)
+	while(continue_kmc())
 	{
 		++i;
 
-		kmc(system, continue_simulation);
-		mepls::dynamics::relaxation(system, p.sim.fracture_limit, continue_simulation);
+		kmc(system);
+		mepls::dynamics::relaxation(system, p.sim.fracture_limit, continue_kmc);
 
 		if(p.out.verbosity and omp_get_thread_num() == 0)
 			std::cout << i << std::endl;
@@ -1527,8 +1527,8 @@ void run_thermal_evolution(mepls::system::System<dim> &system,
 				rolling_av_stress_new += KMC_macro_evolution[j].av_vm_stress;
 			rolling_av_stress_new /= double(n);
 
-			continue_kmc = std::abs(
-				rolling_av_stress_new - rolling_av_stress_old) / rolling_av_stress_old > 0.01;
+			continue_kmc( std::abs(rolling_av_stress_new-rolling_av_stress_old)
+			/rolling_av_stress_old > 0.01, "KMC reached the stationary state" );
 
 			rolling_av_stress_old = rolling_av_stress_new;
 		}
