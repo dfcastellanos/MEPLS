@@ -127,8 +127,7 @@ class KMC
 
 		event::Plastic<dim> thermal_slip_event(thermal_slip);
 		thermal_slip_event.activation_protocol = Protocol::kinetic_monte_carlo;
-		std::vector<event::Plastic<dim>> active_slip = {thermal_slip_event};
-		system.add(active_slip);
+		system.add(thermal_slip_event);
 	}
 
   private:
