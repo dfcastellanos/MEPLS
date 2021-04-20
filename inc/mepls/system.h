@@ -273,6 +273,18 @@ class System
 	/*!< This function defines how the elastic fields are computed and delivered
 	 * to each element. */
 
+	void solve_elastic_problem()
+	{
+		/*!< This function defines how the elastic fields are computed and delivered
+	 	* to each element. */
+
+	 	std::vector<event::Plastic<dim>> added_yielding;
+	 	event::Driving<dim> driving_event;
+
+	 	solve_elastic_problem(added_yielding, driving_event);
+
+	}
+
 	virtual void add(event::Driving<dim> &driving_event) = 0;
 	/*!< This function defines how driving events are performed. */
 
