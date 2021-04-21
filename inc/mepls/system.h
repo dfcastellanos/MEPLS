@@ -302,12 +302,12 @@ class System
 		 * If many events are to be added at once, \ref
 		 * add(std::vector<event::Plastic<dim>> &) is the preferred way. */
 
-		// TODO we should pass the original input plastic event instead of a copy,
-		// so after this call the user can inspect the changes in the event
-		// (i.e. the information about the event which is added during the call
-		// to add)
 		std::vector<event::Plastic<dim>> added_yielding = {plastic_event};
 		add(added_yielding);
+
+		// copy event into the input one so the user can see the changes made
+		// to it by the add() function
+		plastic_event = added_yielding[0];
 	}
 
 	virtual System<dim> *get_new_instance(
