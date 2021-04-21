@@ -280,6 +280,24 @@ class Element
 		integrated_vm_eigenstrain_ += utils::get_von_mises_equivalent_strain(eigenstrain_increment);
 	}
 
+	const dealii::SymmetricTensor<2, dim> &eigenstrain() const
+	{
+		/*! Return a reference to the accumlated eigenstrain tensor
+		 * \ref eigenstrain_. */
+
+		return eigenstrain_;
+	}
+
+	void eigenstrain(const dealii::SymmetricTensor<2, dim> &eigenstrain)
+	{
+		/*! Set a new eigenstrain tensor. This calls sets the value of the
+		 * \ref integrated_vm_eigenstrain_ using the iput eigenstrain tensor. */
+
+		eigenstrain_ = eigenstrain;
+		integrated_vm_eigenstrain_ = utils::get_von_mises_equivalent_strain(eigenstrain_);
+
+	}
+
 	double integrated_vm_eigenstrain() const
 	{
 		/*! Return the value of the integrated von Mises eigenstrain
@@ -288,12 +306,14 @@ class Element
 		return integrated_vm_eigenstrain_;
 	}
 
-	const dealii::SymmetricTensor<2, dim> &eigenstrain() const
+	void integrated_vm_eigenstrain(double input_integrated_vm_eigenstrain)
 	{
-		/*! Return a reference to the accumlated eigenstrain tensor
-		 * \ref eigenstrain_. */
+		/*! Set a new value for integrated_vm_eigenstrain_.
+		 * @note in most situations, the user controls the eigenstrain only
+		 * through \ref add_eigenstrain and this function doesn't need
+		 * to be called. */
 
-		return eigenstrain_;
+		integrated_vm_eigenstrain_ = input_integrated_vm_eigenstrain;
 	}
 
 	const dealii::SymmetricTensor<2, dim> &prestress() const
@@ -611,26 +631,6 @@ class Element
 
 		for(auto &slip : *this)
 			slip->update();
-	}
-
-	void eigenstrain(const dealii::SymmetricTensor<2, dim> &eigenstrain)
-	{
-		/*! Set a new eigenstrain tensor. Since the user controls the
-		 * eigenstrain only through \ref add_eigenstrain, this function is only
-		 * used for setting the state of the eigenstrain member when an element
-		 * object is copied. */
-
-		eigenstrain_ = eigenstrain;
-	}
-
-	void integrated_vm_eigenstrain(double input_integrated_vm_eigenstrain)
-	{
-		/*! Set a new value for integrated_vm_eigenstrain_. Since the user
-		 * controls the eigenstrain only through \ref add_eigenstrain, this
-		 * function is only used for setting the state of the
-		 * integrated_vm_eigenstrain_ member when a element object is copied. */
-
-		integrated_vm_eigenstrain_ = input_integrated_vm_eigenstrain;
 	}
 
 	virtual mepls::element::Element<dim> *make_copy_impl()
