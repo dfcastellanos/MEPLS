@@ -38,12 +38,12 @@ namespace parameters
 
 struct Material
 {
-	// prestress
-	bool prestress = true;
-	double prestress_std_shear = 0.117;
-	double prestress_std_pressure = 0.1;
-	double prestress_av_pressure = 0.1;
-	double prestress_std_av_pressure = 0.2;
+	// preeigenstrain
+	bool init_eigenstrain = true;
+	double init_eigenstrain_std_shear = 0.117;
+	double init_eigenstrain_std_pressure = 0.1;
+	double init_eigenstrain_av_pressure = 0.1;
+	double init_eigenstrain_std_av_pressure = 0.2;
 
 	// threshold distribution
 	double lambda = 5.;
@@ -74,16 +74,16 @@ struct Material
 
 		prm.enter_subsection("Material");
 
-		prm.declare_entry("prestress_std_shear", mepls::utils::str::to_string(prestress_std_shear),
+		prm.declare_entry("init_eigenstrain_std_shear", mepls::utils::str::to_string(init_eigenstrain_std_shear),
 						  dealii::Patterns::Double(), "");
-		prm.declare_entry("prestress_std_pressure",
-						  mepls::utils::str::to_string(prestress_std_pressure),
+		prm.declare_entry("init_eigenstrain_std_pressure",
+						  mepls::utils::str::to_string(init_eigenstrain_std_pressure),
 						  dealii::Patterns::Double(), "");
-		prm.declare_entry("prestress_av_pressure",
-						  mepls::utils::str::to_string(prestress_av_pressure),
+		prm.declare_entry("init_eigenstrain_av_pressure",
+						  mepls::utils::str::to_string(init_eigenstrain_av_pressure),
 						  dealii::Patterns::Double(), "");
-		prm.declare_entry("prestress_std_av_pressure",
-						  mepls::utils::str::to_string(prestress_std_av_pressure),
+		prm.declare_entry("init_eigenstrain_std_av_pressure",
+						  mepls::utils::str::to_string(init_eigenstrain_std_av_pressure),
 						  dealii::Patterns::Double(), "");
 
 		prm.declare_entry("average_G", mepls::utils::str::to_string(average_G),
@@ -122,7 +122,7 @@ struct Material
 
 		prm.declare_entry("n_slip_systems", mepls::utils::str::to_string(n_slip_systems),
 						  dealii::Patterns::Integer(0), "");
-		prm.declare_entry("prestress", mepls::utils::str::to_string(prestress),
+		prm.declare_entry("init_eigenstrain", mepls::utils::str::to_string(init_eigenstrain),
 						  dealii::Patterns::Bool(), "");
 
 		prm.leave_subsection();
@@ -135,10 +135,10 @@ struct Material
 
 		prm.enter_subsection("Material");
 
-		prestress_std_shear = prm.get_double("prestress_std_shear");
-		prestress_std_pressure = prm.get_double("prestress_std_pressure");
-		prestress_av_pressure = prm.get_double("prestress_av_pressure");
-		prestress_std_av_pressure = prm.get_double("prestress_std_av_pressure");
+		init_eigenstrain_std_shear = prm.get_double("init_eigenstrain_std_shear");
+		init_eigenstrain_std_pressure = prm.get_double("init_eigenstrain_std_pressure");
+		init_eigenstrain_av_pressure = prm.get_double("init_eigenstrain_av_pressure");
+		init_eigenstrain_std_av_pressure = prm.get_double("init_eigenstrain_std_av_pressure");
 
 		average_G = prm.get_double("average_G");
 		average_G_quench = prm.get_double("average_G_quench");
@@ -159,7 +159,7 @@ struct Material
 		activation_rate = prm.get_double("activation_rate");
 
 		n_slip_systems = prm.get_integer("n_slip_systems");
-		prestress = prm.get_bool("prestress");
+		init_eigenstrain = prm.get_bool("init_eigenstrain");
 
 		prm.leave_subsection();
 	}
@@ -569,8 +569,6 @@ public:
 		unif_distribution(0, 1),
 		conf(conf_)
 	{
-		// TODO remove prestress from config struct (we never use
-		//  that to set the prestress)
 		this->number(conf.number);
 
 		renew_elastic_properties();
@@ -855,14 +853,14 @@ inline void file_attrs(H5::H5File &file, const parameters::Standard &p)
 		H5::PredType::NATIVE_DOUBLE, &p.mat.temperature_relaxation);
 	file.createAttribute("activation_rate", H5::PredType::NATIVE_DOUBLE, att_space).write(
 		H5::PredType::NATIVE_DOUBLE, &p.mat.activation_rate);
-	file.createAttribute("prestress_av_pressure", H5::PredType::NATIVE_DOUBLE, att_space).write(
-		H5::PredType::NATIVE_DOUBLE, &p.mat.prestress_av_pressure);
-	file.createAttribute("prestress_std_av_pressure", H5::PredType::NATIVE_DOUBLE, att_space).write(
-		H5::PredType::NATIVE_DOUBLE, &p.mat.prestress_std_av_pressure);
-	file.createAttribute("prestress_std_pressure", H5::PredType::NATIVE_DOUBLE, att_space).write(
-		H5::PredType::NATIVE_DOUBLE, &p.mat.prestress_std_pressure);
-	file.createAttribute("prestress_std_shear", H5::PredType::NATIVE_DOUBLE, att_space).write(
-		H5::PredType::NATIVE_DOUBLE, &p.mat.prestress_std_shear);
+	file.createAttribute("init_eigenstrain_av_pressure", H5::PredType::NATIVE_DOUBLE, att_space).write(
+		H5::PredType::NATIVE_DOUBLE, &p.mat.init_eigenstrain_av_pressure);
+	file.createAttribute("init_eigenstrain_std_av_pressure", H5::PredType::NATIVE_DOUBLE, att_space).write(
+		H5::PredType::NATIVE_DOUBLE, &p.mat.init_eigenstrain_std_av_pressure);
+	file.createAttribute("init_eigenstrain_std_pressure", H5::PredType::NATIVE_DOUBLE, att_space).write(
+		H5::PredType::NATIVE_DOUBLE, &p.mat.init_eigenstrain_std_pressure);
+	file.createAttribute("init_eigenstrain_std_shear", H5::PredType::NATIVE_DOUBLE, att_space).write(
+		H5::PredType::NATIVE_DOUBLE, &p.mat.init_eigenstrain_std_shear);
 	file.createAttribute("n_slip_systems", H5::PredType::NATIVE_UINT, att_space).write(
 		H5::PredType::NATIVE_UINT, &p.mat.n_slip_systems);
 
@@ -1373,56 +1371,12 @@ inline std::string make_filename(const parameters::Standard &p)
 } // namespace write
 
 
-template<int dim>
-void make_eshelby_prestress(mepls::system::System<dim> &system,
-							const parameters::Standard &p)
-{
-	auto &elements = system.elements;
-	auto &solver = system.solver;
-	auto &generator = system.generator;
-
-	std::vector<dealii::SymmetricTensor<dim, 2>> eigenstrain(p.sim.Nx * p.sim.Ny);
-
-	std::normal_distribution<double> normal_dist_shear(0., p.mat.prestress_std_shear);
-	std::normal_distribution<double> normal_dist_pressure(0., p.mat.prestress_std_pressure);
-
-	dealii::SymmetricTensor<dim, 2> eigenstrain_shear_0;
-	dealii::SymmetricTensor<dim, 2> eigenstrain_shear_1;
-	dealii::SymmetricTensor<dim, 2> eigenstrain_pressure;
-	dealii::SymmetricTensor<dim, 2> eigenstrain_;
-
-	for(unsigned int n = 0; n < eigenstrain.size(); ++n)
-	{
-		eigenstrain_shear_0[0][1] = normal_dist_shear(generator);
-
-		eigenstrain_shear_1[0][0] = normal_dist_shear(generator);
-		eigenstrain_shear_1[1][1] = -eigenstrain_shear_1[0][0];
-
-		eigenstrain_pressure[0][0] = normal_dist_pressure(generator);
-		eigenstrain_pressure[1][1] = eigenstrain_pressure[0][0];
-
-		eigenstrain[n] = eigenstrain_shear_0 + eigenstrain_shear_1 + eigenstrain_pressure;
-	}
-
-	/* ---------------- add eigenstrain and get stress -----------------*/
-	solver.clear();
-
-	for(unsigned int n = 0; n < eigenstrain.size(); ++n)
-		solver.add_eigenstrain(n, eigenstrain[n]);
-
-	// dummy event to make the system update the elastic state of the elements
-	mepls::event::Driving<dim> prestress_event;
-	prestress_event.activation_protocol = mepls::dynamics::Protocol::prestress;
-	system.add(prestress_event);
-}
-
 
 template<int dim>
 void equilibrate_structure_by_rejection(mepls::system::System<dim> &system,
-											 const parameters::Standard &p,
-											 std::mt19937 &generator)
+											 const parameters::Standard &p)
 {
-	// this ensures that initially all the thresholds are above the pre-stresses
+	// this ensures that initially all the thresholds are above the local stress
 
 	if(p.out.verbosity and omp_get_thread_num() == 0)
 		std::cout << ">> Equilibrating initial structure... " << std::endl;
@@ -1451,6 +1405,63 @@ void equilibrate_structure_by_rejection(mepls::system::System<dim> &system,
 
 	if(p.out.verbosity and omp_get_thread_num() == 0)
 		std::cout << ">>>> Done " << std::endl;
+}
+
+
+template<int dim>
+void apply_initial_eigenstrain(mepls::system::System<dim> &system,
+								const parameters::Standard &p)
+{
+	auto &elements = system.elements;
+	auto &solver = system.solver;
+	auto &generator = system.generator;
+
+	std::vector<dealii::SymmetricTensor<dim, 2>> eigenstrain(p.sim.Nx * p.sim.Ny);
+
+	std::normal_distribution<double> normal_dist_shear(0., p.mat.init_eigenstrain_std_shear);
+	std::normal_distribution<double> normal_dist_pressure(0., p.mat.init_eigenstrain_std_pressure);
+
+	dealii::SymmetricTensor<dim, 2> eigenstrain_shear_0;
+	dealii::SymmetricTensor<dim, 2> eigenstrain_shear_1;
+	dealii::SymmetricTensor<dim, 2> eigenstrain_pressure;
+	dealii::SymmetricTensor<dim, 2> eigenstrain_;
+
+	for(unsigned int n = 0; n < eigenstrain.size(); ++n)
+	{
+		eigenstrain_shear_0[0][1] = normal_dist_shear(generator);
+
+		eigenstrain_shear_1[0][0] = normal_dist_shear(generator);
+		eigenstrain_shear_1[1][1] = -eigenstrain_shear_1[0][0];
+
+		eigenstrain_pressure[0][0] = normal_dist_pressure(generator);
+		eigenstrain_pressure[1][1] = eigenstrain_pressure[0][0];
+
+		eigenstrain[n] = eigenstrain_shear_0 + eigenstrain_shear_1 + eigenstrain_pressure;
+	}
+
+	/* ---------------- add eigenstrain and get stress -----------------*/
+	solver.clear();
+
+	for(unsigned int n = 0; n < eigenstrain.size(); ++n)
+		solver.add_eigenstrain(n, eigenstrain[n]);
+
+	// dummy event to make the system update the elastic state of the elements
+	mepls::event::Driving<dim> init_eigenstrain_event;
+	init_eigenstrain_event.activation_protocol = mepls::dynamics::Protocol::prestress;
+	system.add(init_eigenstrain_event);
+
+	// renew the properties, so they take into account the stress.
+	// This matters if there is pressure sensitivity. This call ensures
+	// that all the elements are renewed at least once, since the structure
+	// equilibration done after this, will renew only the unstable ones
+	for(auto &element : elements)
+		element->renew_structural_properties();
+
+	// use rejection instead of relaxation, because we don't want the
+	// stress field to be altered anymore. Note: depending on the stress
+	// field and the threshold distribution, this method might never find
+	// a stable configuration. In that case, relaxation is mandatory.
+	equilibrate_structure_by_rejection(system, p);
 }
 
 

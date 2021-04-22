@@ -122,23 +122,8 @@ void run_impl(const parameters::Standard &p) override
 	system::Standard<dim> system(elements, solver, generator);
 	MacroState<dim> &macrostate = system.macrostate;
 
-	if(p.mat.prestress)
-	{
-		make_eshelby_prestress<dim>(system, p);
-
-		// renew the properties, so they take into account the prestress
-		// this matters if there is pressure sensitivity. This call ensures
-		// that all the elements are renewed at least once, since the structure
-		// equilibration done after this, will renew only the unstable ones
-		for(auto &element : elements)
-			element->renew_structural_properties();
-
-		// use rejection instead of relaxation, because we don't want the
-		// stress field to be altered anymore. Note: depending on the stress
-		// field and the threshold distribution, this method might never find
-		// a stable configuration. In that case, relaxation is mandatory.
-		equilibrate_structure_by_rejection(system, p, generator);
-	}
+	if(p.mat.init_eigenstrain)
+		apply_initial_eigenstrain<dim>(system, p);
 
 	timer->leave_subsection("Setting up");
 
@@ -161,7 +146,7 @@ void run_impl(const parameters::Standard &p) override
 		}
 
 		run_thermal_evolution(system, kmc_history, p, continue_simulation);
-
+		
 		// apply instantaneous quench
 		for(auto &element : elements_espci)
 		{
