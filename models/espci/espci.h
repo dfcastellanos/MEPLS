@@ -40,10 +40,10 @@ struct Material
 {
 	// preeigenstrain
 	bool init_eigenstrain = true;
-	double init_eigenstrain_std_shear = 0.117;
-	double init_eigenstrain_std_pressure = 0.1;
-	double init_eigenstrain_av_pressure = 0.1;
-	double init_eigenstrain_std_av_pressure = 0.2;
+	double init_eigenstrain_std_dev = 0.117;
+	double init_eigenstrain_std_vol = 0.1;
+	double init_eigenstrain_av_vol = 0.1;
+	double init_eigenstrain_std_av_vol = 0.2;
 
 	// threshold distribution
 	double lambda = 5.;
@@ -74,16 +74,16 @@ struct Material
 
 		prm.enter_subsection("Material");
 
-		prm.declare_entry("init_eigenstrain_std_shear", mepls::utils::str::to_string(init_eigenstrain_std_shear),
+		prm.declare_entry("init_eigenstrain_std_dev", mepls::utils::str::to_string(init_eigenstrain_std_dev),
 						  dealii::Patterns::Double(), "");
-		prm.declare_entry("init_eigenstrain_std_pressure",
-						  mepls::utils::str::to_string(init_eigenstrain_std_pressure),
+		prm.declare_entry("init_eigenstrain_std_vol",
+						  mepls::utils::str::to_string(init_eigenstrain_std_vol),
 						  dealii::Patterns::Double(), "");
-		prm.declare_entry("init_eigenstrain_av_pressure",
-						  mepls::utils::str::to_string(init_eigenstrain_av_pressure),
+		prm.declare_entry("init_eigenstrain_av_vol",
+						  mepls::utils::str::to_string(init_eigenstrain_av_vol),
 						  dealii::Patterns::Double(), "");
-		prm.declare_entry("init_eigenstrain_std_av_pressure",
-						  mepls::utils::str::to_string(init_eigenstrain_std_av_pressure),
+		prm.declare_entry("init_eigenstrain_std_av_vol",
+						  mepls::utils::str::to_string(init_eigenstrain_std_av_vol),
 						  dealii::Patterns::Double(), "");
 
 		prm.declare_entry("average_G", mepls::utils::str::to_string(average_G),
@@ -135,10 +135,10 @@ struct Material
 
 		prm.enter_subsection("Material");
 
-		init_eigenstrain_std_shear = prm.get_double("init_eigenstrain_std_shear");
-		init_eigenstrain_std_pressure = prm.get_double("init_eigenstrain_std_pressure");
-		init_eigenstrain_av_pressure = prm.get_double("init_eigenstrain_av_pressure");
-		init_eigenstrain_std_av_pressure = prm.get_double("init_eigenstrain_std_av_pressure");
+		init_eigenstrain_std_dev = prm.get_double("init_eigenstrain_std_dev");
+		init_eigenstrain_std_vol = prm.get_double("init_eigenstrain_std_vol");
+		init_eigenstrain_av_vol = prm.get_double("init_eigenstrain_av_vol");
+		init_eigenstrain_std_av_vol = prm.get_double("init_eigenstrain_std_av_vol");
 
 		average_G = prm.get_double("average_G");
 		average_G_quench = prm.get_double("average_G_quench");
@@ -853,14 +853,14 @@ inline void file_attrs(H5::H5File &file, const parameters::Standard &p)
 		H5::PredType::NATIVE_DOUBLE, &p.mat.temperature_relaxation);
 	file.createAttribute("activation_rate", H5::PredType::NATIVE_DOUBLE, att_space).write(
 		H5::PredType::NATIVE_DOUBLE, &p.mat.activation_rate);
-	file.createAttribute("init_eigenstrain_av_pressure", H5::PredType::NATIVE_DOUBLE, att_space).write(
-		H5::PredType::NATIVE_DOUBLE, &p.mat.init_eigenstrain_av_pressure);
-	file.createAttribute("init_eigenstrain_std_av_pressure", H5::PredType::NATIVE_DOUBLE, att_space).write(
-		H5::PredType::NATIVE_DOUBLE, &p.mat.init_eigenstrain_std_av_pressure);
-	file.createAttribute("init_eigenstrain_std_pressure", H5::PredType::NATIVE_DOUBLE, att_space).write(
-		H5::PredType::NATIVE_DOUBLE, &p.mat.init_eigenstrain_std_pressure);
-	file.createAttribute("init_eigenstrain_std_shear", H5::PredType::NATIVE_DOUBLE, att_space).write(
-		H5::PredType::NATIVE_DOUBLE, &p.mat.init_eigenstrain_std_shear);
+	file.createAttribute("init_eigenstrain_av_vol", H5::PredType::NATIVE_DOUBLE, att_space).write(
+		H5::PredType::NATIVE_DOUBLE, &p.mat.init_eigenstrain_av_vol);
+	file.createAttribute("init_eigenstrain_std_av_vol", H5::PredType::NATIVE_DOUBLE, att_space).write(
+		H5::PredType::NATIVE_DOUBLE, &p.mat.init_eigenstrain_std_av_vol);
+	file.createAttribute("init_eigenstrain_std_vol", H5::PredType::NATIVE_DOUBLE, att_space).write(
+		H5::PredType::NATIVE_DOUBLE, &p.mat.init_eigenstrain_std_vol);
+	file.createAttribute("init_eigenstrain_std_dev", H5::PredType::NATIVE_DOUBLE, att_space).write(
+		H5::PredType::NATIVE_DOUBLE, &p.mat.init_eigenstrain_std_dev);
 	file.createAttribute("n_slip_systems", H5::PredType::NATIVE_UINT, att_space).write(
 		H5::PredType::NATIVE_UINT, &p.mat.n_slip_systems);
 
@@ -1418,25 +1418,25 @@ void apply_initial_eigenstrain(mepls::system::System<dim> &system,
 
 	std::vector<dealii::SymmetricTensor<dim, 2>> eigenstrain(p.sim.Nx * p.sim.Ny);
 
-	std::normal_distribution<double> normal_dist_shear(0., p.mat.init_eigenstrain_std_shear);
-	std::normal_distribution<double> normal_dist_pressure(0., p.mat.init_eigenstrain_std_pressure);
+	std::normal_distribution<double> normal_dist_dev(0., p.mat.init_eigenstrain_std_dev);
+	std::normal_distribution<double> normal_dist_vol(0., p.mat.init_eigenstrain_std_vol);
 
-	dealii::SymmetricTensor<dim, 2> eigenstrain_shear_0;
-	dealii::SymmetricTensor<dim, 2> eigenstrain_shear_1;
-	dealii::SymmetricTensor<dim, 2> eigenstrain_pressure;
+	dealii::SymmetricTensor<dim, 2> eigenstrain_dev_0;
+	dealii::SymmetricTensor<dim, 2> eigenstrain_dev_1;
+	dealii::SymmetricTensor<dim, 2> eigenstrain_vol;
 	dealii::SymmetricTensor<dim, 2> eigenstrain_;
 
 	for(unsigned int n = 0; n < eigenstrain.size(); ++n)
 	{
-		eigenstrain_shear_0[0][1] = normal_dist_shear(generator);
+		eigenstrain_dev_0[0][1] = normal_dist_dev(generator);
 
-		eigenstrain_shear_1[0][0] = normal_dist_shear(generator);
-		eigenstrain_shear_1[1][1] = -eigenstrain_shear_1[0][0];
+		eigenstrain_dev_1[0][0] = normal_dist_dev(generator);
+		eigenstrain_dev_1[1][1] = -eigenstrain_dev_1[0][0];
 
-		eigenstrain_pressure[0][0] = normal_dist_pressure(generator);
-		eigenstrain_pressure[1][1] = eigenstrain_pressure[0][0];
+		eigenstrain_vol[0][0] = normal_dist_vol(generator);
+		eigenstrain_vol[1][1] = eigenstrain_vol[0][0];
 
-		eigenstrain[n] = eigenstrain_shear_0 + eigenstrain_shear_1 + eigenstrain_pressure;
+		eigenstrain[n] = eigenstrain_dev_0 + eigenstrain_dev_1 + eigenstrain_vol;
 	}
 
 	/* ---------------- add eigenstrain and get stress -----------------*/
