@@ -191,7 +191,7 @@ struct Simulation
 	double monitor_limit = 3.0;
 	/*!<  Value of the magnitude defined by \ref monitor_name at which the simulation must stop. */
 
-	bool kmc_quench = true;
+	bool parent_liquid = true;
 	bool kmc_relaxation = true;
 	bool reload = true;
 	bool het_elasticity = false;
@@ -215,7 +215,7 @@ struct Simulation
 			"av_vm_plastic_strain|load|ext_stress|time|total_strain"), "");
 		prm.declare_entry("monitor_limit", mepls::utils::str::to_string(monitor_limit),
 						  dealii::Patterns::Double(0.0), "");
-		prm.declare_entry("kmc_quench", mepls::utils::str::to_string(kmc_quench),
+		prm.declare_entry("parent_liquid", mepls::utils::str::to_string(parent_liquid),
 						  dealii::Patterns::Bool(), "");
 		prm.declare_entry("kmc_relaxation", mepls::utils::str::to_string(kmc_relaxation),
 						  dealii::Patterns::Bool(), "");
@@ -242,7 +242,7 @@ struct Simulation
 		monitor_name = prm.get("monitor_name");
 		monitor_limit = prm.get_double("monitor_limit");
 		N_patch_list = mepls::utils::str::parse_list_integers(prm.get("N_patch_list"));
-		kmc_quench = prm.get_bool("kmc_quench");
+		parent_liquid = prm.get_bool("parent_liquid");
 		kmc_relaxation = prm.get_bool("kmc_relaxation");
 		reload = prm.get_bool("reload");
 		het_elasticity = prm.get_bool("het_elasticity");

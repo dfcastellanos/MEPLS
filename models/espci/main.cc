@@ -64,7 +64,7 @@ void run_impl(const parameters::Standard &p) override
 	std::vector<GlobalPropertiesSnapshot<dim>> global_properties_snapshots;
 	auto patch_to_element_map = patches::make_patch_to_element_map(elements, p.sim.N_patch_list,
 																   p.sim.Nx, p.sim.Ny);
-	bool kmc_quench = p.sim.kmc_quench;
+	bool parent_liquid = p.sim.parent_liquid;
 	bool kmc_relaxation = p.sim.kmc_relaxation;
 	bool reload = p.sim.reload;
 	bool het_elasticity = p.sim.het_elasticity;
@@ -134,9 +134,9 @@ void run_impl(const parameters::Standard &p) override
 
 	timer->enter_subsection("Simulate parent liquid");
 
-	history::History<dim> kmc_history("KMC_quench");
-	system.set_history(kmc_history);
-	if(kmc_quench)
+	history::History<dim> liquid_history("parent_liquid");
+	system.set_history(liquid_history);
+	if(parent_liquid)
 	{
 		for(auto &element : elements_espci)
 		{
@@ -145,8 +145,8 @@ void run_impl(const parameters::Standard &p) override
 			element->config(conf);
 		}
 
-		run_thermal_evolution(system, kmc_history, p, continue_simulation);
-
+		run_thermal_evolution(system, liquid_history, p, continue_simulation);
+		
 		// apply instantaneous quench
 		for(auto &element : elements_espci)
 		{
@@ -156,7 +156,7 @@ void run_impl(const parameters::Standard &p) override
 		}
 		dynamics::relaxation(system, continue_simulation);
 
-		kmc_history.add_macro(system);
+		liquid_history.add_macro(system);
 		system.macrostate.clear();
 
 	}
@@ -474,8 +474,8 @@ void run_impl(const parameters::Standard &p) override
 	H5::H5File file(p.out.path + "/" + filename, H5F_ACC_TRUNC);
 	write::file_attrs(file, p);
 
-	if(kmc_quench)
-		write::evolution_history(file, kmc_history);
+	if(parent_liquid)
+		write::evolution_history(file, liquid_history);
 	if(kmc_relaxation)
 		write::evolution_history(file, kmc_relaxation_hist);
 	write::evolution_history(file, aqs_history);
