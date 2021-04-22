@@ -1443,7 +1443,7 @@ void run_thermal_evolution(mepls::system::System<dim> &system,
 		++i;
 
 		kmc(system);
-		mepls::dynamics::relaxation(system, 10, continue_kmc);
+		mepls::dynamics::relaxation(system, continue_kmc);
 
 		if(p.out.verbosity and omp_get_thread_num() == 0)
 			std::cout << i << std::endl;
@@ -1537,7 +1537,7 @@ void perform_reloading(mepls::system::System<dim> &system,
 		mepls::dynamics::finite_extremal_dynamics_step(1e-4 * 0.5, *system_replica, is_forward);
 		history.add_macro( *system_replica );
 
-		mepls::dynamics::relaxation(*system_replica, 10, continue_loading);
+		mepls::dynamics::relaxation(*system_replica, continue_loading);
 		history.add_macro( *system_replica );
 
 		continue_loading(std::abs(macrostate["total_strain"]) < 0.4 / 2., "total_strain limit reached");

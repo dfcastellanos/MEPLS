@@ -426,7 +426,7 @@ void apply_patch_shear_test(
 		// ee-state: we let the system relax by performing the slip event
 		// triggered in the oi-state (and possibly, other events triggered
 		// induced by it)
-		dynamics::relaxation(patch_system, 10, continue_shear_test);
+		dynamics::relaxation(patch_system, continue_shear_test);
 		patch_properties.stress_ee = get_average_stress(elements);
 		patch_properties.energy_ee = get_average_energy(elements);
 	}

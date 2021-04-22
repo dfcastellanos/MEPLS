@@ -302,8 +302,8 @@ void fixed_load_increment(double increment, system::System<dim> &system)
 template<int dim>
 void relaxation(
 	system::System<dim> &system,
-	double fracture_limit,
-	utils::ContinueSimulation &continue_simulation)
+	utils::ContinueSimulation &continue_simulation,
+	double fracture_limit = 10)
 {
 	/*! Perform plastic events associated with each active slip system. The
 	 * events are performed and the state of the system are updated. After that,
