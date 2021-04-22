@@ -1373,9 +1373,6 @@ inline std::string make_filename(const parameters::Standard &p)
 } // namespace write
 
 
-namespace quench
-{
-
 template<int dim>
 void make_eshelby_prestress(mepls::system::System<dim> &system,
 							const parameters::Standard &p)
@@ -1421,7 +1418,7 @@ void make_eshelby_prestress(mepls::system::System<dim> &system,
 
 
 template<int dim>
-void equilibrate_initial_structure_rejection(mepls::system::System<dim> &system,
+void equilibrate_structure_by_rejection(mepls::system::System<dim> &system,
 											 const parameters::Standard &p,
 											 std::mt19937 &generator)
 {
@@ -1451,40 +1448,6 @@ void equilibrate_initial_structure_rejection(mepls::system::System<dim> &system,
 		for(auto &slip : *element)
 			assert(slip->barrier > 0);
 
-
-	if(p.out.verbosity and omp_get_thread_num() == 0)
-		std::cout << ">>>> Done " << std::endl;
-}
-
-
-template<int dim>
-void equilibrate_initial_structure_relaxation(mepls::system::System<dim> &system,
-											  const parameters::Standard &p)
-{
-	// this ensures that initially all the thresholds are above the pre-stresses
-
-	if(p.out.verbosity and omp_get_thread_num() == 0)
-		std::cout << ">> Equilibrating initial structure... " << std::endl;
-
-	// relaxation dynamics to simulate an avalanche in which plastic deformation can occur.
-	// This will modify the stress fields and a stable configuration might be eventually found.
-	// Changes induced in the prestress should be accepatable since the prestress itself is
-	// created from eigenstrains
-	mepls::utils::ContinueSimulation continue_dummy;
-
-	mepls::dynamics::relaxation(system, p.sim.fracture_limit, continue_dummy);M_Assert(
-		continue_dummy(), "system reaches failure during equilibration");
-
-	// as a consequente of the relaxation, now the elements have elastic strain fields giving rise
-	// to stress. However, we don't want elastic fields when initiating the simulation. Therefore,
-	// we convert the total local stress into a new prestress, and clean the rest of the
-	// deformation history of the element
-	for(auto &element : system)
-	{
-		dealii::SymmetricTensor<2, dim> new_prestress = element->stress();
-		element->state_to_prestress();
-	}
-	system.solver.clear();
 
 	if(p.out.verbosity and omp_get_thread_num() == 0)
 		std::cout << ">>>> Done " << std::endl;
@@ -1534,11 +1497,6 @@ void run_thermal_evolution(mepls::system::System<dim> &system,
 		}
 	}
 }
-
-
-} // namespace quench
-
-
 
 
 template<int dim>
