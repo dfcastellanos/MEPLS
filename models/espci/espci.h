@@ -183,17 +183,6 @@ struct Simulation
 	unsigned int seed = 1234567;
 	/*!<  Seed to initialized the random number engine. */
 
-	double initial_load = 0.;
-	/*!< Value of the load applied at the beginning of the simulation.  */
-
-	std::string control_mode = "displacement";
-	/*!< Mode of driving the system. It can be displacement or traction controlled (equivalent to
-	 * strain or stress controlled). */
-
-	std::string trigger = "extremal_dynamics";
-	/*!<  Protocol (see \ref dynamics) used to unstabilize the system in the main simulation loop.
-	 * Posibilities are kmc, extremal_dynamics or finite_extremal_dynamics. */
-
 	std::string monitor_name = "total_strain";
 	/*!< Magnitude used to check whether the simulation should stop and whether a snapshot should be
 	 *  taken (see \ref snapshot). The posibilities correspond to the keys in
@@ -201,13 +190,6 @@ struct Simulation
 
 	double monitor_limit = 3.0;
 	/*!<  Value of the magnitude defined by \ref monitor_name at which the simulation must stop. */
-
-	double fracture_limit = 2;
-	/*!<  Number of plastic events triggered during a call to \ref mepls::dynamics::relaxation
-	 * divided by the number of elements composing the system at which the simulation must stop.
-	 * A default value of 2 means that during a relaxation, every element has deformed twice,
-	 * which is very big. Such value can, in most cases, indicate that the material has fractured
-	 *  and therefore the simulation must stop. */
 
 	bool kmc_quench = true;
 	bool kmc_relaxation = true;
@@ -229,17 +211,9 @@ struct Simulation
 		prm.declare_entry("Ny", mepls::utils::str::to_string(Ny), dealii::Patterns::Integer(0), "");
 		prm.declare_entry("seed", mepls::utils::str::to_string(seed), dealii::Patterns::Integer(0),
 						  "");
-		prm.declare_entry("initial_load", mepls::utils::str::to_string(initial_load),
-						  dealii::Patterns::Double(0.0), "");
-		prm.declare_entry("control_mode", control_mode,
-						  dealii::Patterns::Selection("displacement|traction"), "");
-		prm.declare_entry("trigger", trigger, dealii::Patterns::Selection(
-			"extremal_dynamics|kmc|finite_extremal_dynamics"), "");
 		prm.declare_entry("monitor_name", monitor_name, dealii::Patterns::Selection(
 			"av_vm_plastic_strain|load|ext_stress|time|total_strain"), "");
 		prm.declare_entry("monitor_limit", mepls::utils::str::to_string(monitor_limit),
-						  dealii::Patterns::Double(0.0), "");
-		prm.declare_entry("fracture_limit", mepls::utils::str::to_string(fracture_limit),
 						  dealii::Patterns::Double(0.0), "");
 		prm.declare_entry("kmc_quench", mepls::utils::str::to_string(kmc_quench),
 						  dealii::Patterns::Bool(), "");
@@ -265,12 +239,8 @@ struct Simulation
 		Nx = prm.get_integer("Nx");
 		Ny = prm.get_integer("Ny");
 		seed = prm.get_integer("seed");
-		initial_load = prm.get_double("initial_load");
-		control_mode = prm.get("control_mode");
-		trigger = prm.get("trigger");
 		monitor_name = prm.get("monitor_name");
 		monitor_limit = prm.get_double("monitor_limit");
-		fracture_limit = prm.get_double("fracture_limit");
 		N_patch_list = mepls::utils::str::parse_list_integers(prm.get("N_patch_list"));
 		kmc_quench = prm.get_bool("kmc_quench");
 		kmc_relaxation = prm.get_bool("kmc_relaxation");
@@ -869,19 +839,6 @@ inline void file_attrs(H5::H5File &file, const parameters::Standard &p)
 		strwritebuf = p.sim.monitor_name;
 		H5::StrType strdatatype(H5::PredType::C_S1, strwritebuf.size());
 		file.createAttribute("monitor_name", strdatatype, att_space).write(strdatatype,
-																		   strwritebuf);
-	}
-	{
-		H5std_string strwritebuf;
-		strwritebuf = p.sim.trigger;
-		H5::StrType strdatatype(H5::PredType::C_S1, strwritebuf.size());
-		file.createAttribute("trigger", strdatatype, att_space).write(strdatatype, strwritebuf);
-	}
-	{
-		H5std_string strwritebuf;
-		strwritebuf = p.sim.control_mode;
-		H5::StrType strdatatype(H5::PredType::C_S1, strwritebuf.size());
-		file.createAttribute("control_mode", strdatatype, att_space).write(strdatatype,
 																		   strwritebuf);
 	}
 }
@@ -1486,7 +1443,7 @@ void run_thermal_evolution(mepls::system::System<dim> &system,
 		++i;
 
 		kmc(system);
-		mepls::dynamics::relaxation(system, p.sim.fracture_limit, continue_kmc);
+		mepls::dynamics::relaxation(system, 10, continue_kmc);
 
 		if(p.out.verbosity and omp_get_thread_num() == 0)
 			std::cout << i << std::endl;
@@ -1580,7 +1537,7 @@ void perform_reloading(mepls::system::System<dim> &system,
 		mepls::dynamics::finite_extremal_dynamics_step(1e-4 * 0.5, *system_replica, is_forward);
 		history.add_macro( *system_replica );
 
-		mepls::dynamics::relaxation(*system_replica, p.sim.fracture_limit, continue_loading);
+		mepls::dynamics::relaxation(*system_replica, 10, continue_loading);
 		history.add_macro( *system_replica );
 
 		continue_loading(std::abs(macrostate["total_strain"]) < 0.4 / 2., "total_strain limit reached");

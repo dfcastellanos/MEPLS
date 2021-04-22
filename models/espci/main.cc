@@ -146,7 +146,7 @@ void run_impl(const parameters::Standard &p) override
 		}
 
 		run_thermal_evolution(system, kmc_history, p, continue_simulation);
-		
+
 		// apply instantaneous quench
 		for(auto &element : elements_espci)
 		{
@@ -154,7 +154,7 @@ void run_impl(const parameters::Standard &p) override
 			conf.temperature = 0;
 			element->config(conf);
 		}
-		dynamics::relaxation(system, p.sim.fracture_limit, continue_simulation);
+		dynamics::relaxation(system, 10, continue_simulation);
 
 		kmc_history.add_macro(system);
 		system.macrostate.clear();
@@ -276,7 +276,7 @@ void run_impl(const parameters::Standard &p) override
 			// relax to ensure there are no unstable elements after the change
 			// in the elastic properties (if the shear modulus rises with strain,
 			// that will lead to stress rises that can unstabilise elements)
-			dynamics::relaxation(system, p.sim.fracture_limit, continue_simulation);
+			dynamics::relaxation(system, 10, continue_simulation);
 
 			timer->leave_subsection("Reassembling with new stiffness");
 			timer->enter_subsection("Running AQS");
@@ -329,7 +329,7 @@ void run_impl(const parameters::Standard &p) override
 		dynamics::finite_extremal_dynamics_step(1e-4 * 0.5, system);
 		aqs_history.add_macro(system);
 
-		dynamics::relaxation(system, p.sim.fracture_limit, continue_simulation);
+		dynamics::relaxation(system, 10, continue_simulation);
 		aqs_history.add_macro(system);
 
 
@@ -398,7 +398,7 @@ void run_impl(const parameters::Standard &p) override
 			kmc(*system_replica);
 			kmc_relaxation_hist.add_macro( *system_replica );
 
-			mepls::dynamics::relaxation(*system_replica, p.sim.fracture_limit, continue_relaxing);
+			mepls::dynamics::relaxation(*system_replica, 10, continue_relaxing);
 			kmc_relaxation_hist.add_macro( *system_replica );
 
 			continue_relaxing(macrostate["ext_stress"] > 0, "System relaxed");
@@ -450,7 +450,7 @@ void run_impl(const parameters::Standard &p) override
 			dynamics::finite_extremal_dynamics_step(1e-4 * 0.5, system, false);
 			aqs_unloading.add_macro(system);
 
-			dynamics::relaxation(system, p.sim.fracture_limit, continue_unloading);
+			dynamics::relaxation(system, 10, continue_unloading);
 			aqs_unloading.add_macro(system);
 
 			continue_unloading(macrostate["ext_stress"] > 0, "System unloaded");
