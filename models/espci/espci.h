@@ -192,7 +192,7 @@ struct Simulation
 	/*!<  Value of the magnitude defined by \ref monitor_name at which the simulation must stop. */
 
 	bool parent_liquid = true;
-	bool kmc_relaxation = true;
+	bool thermal_relaxation = true;
 	bool reload = true;
 	bool het_elasticity = false;
 	bool do_ee = true;
@@ -217,7 +217,7 @@ struct Simulation
 						  dealii::Patterns::Double(0.0), "");
 		prm.declare_entry("parent_liquid", mepls::utils::str::to_string(parent_liquid),
 						  dealii::Patterns::Bool(), "");
-		prm.declare_entry("kmc_relaxation", mepls::utils::str::to_string(kmc_relaxation),
+		prm.declare_entry("thermal_relaxation", mepls::utils::str::to_string(thermal_relaxation),
 						  dealii::Patterns::Bool(), "");
 		prm.declare_entry("reload", mepls::utils::str::to_string(reload), dealii::Patterns::Bool(),
 						  "");
@@ -243,7 +243,7 @@ struct Simulation
 		monitor_limit = prm.get_double("monitor_limit");
 		N_patch_list = mepls::utils::str::parse_list_integers(prm.get("N_patch_list"));
 		parent_liquid = prm.get_bool("parent_liquid");
-		kmc_relaxation = prm.get_bool("kmc_relaxation");
+		thermal_relaxation = prm.get_bool("thermal_relaxation");
 		reload = prm.get_bool("reload");
 		het_elasticity = prm.get_bool("het_elasticity");
 		do_ee = prm.get_bool("do_ee");

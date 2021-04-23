@@ -65,7 +65,7 @@ void run_impl(const parameters::Standard &p) override
 	auto patch_to_element_map = patches::make_patch_to_element_map(elements, p.sim.N_patch_list,
 																   p.sim.Nx, p.sim.Ny);
 	bool parent_liquid = p.sim.parent_liquid;
-	bool kmc_relaxation = p.sim.kmc_relaxation;
+	bool thermal_relaxation = p.sim.thermal_relaxation;
 	bool reload = p.sim.reload;
 	bool het_elasticity = p.sim.het_elasticity;
 	bool precalculate = not het_elasticity; // precalculate stress factors when doing patch tests;
@@ -352,9 +352,9 @@ void run_impl(const parameters::Standard &p) override
 
 	timer->enter_subsection("Thermal relaxation");
 
-	history::History<dim> kmc_relaxation_hist("KMC_relaxation");
+	history::History<dim> thermal_relaxation_hist("thermal_relaxation");
 
-	if(kmc_relaxation)
+	if(thermal_relaxation)
 	{
 		mepls::element::Vector<dim> elements_replica;
 		for(auto &element : elements_espci)
@@ -376,19 +376,19 @@ void run_impl(const parameters::Standard &p) override
 		auto system_replica = system.get_new_instance(elements_replica, solver,
 													  system.generator);
 		system_replica->macrostate = macrostate_end_AQS;
-		system_replica->set_history(kmc_relaxation_hist);
+		system_replica->set_history(thermal_relaxation_hist);
 
 		// initiate dynamics using copied system
 		mepls::dynamics::KMC<dim> kmc;
 		mepls::utils::ContinueSimulation continue_relaxing;
 		auto &macrostate = system_replica->macrostate;
-		kmc_relaxation_hist.add_macro( *system_replica );
+		thermal_relaxation_hist.add_macro( *system_replica );
 
 		while(continue_relaxing())
 		{
 
 			if(p.out.verbosity and omp_get_thread_num() == 0)
-				std::cout << kmc_relaxation_hist.index() << " | " << std::fixed
+				std::cout << thermal_relaxation_hist.index() << " | " << std::fixed
 						  << macrostate["total_strain"]
 						  << " " << macrostate["ext_stress"]
 						  << " " << macrostate["pressure"]
@@ -396,10 +396,10 @@ void run_impl(const parameters::Standard &p) override
 						  << std::endl;
 
 			kmc(*system_replica);
-			kmc_relaxation_hist.add_macro( *system_replica );
+			thermal_relaxation_hist.add_macro( *system_replica );
 
 			mepls::dynamics::relaxation(*system_replica, continue_relaxing);
-			kmc_relaxation_hist.add_macro( *system_replica );
+			thermal_relaxation_hist.add_macro( *system_replica );
 
 			continue_relaxing(macrostate["ext_stress"] > 0, "System relaxed");
 		}
@@ -476,8 +476,8 @@ void run_impl(const parameters::Standard &p) override
 
 	if(parent_liquid)
 		write::evolution_history(file, liquid_history);
-	if(kmc_relaxation)
-		write::evolution_history(file, kmc_relaxation_hist);
+	if(thermal_relaxation)
+		write::evolution_history(file, thermal_relaxation_hist);
 	write::evolution_history(file, aqs_history);
 	if(reload)
 	{
