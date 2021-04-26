@@ -40,14 +40,16 @@ enum Values
 
 	extremal_dynamics = 2, /*!< A event created by \ref dynamics::extremal_dynamics_step. */
 
-	kinetic_monte_carlo = 3, /*!< An event created by \ref dynamics::kmc_step. */
+	kinetic_monte_carlo = 3, /*!< An event created by \ref dynamics::KMC. */
 
 	relaxation_step = 4, /*!< An event created by \ref dynamics::relaxation. */
 
 	prestress = 5,
 	/*!< An driving event explicitly created by the user to represent the prestress. */
 
-	variation_stiffness = 6 /*!< A driving event signaling a global stiffness variation. */
+	variation_stiffness = 6, /*!< A driving event signaling a global stiffness variation. */
+
+	metropolis_hastings = 7  /*!< An event created by \ref dynamics::MetropolisHastings. */
 };
 
 } // protocol
@@ -143,6 +145,154 @@ class KMC
 	/*!< Vector containing the activation rates all the slip systems within the
 	 * material. */
 };
+
+
+
+/*! This class implements the Metropolis-Hastings algorithm. */
+template<int dim>
+class MetropolisHastings
+{
+  public:
+
+	MetropolisHastings()
+		:
+		unif_distribution(0, 1)
+	{
+		/*! Constructor. */
+	}
+
+	bool operator()(system::System<dim> &system)
+	{
+		/*! Perform as Metropolis-Hastings step. This means that a random slip
+		 * event is performed, and the energy change computed. The event will
+		 * be accepted or rejected according to the Metropolis-Hastings rule.
+		 *
+		 * @return whether the event has been accepted or rejected. If it has
+		 * been rejected, the state of the system is exactly the same as
+		 * before calling this function. */
+
+		auto & generator = system.generator;
+
+		// we don't want to re-allocate the vectors each time. To this end, we
+		// count the total number of slips systems first, and then call resize()
+		// on the vectors. If the number of slip systems did not change, the
+		// vectors are not re-allocated
+		unsigned int n_slips = 0;
+		for(auto &element : system)
+			for(auto &slip : *element)
+				++n_slips;
+
+		slips.resize(n_slips);
+		unsigned int n = 0;
+		for(auto &element : system)
+			for(auto &slip : *element)
+			{
+				slips[n] = slip;
+				++n;
+			}
+
+
+		// the idea is that if the candidate event is rejected, we set the whole
+		// system's state back to where it was. We cannot simply copy the modified
+		// element and set it back in place of the original, because the elements
+		// are pointers to the actual objects, and doing that will break the
+		// simulation outside this function, when the elements are being accessed
+		// using the pointers to the old elements. We could replace the element
+		// by a new one in exactly the same memory location as the original to
+		// avoid that problem, but we don't know the dynamic types so it is not
+		// easy or safe. The way we do it is by not replacing the elements, but just
+		// modying the properties that get modified when performing an event.
+		// Namely, the elastic state, the eigenstrain tensor, the von Mises eigenstrain
+		// and the structural properties. Since calling system.add would potentially
+		// delete slip objects, we will tell to system.add not to modify the
+		// structural properties. If the event is accepted: we will modify the
+		// structural properties by calling manually element->renew_structural_properties()
+		// If the event is rejected: we will won't renew the structural properties,
+		// we will remove the changes in eigenstrain in the solver and the
+		// element, and we will call system.solve_elastic_problem() to set back
+		// the elastic fields before the candidate event was performed (NOTE:
+		// this implies solving twice the FEM, this could be improved by storing
+		// the solver's state before the event and replacing it back again, but
+		// right now it doesn't seem to be a problem because the method converges
+		// fast enough to an equilibrium state).
+
+
+		double energy_before = get_average_energy(system.elements);
+
+		// select the candidate slip
+		unsigned int i = int(unif_distribution(generator) * n_slips);
+		auto candidate_slip = slips[i];
+
+		auto element = candidate_slip->parent;
+		auto eigenstrain_before = element->eigenstrain();
+
+		event::Plastic<dim> cadidate_event( candidate_slip );
+		cadidate_event.activation_protocol = Protocol::metropolis_hastings;
+		// do not renew properties, since the event might be rejected. When we
+		// accept it, we will renew the properties
+		cadidate_event.renew_slip_properties = false;
+		// perform the candidate slip
+		system.add(cadidate_event);
+
+		double energy_after = get_average_energy(system.elements);
+
+		// decide if it is accepted
+		double energy_change = energy_after - energy_before;
+		double prob_accept = energy_change < 0. ? 1. : std::exp(-energy_change/T);
+		bool accepted = unif_distribution(generator) < prob_accept;
+
+
+		if( accepted )
+		{
+			element->renew_structural_properties();
+
+			std::vector<event::RenewSlip<dim>> renewal_vector;
+			element->record_structural_properties(renewal_vector);
+			system.history->add(renewal_vector);
+
+		}else{
+			// add the opposite eigenstrain increment to the solver, so that
+			// in the next elastic solution the effects of this event are
+			// undone. To keep things as clean as possible, do it also in the
+			// element
+			system.solver.add_eigenstrain(element->number(), -1.*cadidate_event.eigenstrain);
+			system.solve_elastic_problem();
+
+			// if add an increment the integrated von Mises eigenstrain won't have
+			// the right value. To do it correctly, we set the total eigenstrain
+			element->eigenstrain( eigenstrain_before );
+		}
+
+		return accepted;
+	}
+
+
+	double get_average_energy(element::Vector<dim> &elements)
+	{
+		/*! Compute the average elastic energy over the input elements. */
+
+		double av_energy = 0.;
+
+		for(auto &element : elements)
+			av_energy += 0.5 * dealii::invert(element->C()) * element->stress() * element->stress();
+
+		av_energy /= double(elements.size());
+
+		return av_energy;
+	}
+
+	double T = 1.;
+
+  private:
+	std::uniform_real_distribution<double> unif_distribution;
+
+	std::vector<mepls::slip::Slip<dim> *> slips;
+	/*!< Vector containing all the slip systems within the material. It
+	 * conatenates pointers to all the slip systems
+	 * \ref element::Element<dim>::slip_systems_ in all the elements in \ref
+	 * system.elements. */
+};
+
 
 
 template<int dim>

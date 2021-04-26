@@ -1468,6 +1468,56 @@ void run_thermal_evolution(mepls::system::System<dim> &system,
 
 
 template<int dim>
+void simulate_parent_liquid_MH(mepls::system::System<dim> &system,
+							mepls::history::History<dim> &history,
+							const parameters::Standard &p,
+							mepls::utils::ContinueSimulation &continue_simulation)
+{
+	mepls::dynamics::MetropolisHastings<dim> mh;
+	mh.T = p.mat.temperature_liquid;
+
+	auto &macro_evolution = history.macro_evolution;
+
+	std::vector<double> rolling_av_stress;
+	double rolling_av_stress_old = 0.;
+	double rolling_av_stress_new = 0.;
+	mepls::utils::ContinueSimulation continue_mh;
+	unsigned int i = 0;
+	unsigned int n = 200;
+
+	while(continue_mh())
+	{
+
+		bool accepted = mh(system);
+
+		if(accepted)
+		{
+			++i;
+
+			history.add_macro(system);
+
+			if(p.out.verbosity and omp_get_thread_num() == 0)
+				std::cout << i << std::endl;
+		}
+
+		if(i % n == 0 and i > 1000)
+		{
+			rolling_av_stress_new = 0.;
+			for(unsigned int j = macro_evolution.size() - n; j < macro_evolution.size();
+				++j)
+				rolling_av_stress_new += macro_evolution[j].av_vm_stress;
+			rolling_av_stress_new /= double(n);
+
+			continue_mh( std::abs(rolling_av_stress_new-rolling_av_stress_old)
+			/rolling_av_stress_old > 0.005, "MH reached the stationary state" );
+
+			rolling_av_stress_old = rolling_av_stress_new;
+		}
+	}
+}
+
+
+template<int dim>
 std::vector<element::Anisotropic<dim> *> create_elements(const parameters::Standard &p,
 														 std::mt19937 &generator)
 {
