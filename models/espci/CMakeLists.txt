@@ -57,7 +57,7 @@ else ()
     message("-- OPENMP is disabled...")
 endif (OPENMP)
 
-# maximum gcc optiization and enable openMP
+# maximum gcc optimization and enable openMP
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -fopenmp")
 
 # create ./results directory
