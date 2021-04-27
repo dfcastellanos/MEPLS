@@ -145,8 +145,9 @@ void run_impl(const parameters::Standard &p) override
 			element->config(conf);
 		}
 
-		run_thermal_evolution(system, liquid_history, p, continue_simulation);
-		
+		simulate_parent_liquid_KMC(system, liquid_history, p, continue_simulation);
+//		simulate_parent_liquid_MH(system, liquid_history, p, continue_simulation);
+
 		// apply instantaneous quench
 		for(auto &element : elements_espci)
 		{

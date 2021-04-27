@@ -1423,13 +1423,13 @@ void apply_initial_eigenstrain(mepls::system::System<dim> &system,
 
 
 template<int dim>
-void run_thermal_evolution(mepls::system::System<dim> &system,
+void simulate_parent_liquid_KMC(mepls::system::System<dim> &system,
 							mepls::history::History<dim> &history,
 							const parameters::Standard &p,
 							mepls::utils::ContinueSimulation &continue_simulation)
 {
 	mepls::dynamics::KMC<dim> kmc;
-	auto &KMC_macro_evolution = history.macro_evolution;
+	auto &macro_evolution = history.macro_evolution;
 
 	std::vector<double> rolling_av_stress;
 	double rolling_av_stress_old = 0.;
@@ -1453,9 +1453,9 @@ void run_thermal_evolution(mepls::system::System<dim> &system,
 		if(i % n == 0 and i > 1000)
 		{
 			rolling_av_stress_new = 0.;
-			for(unsigned int j = KMC_macro_evolution.size() - n; j < KMC_macro_evolution.size();
+			for(unsigned int j = macro_evolution.size() - n; j < macro_evolution.size();
 				++j)
-				rolling_av_stress_new += KMC_macro_evolution[j].av_vm_stress;
+				rolling_av_stress_new += macro_evolution[j].av_vm_stress;
 			rolling_av_stress_new /= double(n);
 
 			continue_kmc( std::abs(rolling_av_stress_new-rolling_av_stress_old)
