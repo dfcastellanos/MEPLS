@@ -374,7 +374,7 @@ inline double get_average_energy(element::Vector<dim> &elements)
 	double av_energy = 0.;
 
 	for(auto &element : elements)
-		av_energy += 0.5 * dealii::invert(element->C()) * element->stress() * element->stress();
+		av_energy += element->energy();
 
 	av_energy /= double(elements.size());
 

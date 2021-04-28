@@ -180,26 +180,34 @@ class Element
 	Element()
 	{
 		/*! Constructor. Initialize the default values of the class members. */
-		integrated_vm_eigenstrain_ = 0.;
-		S_already_is_set = false;
-		ext_stress_coeff_is_set = false;
+
 		this->type("element");
 	}
 
-	Element(Element *element)
+	Element(Element *original)
 	{
-		this->C( element->C() );
-		this->S( element->S());
-		this->eigenstrain( element->eigenstrain() );
-		this->integrated_vm_eigenstrain( element->integrated_vm_eigenstrain() );
-		this->ext_stress_coeff( element->ext_stress_coeff() );
-		this->prestress( element->prestress() );
-		this->elastic_stress( element->elastic_stress() );
-		this->def_grad( element->def_grad() );
-		this->type( element->type() );
-		this->number( element->number() );
+		eigenstrain_ = original->eigenstrain_;
+		integrated_vm_eigenstrain_ = original->integrated_vm_eigenstrain_;
+		prestress_ = original->prestress_;
+		elastic_stress_ = original->elastic_stress_;
+		stress_ = original->stress_;
+		def_grad_ = original->def_grad_;
+		S_ = original->S_;
+		J_ = original->J_;
+		C_ = original->C_;
+		ext_stress_coeff_ = original->ext_stress_coeff_;
+		energy_el_ = original->energy_el_;
+		energy_conf_ = original->energy_conf_;
+		energy_ = original->energy_;
+		number_ = original->number_;
+		type_ = original->type_;
+		S_already_is_set = original->S_already_is_set;
+		ext_stress_coeff_is_set = original->ext_stress_coeff_is_set;
 
-		for(auto &slip : *element)
+		// The slip_systems vector cannot be just copied since it contains pointers.
+		// What we do is create copies of the original slip objects and fill this
+		// element with them
+		for(auto &slip : *original)
 			this->add_slip_system( slip->make_copy() );
 	}
 
@@ -397,7 +405,10 @@ class Element
 
 		C_ = input_C;
 
-		update_stress();
+		J_ = dealii::invert(C_);
+
+		// the elastic energy depends on C
+		update_energy();
 	}
 
 	const dealii::SymmetricTensor<4, dim> &C() const
@@ -405,6 +416,13 @@ class Element
 		/*! Return a reference to the \ref C_ tensor. */
 
 		return C_;
+	}
+
+	const dealii::SymmetricTensor<4, dim> &J() const
+	{
+		/*! Return a reference to the \ref J_ tensor. */
+
+		return J_;
 	}
 
 	const dealii::SymmetricTensor<2, dim> &ext_stress_coeff() const
@@ -518,6 +536,37 @@ class Element
 		return type_;
 	}
 
+	double energy() const
+	{
+		/*! Return the energy of the element. */
+
+		return energy_;
+	}
+
+	double energy_el() const
+	{
+		/*! Return the elastic energy of the element. */
+
+		return energy_el_;
+	}
+
+	double energy_conf() const
+	{
+		/*! Return the configuration energy of the element. */
+
+		return energy_conf_;
+	}
+
+	void energy_conf(const double energy_conf_input)
+	{
+		/*! Set the value of the configurational energy. The total energy
+		 * is updated. */
+
+		energy_conf_ = energy_conf_input;
+
+		update_energy();
+	}
+
 	void state_to_prestress()
 	{
 		/*! Set the current total stress as prestress and clean the rest of
@@ -546,8 +595,6 @@ class Element
 		integrated_vm_eigenstrain_ = 0.;
 	}
 
-
-
   private:
 
 	dealii::SymmetricTensor<2, dim> eigenstrain_;
@@ -555,7 +602,7 @@ class Element
 	 * is the acumulation of the eigenstrain increments added with
 	 * \ref add_eigenstrain(). */
 
-	double integrated_vm_eigenstrain_;
+	double integrated_vm_eigenstrain_ = 0.;
 	/*!< The sum of von Mises eigenstrain increments. The increments are
 	 * computed from each eigenstrain tensorial increment added with
 	 * \ref add_eigenstrain(). */
@@ -592,6 +639,9 @@ class Element
 	 * (\mathbb{E}-\mathbb{I}) \f$, where \f$ \mathbb{I} \f$ is the rank-4
 	 * identity tensor. */
 
+	dealii::SymmetricTensor<4, dim> J_;
+	/*!< The inverse of the rank-4 stiffness tensor (also known as complience). */
+
 	dealii::SymmetricTensor<4, dim> C_;
 	/*!< rank-4 stiffness tensor \f$ \mathbb{C} \f$ characterising the element's
 	 * linear elastic response, i.e., \f$ \boldsymbol{\Sigma}_{\rm el} =
@@ -606,28 +656,49 @@ class Element
 	/*!< Vector containing the pointers to the slip objects owned by the
 	 * element. */
 
-	unsigned int number_;
+	double energy_el_ = 0.;
+	/*!< Elastic energy stored in the element. */
+
+	double energy_conf_ = 0.;
+	/*!< Configurational energy stored in the element. An energy term that must
+	 * be set from outside, since its origin is not elastic. */
+
+	double energy_ = 0.;
+	/*!< Total energy stored in the element. */
+
+	unsigned int number_ = 0;
 	/*!< Element number. */
 
-	std::string type_;
+	std::string type_ = "";
 	/*!< String containing the type of element object.*/
 
-	bool S_already_is_set;
+	bool S_already_is_set = false;
 	/*!< Indicates wheter the \ref S_ tensor has already been set. */
 
-	bool ext_stress_coeff_is_set;
+	bool ext_stress_coeff_is_set = false;
 
 	/*!< Indicates whether the ext_stress_coeff_ tensor has already been set. */
 
+	void update_energy()
+	{
+		/*! Compute the elastic energy using the stress, the stiffness tensor
+		 * and linear elasticity. Compute the total energy as the sum of the
+		 * configurational and the elastic energies. */
+
+		energy_el_ =  0.5 * J_ * stress_ * stress_;
+
+		energy_ = energy_conf_ + energy_el_;
+	}
+
 	void update_stress()
 	{
-		/*! Compute the total stres, which is a superposition of the prestress
-		 * and the elastic stress, i.e., \f$ \boldsymbol{\Sigma} =
-		 * \boldsymbol{\Sigma}_{\rm 0} +
-		 * \boldsymbol{\Sigma}_{\rm el}\f$. Afterwards, update the stress state
-		 * of the slip systems owned by the element. */
+		/*! Compute the total stres (which is a superposition of the prestress
+		 * and the elastic stress). Afterwards, update
+		 * the the slip systems owned by the element. */
 
 		stress_ = prestress_ + elastic_stress_;
+
+		update_energy();
 
 		for(auto &slip : *this)
 			slip->update();

@@ -428,7 +428,7 @@ class History
 			sum_vm_stress += vm_stress;
 			sum2_vm_stress += vm_stress * vm_stress;
 
-			double potential_energy = 0.5 * dealii::invert(element->C()) * element->stress() * element->stress();
+			double potential_energy = element->energy();
 			sum_potential_energy += potential_energy;
 			sum2_potential_energy += potential_energy * potential_energy;
 		}
