@@ -222,6 +222,8 @@ models are:
 
 
 ## How to build
+
+####Linux
 MEPLS uses CMake for building. The only MEPLS dependency is the [deal.II] library,
 with version between 8.5 and 9.1. The recommended version is the 9.0, which can 
 be found in this repository. A minimal build of deal.II is enough. To build it, 
@@ -270,12 +272,21 @@ continous switches, which can introduce considerable overhead. Currently, MEPLS
 does not support internal parallelization. Therefore, a single simulation run 
 cannot run in parallel.
 
+####Windows
+Building on Windows has not been tested yet. You can follow [deal.II]'s own building
+instructions for Windows, after which building a MEPLS model should be trivial.
+
+####macOS
+Building on macOS has not been tested yet. You can follow [deal.II]'s own building
+instructions for macOS, after which building a MEPLS model should be trivial.
+
 
 ## Documentation
 You can access the documentation online on the [project's website]. 
 Alternatively, you can generate the documentation in different formats using 
 [Doxygen](https://www.doxygen.nl/index.html) and the generation script located 
 in `/path/to/MEPLS_dir/inc/MEPLS/doc`.
+
 
 ## Contact
 You can contact the author for, e.g., reporting issues and bugs or submitting 
