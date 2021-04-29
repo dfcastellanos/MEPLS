@@ -65,15 +65,23 @@ class Slip
   public:
 
 	Slip()
-		:
-		eff_shear_stress(0.),
-		pressure(0.),
-		threshold(0.),
-		barrier(0.),
-		activation_rate(0.),
-		angle(0.)
 	{
-		/*! Constructor. Initialize members zero. */
+		/*! Constructor. */
+	}
+
+	Slip(Slip *original)
+	{
+		/*! Copy constructor. Copy the value of all the data members except the
+		 * pointer to the parent element. Since the copied slip will in general
+		 * be added to a different elemetn, this pointer should be set by that
+		 * element when the slip is added to it. */
+
+		eff_shear_stress = original->eff_shear_stress;
+		pressure = original->pressure;
+		threshold = original->threshold;
+		barrier = original->barrier;
+		activation_rate = original->activation_rate;
+		angle = original->angle;
 	}
 
 	virtual ~Slip()
@@ -101,14 +109,14 @@ class Slip
 		 *
 		 * @warning the user is responsible for deleting the allocated copy. */
 
-		M_Assert(false, "make_copy() not implemented for the current slip object.");
+		return make_copy_impl();
 	}
 
-	double eff_shear_stress;
+	double eff_shear_stress = 0.;
 	/*!< Effective shear stress \f$ \tau \f$ in the slip system. It is
 	 * responsible for lowering the slip activation barrier, \ref barrier. */
 
-	double pressure;
+	double pressure = 0.;
 	/*!< Hydrostatic pressure, computed from the parent element stress tensor
 	 * element::\ref stress_ as
 	 * \f$ p = \frac{1}{dim}\textrm{tr}( \boldsymbol{\Sigma} )\f$.
@@ -117,19 +125,19 @@ class Slip
 	 * the same parent element, since the pressure is anisotropic and only a
 	 * single stress tensor per element is considered. */
 
-	double threshold;
+	double threshold = 0.;
 	/*!< Local yield threshold \f$ \hat{\tau} \f$, i.e. the effective shear
 	 * stress \ref eff_shear_stress necessary for a slip system to become
 	 * mechanically unstable. */
 
-	double barrier;
+	double barrier = 0.;
 	/*!< Stress barrier \f$ \hat{\tau} - \tau \f$ neccesary to be overcome
 	 * before the slip system becomes mechanically activated. */
 
-	double activation_rate;
+	double activation_rate = 0.;
 	/*!< Rate \f$ \nu \f$ for thermal slip activation. */
 
-	double angle;
+	double angle = 0.;
 	/*!< Orientation of the slip plane (in radians). */
 
 	element::Element<dim> *parent;
@@ -141,6 +149,18 @@ class Slip
 	 * deletion of slips objects must be done carefully. Usually, allocation and
 	 * deletion of slip objects is only done within the implementation of
 	 * element::Element objects. */
+
+  private:
+
+  	virtual Slip<dim> *make_copy_impl()
+	{
+		/*! Dynamically allocate a new object of the derive class type and
+		 * return a pointer to it. */
+
+		M_Assert(false, "Copying of the current type of slip not implemented.");
+
+		abort();
+	}
 };
 
 } // namespace slip

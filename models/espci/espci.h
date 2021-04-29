@@ -420,6 +420,18 @@ public:
 			M[0][0] == -M[1][1], "");
 	};
 
+	Oriented(Oriented *slip)
+		:
+		mepls::slip::Slip<dim>(slip),
+		M(slip->M),
+		conf(slip->conf),
+		threshold_0(slip->threshold_0),
+		unif_distribution(0, 1.),
+		normal_dist(0, 1),
+		generator(slip->generator)
+	{
+	}
+
 	void update() override
 	{
 		eff_shear_stress = M * parent->stress();
@@ -477,9 +489,14 @@ public:
 		return eigenstrain_dev;
 	}
 
-	mepls::slip::Slip<dim> *make_copy() override
+	Oriented<dim> *make_copy_impl() override
 	{
-		return new slip::Oriented<dim>(generator, conf);
+		return new Oriented<dim>(this);
+	}
+
+	Oriented<dim> *make_copy()
+	{
+		return make_copy_impl();
 	}
 
 	using mepls::slip::Slip<dim>::angle;
