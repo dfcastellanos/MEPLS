@@ -224,8 +224,10 @@ struct MacroSummaryRow
 	double std_vm_plastic_strain = 0.;
 	double av_vm_stress = 0.;
 	double std_vm_stress = 0.;
-	double av_potential_energy = 0.;
-	double std_potential_energy = 0.;
+	double av_energy_el = 0.;
+	double std_energy_el = 0.;
+	double av_energy_conf = 0.;
+	double std_energy_conf = 0.;	
 	double time = 0.;
 	double total_strain = 0.;
 	double ext_stress = 0.;
@@ -398,14 +400,16 @@ class History
 		double sum_stress_01 = 0.;
 		double sum_vm_plastic_strain = 0.;
 		double sum_vm_stress = 0.;
-		double sum_potential_energy = 0.;
+		double sum_energy_el = 0.;
+		double sum_energy_conf = 0.;
 
 		double sum2_stress_00 = 0.;
 		double sum2_stress_11 = 0.;
 		double sum2_stress_01 = 0.;
 		double sum2_vm_plastic_strain = 0.;
 		double sum2_vm_stress = 0.;
-		double sum2_potential_energy = 0.;
+		double sum2_energy_el = 0.;
+		double sum2_energy_conf = 0.;
 
 		for(auto &element : elements)
 		{
@@ -428,9 +432,13 @@ class History
 			sum_vm_stress += vm_stress;
 			sum2_vm_stress += vm_stress * vm_stress;
 
-			double potential_energy = element->energy();
-			sum_potential_energy += potential_energy;
-			sum2_potential_energy += potential_energy * potential_energy;
+			double energy_el = element->energy_el();
+			sum_energy_el += energy_el;
+			sum2_energy_el += energy_el * energy_el;
+
+			double energy_conf = element->energy_conf();
+			sum_energy_conf += energy_conf;
+			sum2_energy_conf += energy_conf * energy_conf;
 		}
 
 		double N = double(elements.size());
@@ -440,7 +448,8 @@ class History
 		data.av_stress_01 = sum_stress_01/N;
 		data.av_vm_stress = sum_vm_stress/N;
 		data.av_vm_plastic_strain = sum_vm_plastic_strain/N;
-		data.av_potential_energy = sum_potential_energy/N;
+		data.av_energy_el = sum_energy_el/N;
+		data.av_energy_conf = sum_energy_conf/N;
 
 		data.std_stress_00 = std::sqrt(
 			sum2_stress_00/N - data.av_stress_00 * data.av_stress_00);
@@ -456,8 +465,11 @@ class History
 
 		data.std_vm_stress = std::sqrt(sum2_vm_stress/N - data.av_vm_stress * data.av_vm_stress);
 
-		data.std_potential_energy = std::sqrt(
-			sum2_potential_energy/N - data.av_potential_energy * data.av_potential_energy);
+		data.std_energy_el = std::sqrt(
+			sum2_energy_el/N - data.av_energy_el * data.av_energy_el);
+
+		data.std_energy_conf = std::sqrt(
+			sum2_energy_conf/N - data.av_energy_conf * data.av_energy_conf);
 
 		data.time = macrostate["time"];
 		data.total_strain = macrostate["total_strain"];

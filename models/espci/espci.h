@@ -884,9 +884,13 @@ inline void evolution_history(H5::H5File &file,
 		mtype.insertMember("av_vm_stress", HOFFSET(DataRow, av_vm_stress), H5::PredType::NATIVE_DOUBLE);
 		mtype.insertMember("std_vm_stress", HOFFSET(DataRow, std_vm_stress),
 						   H5::PredType::NATIVE_DOUBLE);
-		mtype.insertMember("av_potential_energy", HOFFSET(DataRow, av_potential_energy),
+		mtype.insertMember("av_energy_el", HOFFSET(DataRow, av_energy_el),
 						   H5::PredType::NATIVE_DOUBLE);
-		mtype.insertMember("std_potential_energy", HOFFSET(DataRow, std_potential_energy),
+		mtype.insertMember("std_energy_el", HOFFSET(DataRow, std_energy_el),
+						   H5::PredType::NATIVE_DOUBLE);
+		mtype.insertMember("av_energy_conf", HOFFSET(DataRow, av_energy_conf),
+						   H5::PredType::NATIVE_DOUBLE);
+		mtype.insertMember("std_energy_conf", HOFFSET(DataRow, std_energy_conf),
 						   H5::PredType::NATIVE_DOUBLE);
 		mtype.insertMember("av_stress_00", HOFFSET(DataRow, av_stress_00),
 						   H5::PredType::NATIVE_DOUBLE);
@@ -1203,7 +1207,7 @@ inline void snapshots(H5::H5File &file,
 		}
 	}
 
-	{   /* --------- write local probing snapshots ----------- */
+	{   /* --------- write patch snapshots ----------- */
 
 		if(not H5Lexists(file.getId(), (path + "/patches").c_str(), H5P_DEFAULT))
 			file.createGroup(path + "/patches");
@@ -1223,9 +1227,8 @@ inline void snapshots(H5::H5File &file,
 		mtype.insertMember("ee_00", HOFFSET(DataRow, stress_ee_00), H5::PredType::NATIVE_FLOAT);
 		mtype.insertMember("ee_11", HOFFSET(DataRow, stress_ee_11), H5::PredType::NATIVE_FLOAT);
 		mtype.insertMember("ee_01", HOFFSET(DataRow, stress_ee_01), H5::PredType::NATIVE_FLOAT);
-		mtype.insertMember("ss_pe", HOFFSET(DataRow, energy_el_ss), H5::PredType::NATIVE_FLOAT);
-		mtype.insertMember("oi_pe", HOFFSET(DataRow, energy_el_oi), H5::PredType::NATIVE_FLOAT);
-		mtype.insertMember("ee_pe", HOFFSET(DataRow, energy_el_ee), H5::PredType::NATIVE_FLOAT);
+		mtype.insertMember("ss_pe_el", HOFFSET(DataRow, energy_el_ss), H5::PredType::NATIVE_FLOAT);
+		mtype.insertMember("ss_pe_conf", HOFFSET(DataRow, energy_conf_ss), H5::PredType::NATIVE_FLOAT);
 		mtype.insertMember("x", HOFFSET(DataRow, x), H5::PredType::NATIVE_FLOAT);
 		mtype.insertMember("y", HOFFSET(DataRow, y), H5::PredType::NATIVE_FLOAT);
 

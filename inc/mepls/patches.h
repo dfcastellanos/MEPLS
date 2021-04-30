@@ -117,6 +117,18 @@ struct PatchPropertiesTensorial
 	/*!< Elastic energy averaged over the elements composing the patch. The
 	 * operation is performed in the ee-state. */
 
+	double energy_conf_ss = 0.;
+	/*!< Configurational energy averaged over the elements composing the patch. The
+	 * operation is performed in the ss-state. */
+
+	double energy_conf_oi = 0.;
+	/*!< Configurational energy averaged over the elements composing the patch. The
+	 * operation is performed in the oi-state. */
+
+	double energy_conf_ee = 0.;
+	/*!< Configurational energy averaged over the elements composing the patch. The
+	 * operation is performed in the ee-state. */
+
 	std::vector<double> coords;
 	/*!< Cartesian coordinates of the center of the patch. */
 
@@ -351,34 +363,27 @@ std::map<unsigned int, std::vector<std::vector<unsigned int>>> make_patch_to_ele
 
 
 template<int dim>
-inline dealii::SymmetricTensor<2, dim> get_average_stress(element::Vector<dim> &elements)
+inline void get_averages(const element::Vector<dim> &elements,
+						dealii::SymmetricTensor<2, dim> &av_stress,
+						double &av_energy_el,
+						double &av_energy_conf)
 {
-	/*! Compute the average stress tensor over the input elements. */
+	/*! Compute the average properties over the input elements. */
 
-	dealii::SymmetricTensor<2, dim> av_stress;
+	av_stress.clear();
+	av_energy_el = 0.;
+	av_energy_conf = 0.;
 
 	for(auto &element : elements)
+	{
 		av_stress += element->stress();
+		av_energy_el += element->energy_el();
+		av_energy_conf += element->energy_conf();
+	}
 
 	av_stress /= double(elements.size());
-
-	return av_stress;
-}
-
-
-template<int dim>
-inline double get_average_energy(element::Vector<dim> &elements)
-{
-	/*! Compute the average elastic energy over the input elements. */
-
-	double av_energy = 0.;
-
-	for(auto &element : elements)
-		av_energy += element->energy_el();
-
-	av_energy /= double(elements.size());
-
-	return av_energy;
+	av_energy_el /= double(elements.size());
+	av_energy_conf /= double(elements.size());
 }
 
 
@@ -410,15 +415,15 @@ void apply_patch_shear_test(
 	auto &solver = patch_system.solver;
 
 	// stable state
-	patch_properties.stress_ss = get_average_stress(elements);
-	patch_properties.energy_el_ss = get_average_energy(elements);
+	get_averages(elements, patch_properties.stress_ss, patch_properties.energy_el_ss,
+	             patch_properties.energy_conf_ss);
 
 	// onset instability state: drive the system until it becomes unstable
 	// (i.e., a slip system has reached its threshold).
 	double deps = 0.5 * dgamma;
 	dynamics::finite_extremal_dynamics_step(deps, patch_system);
-	patch_properties.stress_oi = get_average_stress(elements);
-	patch_properties.energy_el_oi = get_average_energy(elements);
+	get_averages(elements, patch_properties.stress_oi, patch_properties.energy_el_oi,
+	             patch_properties.energy_conf_oi);
 	patch_properties.resolved_elastic_shear_strain_oi = solver.get_total_strain();
 
 	if(do_ee)
@@ -427,14 +432,15 @@ void apply_patch_shear_test(
 		// triggered in the oi-state (and possibly, other events triggered
 		// induced by it)
 		dynamics::relaxation(patch_system, continue_shear_test);
-		patch_properties.stress_ee = get_average_stress(elements);
-		patch_properties.energy_el_ee = get_average_energy(elements);
+	    get_averages(elements, patch_properties.stress_ee, patch_properties.energy_el_ee,
+	                 patch_properties.energy_conf_ee);
 	}
 	else
 	{
 		// use oi as ee, so the variation from one to the other is zero
 		patch_properties.stress_ee = patch_properties.stress_oi;
 		patch_properties.energy_el_ee = patch_properties.energy_el_oi;
+		patch_properties.energy_conf_ee = patch_properties.energy_conf_oi;
 	}
 }
 
@@ -835,6 +841,18 @@ class PatchPropertiesSnapshot
 		/*!< Elastic energy averaged over the elements composing the patch. The
 		 * operation is performed in the ee-state. */
 
+		float energy_conf_ss = 0.;
+		/*!< Configurational energy averaged over the elements composing the patch. The
+		 * operation is performed in the ss-state. */
+
+		float energy_conf_oi = 0.;
+		/*!< Configurational energy averaged over the elements composing the patch. The
+		 * operation is performed in the oi-state. */
+
+		float energy_conf_ee = 0.;
+		/*!< Configurational energy averaged over the elements composing the patch. The
+		 * operation is performed in the ee-state. */
+
 		float shear_strain_oi = 0.;
 		/*!< Elastic shear strain applied to the patch, with shear orientation
 		* \ref theta, to reach the oi-state from the initial ss-state. */
@@ -907,6 +925,9 @@ class PatchPropertiesSnapshot
 			row.energy_el_ss = d.energy_el_ss;
 			row.energy_el_oi = d.energy_el_oi;
 			row.energy_el_ee = d.energy_el_ee;
+			row.energy_conf_ss = d.energy_conf_ss;
+			row.energy_conf_oi = d.energy_conf_oi;
+			row.energy_conf_ee = d.energy_conf_ee;
 			row.x = d.coords[0];
 			row.y = d.coords[1];
 			row.failed = d.failed;

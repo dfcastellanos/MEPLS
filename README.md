@@ -23,13 +23,13 @@ user to focus on the physics of the model. Whenever possible, it uses existing
 well-established software, such as the [deal.II] library for the Finite Element 
 Method. To achieve these goals, MEPLS is developed around three pillars:
 
-  * **Efficient** --- it is fully implemented in C++, with a back-end based on 
+  * **Efficient** — it is fully implemented in C++, with a back-end based on 
     well-established efficient libraries such as deal.II and UMFPACK.
 
-  * **User-friendly** --- it is easy to build and has minimal dependencies. It 
+  * **User-friendly** — it is easy to build and has minimal dependencies. It 
     is well-documented and has a gallery of examples.
 
-  * **Extensible** --- it is object-oriented and template-based. Its modularity 
+  * **Extensible** — it is object-oriented and template-based. Its modularity 
     and simplicity facilitate the task of extending it according to the user's 
     needs.
 
@@ -239,14 +239,14 @@ make test
 ```
 
 Now, we can compile some of the MEPLS models. First, unpack MEPLS in some 
-directory `/path/to/MEPLS`. Let’s build the model located in 
-`/path/to/MEPLS/models/example`. To build it in `/path/to/model/build`, simply
+directory `/path/to/MEPLS_dir`. Let’s build the model located in 
+`/path/to/MEPLS_dir/models/example`. To build it in `/path/to/model/build`, simply
 do:
 
 ```sh
 mkdir /path/to/model/build
 cd /path/to/model/build
-cmake /path/to/MEPLS/models/example -DDEAL_II_DIR=/path/to/dealii/build
+cmake /path/to/MEPLS_dir/models/example -DDEAL_II_DIR=/path/to/dealii/build
 make
 ```
 
@@ -285,7 +285,7 @@ instructions for macOS, after which building a MEPLS model should be trivial.
 You can access the documentation online on the [project's website]. 
 Alternatively, you can generate the documentation in different formats using 
 [Doxygen](https://www.doxygen.nl/index.html) and the generation script located 
-in `/path/to/MEPLS_dir/inc/MEPLS/doc`.
+in `/path/to/MEPLS_dir/doc`.
 
 
 ## Contact
