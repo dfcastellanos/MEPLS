@@ -204,33 +204,6 @@ class Element
 		this->type("element");
 	}
 
-	Element(Element *original)
-	{
-		eigenstrain_ = original->eigenstrain_;
-		integrated_vm_eigenstrain_ = original->integrated_vm_eigenstrain_;
-		prestress_ = original->prestress_;
-		elastic_stress_ = original->elastic_stress_;
-		stress_ = original->stress_;
-		def_grad_ = original->def_grad_;
-		S_ = original->S_;
-		J_ = original->J_;
-		C_ = original->C_;
-		ext_stress_coeff_ = original->ext_stress_coeff_;
-		energy_el_ = original->energy_el_;
-		energy_conf_ = original->energy_conf_;
-		energy_ = original->energy_;
-		number_ = original->number_;
-		type_ = original->type_;
-		S_already_is_set = original->S_already_is_set;
-		ext_stress_coeff_is_set = original->ext_stress_coeff_is_set;
-
-		// The slip_systems vector cannot be just copied since it contains pointers.
-		// What we do is create copies of the original slip objects and fill this
-		// element with them
-		for(auto &slip : *original)
-			this->add_slip_system( slip->make_copy() );
-	}
-
 	virtual ~Element()
 	{
 		/*! Virtual destructor */
@@ -290,6 +263,39 @@ class Element
 		 * @warning the user is responsible for deleting the allocated copy. */
 
 		return make_copy_impl();
+	}
+
+	void make_copy(mepls::element::Element<dim> * input_element)
+	{
+		/*! Copy member-wise the full state of the input element. */
+
+		eigenstrain_ = input_element->eigenstrain_;
+		integrated_vm_eigenstrain_ = input_element->integrated_vm_eigenstrain_;
+		prestress_ = input_element->prestress_;
+		elastic_stress_ = input_element->elastic_stress_;
+		stress_ = input_element->stress_;
+		def_grad_ = input_element->def_grad_;
+		S_ = input_element->S_;
+		J_ = input_element->J_;
+		C_ = input_element->C_;
+		ext_stress_coeff_ = input_element->ext_stress_coeff_;
+		energy_el_ = input_element->energy_el_;
+		energy_conf_ = input_element->energy_conf_;
+		energy_ = input_element->energy_;
+		number_ = input_element->number_;
+		type_ = input_element->type_;
+		S_already_is_set = input_element->S_already_is_set;
+		ext_stress_coeff_is_set = input_element->ext_stress_coeff_is_set;
+
+		// The slip_systems vector cannot be just copied since it contains pointers.
+		// What we do is create copies of the input element slip objects and fill this
+		// element with them. The element might have slips already since they might
+		// be added by default when the object is created. To make sure the state
+		// is exactly the same as in the input element, firtst we remove
+		// exisint slips.
+		remove_slip_systems();
+		for(auto &slip : *input_element)
+			this->add_slip_system( slip->make_copy() );
 	}
 
 	void add_eigenstrain(const dealii::SymmetricTensor<2, dim> &eigenstrain_increment)

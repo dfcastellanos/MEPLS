@@ -562,17 +562,6 @@ public:
 		renew_thresholds();
 	}
 
-
-	Anisotropic(Anisotropic *element)
-		:
-		mepls::element::Element<dim>(element),
-		generator(element->generator),
-		unif_distribution(0, 1),
-		conf(element->conf)
-	{
-	}
-
-
 	void renew_structural_properties_impl(mepls::event::Plastic<dim> &plastic_event) override
 	{
 		if(plastic_event.renew_elastic_properties)
@@ -638,12 +627,22 @@ public:
 
 	Anisotropic<dim> *make_copy_impl() override
 	{
-		return new Anisotropic<dim>(this);
+		auto new_element = new Anisotropic<dim>(this->generator, this->conf);
+
+		new_element->make_copy(this);
+
+		return new_element;
 	}
 
 	Anisotropic<dim> *make_copy()
 	{
 		return make_copy_impl();
+	}
+
+	void make_copy(Anisotropic<dim> *input_element)
+	{
+		conf = input_element->conf;
+		mepls::element::Element<dim>::make_copy(input_element);
 	}
 
 	const Config &config() const
