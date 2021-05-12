@@ -15,6 +15,7 @@
 #include <deal.II/base/symmetric_tensor.h>
 
 #include <mepls/utils.h>
+#include <mepls/history.h>
 
 namespace mepls
 {
@@ -27,14 +28,6 @@ class Element;
 template<int dim> using Vector = typename std::vector<Element<dim> *>;
 }
 
-namespace event
-{
-template<int dim>
-class RenewSlip;
-
-template<int dim>
-class Plastic;
-}
 
 namespace elasticity_solver
 {

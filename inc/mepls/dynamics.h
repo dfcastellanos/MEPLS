@@ -15,7 +15,6 @@
 #include <mepls/system.h>
 #include <mepls/snapshot.h>
 #include <mepls/solver.h>
-#include <mepls/patches.h>
 
 namespace mepls
 {
