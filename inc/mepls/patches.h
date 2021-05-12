@@ -105,16 +105,28 @@ struct PatchPropertiesTensorial
 	/*!< Elastic shear strain applied to the patch, with shear orientation
 	 * \ref theta, to reach the oi-state from the initial ss-state. */
 
-	double energy_ss = 0.;
+	double energy_el_ss = 0.;
 	/*!< Elastic energy averaged over the elements composing the patch. The
 	 * operation is performed in the ss-state. */
 
-	double energy_oi = 0.;
+	double energy_el_oi = 0.;
 	/*!< Elastic energy averaged over the elements composing the patch. The
 	 * operation is performed in the oi-state. */
 
-	double energy_ee = 0.;
+	double energy_el_ee = 0.;
 	/*!< Elastic energy averaged over the elements composing the patch. The
+	 * operation is performed in the ee-state. */
+
+	double energy_conf_ss = 0.;
+	/*!< Configurational energy averaged over the elements composing the patch. The
+	 * operation is performed in the ss-state. */
+
+	double energy_conf_oi = 0.;
+	/*!< Configurational energy averaged over the elements composing the patch. The
+	 * operation is performed in the oi-state. */
+
+	double energy_conf_ee = 0.;
+	/*!< Configurational energy averaged over the elements composing the patch. The
 	 * operation is performed in the ee-state. */
 
 	std::vector<double> coords;
@@ -351,34 +363,27 @@ std::map<unsigned int, std::vector<std::vector<unsigned int>>> make_patch_to_ele
 
 
 template<int dim>
-inline dealii::SymmetricTensor<2, dim> get_average_stress(element::Vector<dim> &elements)
+inline void get_averages(const element::Vector<dim> &elements,
+						dealii::SymmetricTensor<2, dim> &av_stress,
+						double &av_energy_el,
+						double &av_energy_conf)
 {
-	/*! Compute the average stress tensor over the input elements. */
+	/*! Compute the average properties over the input elements. */
 
-	dealii::SymmetricTensor<2, dim> av_stress;
+	av_stress.clear();
+	av_energy_el = 0.;
+	av_energy_conf = 0.;
 
 	for(auto &element : elements)
+	{
 		av_stress += element->stress();
+		av_energy_el += element->energy_el();
+		av_energy_conf += element->energy_conf();
+	}
 
 	av_stress /= double(elements.size());
-
-	return av_stress;
-}
-
-
-template<int dim>
-inline double get_average_energy(element::Vector<dim> &elements)
-{
-	/*! Compute the average elastic energy over the input elements. */
-
-	double av_energy = 0.;
-
-	for(auto &element : elements)
-		av_energy += 0.5 * dealii::invert(element->C()) * element->stress() * element->stress();
-
-	av_energy /= double(elements.size());
-
-	return av_energy;
+	av_energy_el /= double(elements.size());
+	av_energy_conf /= double(elements.size());
 }
 
 
@@ -410,15 +415,15 @@ void apply_patch_shear_test(
 	auto &solver = patch_system.solver;
 
 	// stable state
-	patch_properties.stress_ss = get_average_stress(elements);
-	patch_properties.energy_ss = get_average_energy(elements);
+	get_averages(elements, patch_properties.stress_ss, patch_properties.energy_el_ss,
+	             patch_properties.energy_conf_ss);
 
 	// onset instability state: drive the system until it becomes unstable
 	// (i.e., a slip system has reached its threshold).
 	double deps = 0.5 * dgamma;
 	dynamics::finite_extremal_dynamics_step(deps, patch_system);
-	patch_properties.stress_oi = get_average_stress(elements);
-	patch_properties.energy_oi = get_average_energy(elements);
+	get_averages(elements, patch_properties.stress_oi, patch_properties.energy_el_oi,
+	             patch_properties.energy_conf_oi);
 	patch_properties.resolved_elastic_shear_strain_oi = solver.get_total_strain();
 
 	if(do_ee)
@@ -426,15 +431,16 @@ void apply_patch_shear_test(
 		// ee-state: we let the system relax by performing the slip event
 		// triggered in the oi-state (and possibly, other events triggered
 		// induced by it)
-		dynamics::relaxation(patch_system, 10, continue_shear_test);
-		patch_properties.stress_ee = get_average_stress(elements);
-		patch_properties.energy_ee = get_average_energy(elements);
+		dynamics::relaxation(patch_system, continue_shear_test);
+	    get_averages(elements, patch_properties.stress_ee, patch_properties.energy_el_ee,
+	                 patch_properties.energy_conf_ee);
 	}
 	else
 	{
 		// use oi as ee, so the variation from one to the other is zero
 		patch_properties.stress_ee = patch_properties.stress_oi;
-		patch_properties.energy_ee = patch_properties.energy_oi;
+		patch_properties.energy_el_ee = patch_properties.energy_el_oi;
+		patch_properties.energy_conf_ee = patch_properties.energy_conf_oi;
 	}
 }
 
@@ -469,7 +475,7 @@ void analyze_patch_ensemble(
 	auto &generator = system.generator;
 	auto &elements = system.elements;
 
-	// pointers to elements composing the set which is to be probed
+	// pointers to elements composing the patch which is to be tested
 	element::Vector<dim> patch_elements;
 
 	// pointers to copies of the probing elements to avoid modifying the
@@ -506,6 +512,8 @@ void analyze_patch_ensemble(
 			{
 				auto element = patch_elements[n];
 				auto element_copy = element->make_copy();
+
+				element_copy->state_to_prestress();
 
 				original_element_numbers[n] = element->number();
 
@@ -545,7 +553,7 @@ void analyze_patch_ensemble(
 								   dgamma);
 
 #ifdef DEBUG
-			dealii::SymmetricTensor<2,dim> M = utils::make_schmidt_tensor<dim>(theta);
+			dealii::SymmetricTensor<2,dim> M = utils::tensor::make_schmid<dim>(theta);
 			double eff_ss = M*patch_properties.stress_ss;
 			double eff_oi = M*patch_properties.stress_oi;
 			M_Assert(eff_oi>eff_ss, "resolved shear stress on the shearing plane at the onset of instability is lower than at the stable state");
@@ -675,8 +683,7 @@ void analyze_patch_ensemble_opt(
 				auto element = patch_elements[n];
 				auto element_copy = element->make_copy();
 
-				element_copy->set_zero_deformation();
-				element_copy->prestress(element->stress());
+				element_copy->state_to_prestress();
 
 				element_copy->number(n);
 
@@ -735,7 +742,7 @@ void analyze_patch_ensemble_opt(
 
 
 #ifdef DEBUG
-			dealii::SymmetricTensor<2,dim> M = utils::make_schmidt_tensor<dim>(theta);
+			dealii::SymmetricTensor<2,dim> M = utils::tensor::make_schmid<dim>(theta);
 			double eff_ss = M*patch_properties.stress_ss;
 			double eff_oi = M*patch_properties.stress_oi;
 			M_Assert(eff_oi>eff_ss, "resolved shear stress on the shearing plane at the onset of instability is lower than at the stable state");
@@ -786,55 +793,67 @@ class PatchPropertiesSnapshot
 		/*!< Orientation of the shear test performed on the patch. This angle is
 		 * the same used in \ref utils::tensor::schmid. */
 
-		float ss_xx = 0.;
+		float stress_ss_00 = 0.;
 		/*!< Component xx of the stress tensor averaged over the elements composing
 		 * the patch. The operation is performed in the ss-state. */
 
-		float ss_yy = 0.;
+		float stress_ss_11 = 0.;
 		/*!< Component yy of the stress tensor averaged over the elements composing
 		 * the patch. The operation is performed in the ss-state. */
 
-		float ss_xy = 0.;
+		float stress_ss_01 = 0.;
 		/*!< Component xy of the stress tensor averaged over the elements composing
 		 * the patch. The operation is performed in the ss-state. */
 
-		float ee_xx = 0.;
+		float stress_ee_00 = 0.;
 		/*!< Component xx of the stress tensor averaged over the elements composing
 		 * the patch. The operation is performed in the ee-state. */
 
-		float ee_yy = 0.;
+		float stress_ee_11 = 0.;
 		/*!< Component yy of the stress tensor averaged over the elements composing
 		 * the patch. The operation is performed in the ee-state. */
 
-		float ee_xy = 0.;
+		float stress_ee_01 = 0.;
 		/*!< Component xy of the stress tensor averaged over the elements composing
 		 * the patch. The operation is performed in the ee-state. */
 
-		float oi_xx = 0.;
+		float stress_oi_00 = 0.;
 		/*!< Component xx of the stress tensor averaged over the elements composing
 		 * the patch. The operation is performed in the oi-state. */
 
-		float oi_yy = 0.;
+		float stress_oi_11 = 0.;
 		/*!< Component yy of the stress tensor averaged over the elements composing
 		 * the patch. The operation is performed in the oi-state. */
 
-		float oi_xy = 0.;
+		float stress_oi_01 = 0.;
 		/*!< Component xy of the stress tensor averaged over the elements composing
 		 * the patch. The operation is performed in the oi-state. */
 
-		double ss_pe = 0.;
+		float energy_el_ss = 0.;
 		/*!< Elastic energy averaged over the elements composing the patch. The
 		 * operation is performed in the ss-state. */
 
-		double oi_pe = 0.;
+		float energy_el_oi = 0.;
 		/*!< Elastic energy averaged over the elements composing the patch. The
 		 * operation is performed in the oi-state. */
 
-		double ee_pe = 0.;
+		float energy_el_ee = 0.;
 		/*!< Elastic energy averaged over the elements composing the patch. The
 		 * operation is performed in the ee-state. */
 
-		float oi_eps = 0.;
+		float energy_conf_ss = 0.;
+		/*!< Configurational energy averaged over the elements composing the patch. The
+		 * operation is performed in the ss-state. */
+
+		float energy_conf_oi = 0.;
+		/*!< Configurational energy averaged over the elements composing the patch. The
+		 * operation is performed in the oi-state. */
+
+		float energy_conf_ee = 0.;
+		/*!< Configurational energy averaged over the elements composing the patch. The
+		 * operation is performed in the ee-state. */
+
+		float shear_strain_oi = 0.;
 		/*!< Elastic shear strain applied to the patch, with shear orientation
 		* \ref theta, to reach the oi-state from the initial ss-state. */
 
@@ -861,11 +880,11 @@ class PatchPropertiesSnapshot
 		bool optimized,
 		bool do_ee)
 		:
-		recorded_mag("local_probe"),
+		recorded_mag("patches"),
 		monitor_name(monitor_mag_),
 		desired_target(desired_target_),
 		recorded_target(recorded_target_),
-		output_index(system.event_history->index),
+		output_index(system.history->index()),
 		N(N_)
 	{
 
@@ -893,19 +912,22 @@ class PatchPropertiesSnapshot
 			DataRow row;
 			row.ref_element = d.ref_element;
 			row.theta = d.theta;
-			row.ss_xx = d.stress_ss[0][0];
-			row.ss_yy = d.stress_ss[1][1];
-			row.ss_xy = d.stress_ss[0][1];
-			row.oi_xx = d.stress_oi[0][0];
-			row.oi_yy = d.stress_oi[1][1];
-			row.oi_xy = d.stress_oi[0][1];
-			row.oi_eps = d.resolved_elastic_shear_strain_oi;
-			row.ee_xx = d.stress_ee[0][0];
-			row.ee_yy = d.stress_ee[1][1];
-			row.ee_xy = d.stress_ee[0][1];
-			row.ss_pe = d.energy_ss;
-			row.oi_pe = d.energy_oi;
-			row.ee_pe = d.energy_ee;
+			row.stress_ss_00 = d.stress_ss[0][0];
+			row.stress_ss_11 = d.stress_ss[1][1];
+			row.stress_ss_01 = d.stress_ss[0][1];
+			row.stress_oi_00 = d.stress_oi[0][0];
+			row.stress_oi_11 = d.stress_oi[1][1];
+			row.stress_oi_01 = d.stress_oi[0][1];
+			row.shear_strain_oi = d.resolved_elastic_shear_strain_oi;
+			row.stress_ee_00 = d.stress_ee[0][0];
+			row.stress_ee_11 = d.stress_ee[1][1];
+			row.stress_ee_01 = d.stress_ee[0][1];
+			row.energy_el_ss = d.energy_el_ss;
+			row.energy_el_oi = d.energy_el_oi;
+			row.energy_el_ee = d.energy_el_ee;
+			row.energy_conf_ss = d.energy_conf_ss;
+			row.energy_conf_oi = d.energy_conf_oi;
+			row.energy_conf_ee = d.energy_conf_ee;
 			row.x = d.coords[0];
 			row.y = d.coords[1];
 			row.failed = d.failed;

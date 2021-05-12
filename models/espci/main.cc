@@ -29,8 +29,12 @@ namespace espci
 using namespace mepls;
 
 template<int dim>
-void run(const parameters::Standard &p)
+class Simulation : public mepls::utils::Launcher<parameters::Standard>
 {
+
+void run_impl(const parameters::Standard &p) override
+{
+
 
 	// TODO here, dim=2 at least for how we set the average pressure
 
@@ -58,14 +62,15 @@ void run(const parameters::Standard &p)
 	std::vector<snapshot::DefGrad<dim> > def_grad_snapshots;
 	std::vector<patches::PatchPropertiesSnapshot<dim> > patch_prop_snapshots;
 	std::vector<GlobalPropertiesSnapshot<dim>> global_properties_snapshots;
-	auto patch_to_element_map = patches::make_patch_to_element_map(elements, p.sim.N_probe_list,
+	auto patch_to_element_map = patches::make_patch_to_element_map(elements, p.sim.N_patch_list,
 																   p.sim.Nx, p.sim.Ny);
-	bool kmc_quench = p.sim.kmc_quench;
-	bool kmc_relaxation = p.sim.kmc_relaxation;
+	bool parent_liquid = p.sim.parent_liquid;
+	bool thermal_relaxation = p.sim.thermal_relaxation;
 	bool reload = p.sim.reload;
 	bool het_elasticity = p.sim.het_elasticity;
-	bool precalculate = not het_elasticity; // precalculate stress factors when doing local probes; only valid for homogeneous elasticity
-	bool do_ee = p.sim.do_ee; // relax from oi state to ee when doing local probes
+	bool precalculate = not het_elasticity; // precalculate stress factors when doing patch tests;
+	// only valid for homogeneous elasticity
+	bool do_ee = p.sim.do_ee; // relax from oi state to ee when doing patch tests
 
 	std::vector<double> theta_list;
 	if(p.sim.n_theta == 4)
@@ -88,18 +93,21 @@ void run(const parameters::Standard &p)
 
 	if(not het_elasticity)
 	{
-		// make sure that properties are heterogeneous, even if we set weibull shapes to very big values,
-		// this ensures a perfect homogeneity
-		auto CC = utils::tensor::make_mandel_anisotropic_stiffness<dim>(p.mat.average_K, p.mat.average_G,
-																		p.mat.average_G, 0.);
+		// If the properties are homogeneous, set them here since the elements,
+		// by default, get their properties from a pdf upon their construction.
+		// (even if the disorder is very small, this procedure ensures a perfect
+		// homogeneity)
+		auto CC = utils::tensor::make_mandel_anisotropic_stiffness<dim>(p.mat.average_K_quench, p.mat.average_G_quench,
+																		p.mat.average_G_quench, 0.);
 		for(auto &element : elements)
 			element->C(utils::tensor::mandel_to_standard_rank4<dim>(CC));
 	}
 
-	// assemble solver to be used in the simulation
 	elasticity_solver::LeesEdwards<dim> solver(p.sim.Nx, p.sim.Ny);
 	M_Assert(elements.size() == solver.get_n_elements(), "Numbers of mesoscale and finite "
 													  "elements do not match");
+
+	// initial (default) assembly using the quench elastic properties.
 	for(auto &element : elements)
 		solver.set_elastic_properties(element->number(), element->C());
 	solver.setup_and_assembly();
@@ -114,62 +122,54 @@ void run(const parameters::Standard &p)
 	system::Standard<dim> system(elements, solver, generator);
 	MacroState<dim> &macrostate = system.macrostate;
 
+	if(p.mat.init_eigenstrain)
+		apply_initial_eigenstrain<dim>(system, p);
+
 	timer->leave_subsection("Setting up");
 
 
-	/////////////////////////////////
-	///////  quench state //////////
-	///////////////////////////////
+	///////////////////////////////////////////
+	///////  simulate parent liquid //////////
+	/////////////////////////////////////////
 
-	timer->enter_subsection("Creating quench");
+	timer->enter_subsection("Simulate parent liquid");
 
-	std::normal_distribution<double> pressure_average_dist(0., p.mat.prestress_std_av_pressure);
-	double av_pressure_fluctuation = pressure_average_dist(generator);
-	for(auto &element : elements_espci)
+	history::History<dim> liquid_history("parent_liquid");
+	system.set_history(liquid_history);
+	if(parent_liquid)
 	{
-		//		dealii::SymmetricTensor<2,dim> av_pressure;
-		//		av_pressure[0][0] = p.mat.prestress_av_pressure + av_pressure_fluctuation;
-		//		av_pressure[1][1] = p.mat.prestress_av_pressure + av_pressure_fluctuation;
-		//		element->prestress( element->prestress() + av_pressure);
-
+		for(auto &element : elements_espci)
+		{
 			auto conf = element->config();
 			conf.temperature = p.mat.temperature_liquid;
 			element->config(conf);
+		}
+
+		simulate_parent_liquid_KMC(system, liquid_history, p, continue_simulation);
+//		simulate_parent_liquid_MH(system, liquid_history, p, continue_simulation);
+
+		// apply instantaneous quench
+		for(auto &element : elements_espci)
+		{
+			auto conf = element->config();
+			conf.temperature = 0;
+			element->config(conf);
+		}
+		dynamics::relaxation(system, continue_simulation);
+
+		liquid_history.add_macro(system);
+		system.macrostate.clear();
+
 	}
 
-
-	//   quench::equilibrate_initial_structure_rejection(system, p, generator);
-
-	history::EventAndMacro<dim> kmc_history("KMC_quench");
-	system.set_history(kmc_history);
-	if(kmc_quench)
-		quench::run_thermal_evolution(system, kmc_history, p, continue_simulation);
-	quench::convert_state_to_quench(system);
-
-	//	Set the threshold renewal properties before performing any quench-state shear tests
-	auto weibull = [&](double x, double k, double lambda)
-	{ return std::pow(x, k - 1) * std::exp(-std::pow(x / lambda, k)); };
-	auto func = std::bind(weibull, std::placeholders::_1, p.mat.k, p.mat.lambda);
-	auto threshold_distribution_ptr = utils::rand::create_distribution(func, 1e-3, 0., 1e-7, 8);
-
-	for(auto &element : elements_espci)
-	{
-		auto conf = element->config();
-		conf.temperature = 0;
-		element->config(conf);
-
-		element->threshold_distribution(
-			threshold_distribution_ptr); // next call to renew_stuctrua_properties will use this distribution
-	}
-
-	timer->leave_subsection("Creating quench");
+	timer->leave_subsection("Simulate parent liquid");
 
 
 	////////////////////////////
 	//////      AQS     ///////
 	//////////////////////////
 
-	history::EventAndMacro<dim> aqs_history("AQS");
+	history::History<dim> aqs_history("AQS");
 	system.set_history(aqs_history);
 
 	/* ----- snapshots ----- */
@@ -188,22 +188,22 @@ void run(const parameters::Standard &p)
 			snapshot::DefGrad(system, p.sim.monitor_name, 0.,
 							  macrostate[p.sim.monitor_name]));
 
-	if(p.out.snapshots.find("local_probe") != std::string::npos)
-		for(auto n_probe : p.sim.N_probe_list)
+	if(p.out.snapshots.find("patches") != std::string::npos)
+		for(auto n_patch : p.sim.N_patch_list)
 		{
 			if(p.out.verbosity and omp_get_thread_num() == 0)
-				std::cout << ">>> " << n_probe << std::endl;
+				std::cout << ">>> " << n_patch << std::endl;
 			patch_prop_snapshots.push_back(
 				patches::PatchPropertiesSnapshot<dim>(system,
 													  p.sim.monitor_name, 0.,
 													  macrostate[p.sim.monitor_name],
-													  n_probe, theta_list, precalculate,
+													  n_patch, theta_list, precalculate,
 													  do_ee));
 		}
 
 	if(p.out.snapshots.find("global_properties") != std::string::npos)
 		global_properties_snapshots.push_back(
-			GlobalPropertiesSnapshot<dim>(system, solver, aqs_history.index, p.sim.monitor_name,
+			GlobalPropertiesSnapshot<dim>(system, solver, aqs_history.index(), p.sim.monitor_name,
 										  0., macrostate[p.sim.monitor_name]));
 	timer->leave_subsection("Taking snapshots");
 
@@ -216,24 +216,81 @@ void run(const parameters::Standard &p)
 
 
 	/* ---- simulation loop ----- */
-	timer->enter_subsection("Running forward loading");
-
-	dynamics::relaxation(system, p.sim.fracture_limit, continue_simulation);
-
+	timer->enter_subsection("Running AQS");
 
 	continue_simulation(system.macrostate[p.sim.monitor_name] < p.sim.monitor_limit,
 						p.sim.monitor_name + " limit reached");
 
+
+	// adding an (empty) driving event will record the average prestress
+	// (which can be slightly non-zero due to numerical accuray) as the
+	// first event in the history
+	event::Driving<dim> prestress_event;
+	prestress_event.activation_protocol = mepls::dynamics::Protocol::prestress;
+	system.add(prestress_event);
+
+	aqs_history.add_macro(system);
+
+	double G_old = 0.;
 	while(continue_simulation())
 	{
+		// reassemble the elastic properties if the change if the shear
+		// modulus is big enough, if it's different enough from the stationary
+		// value and only if we are using homogeneous elastic properties
+		double x_global = std::exp(-macrostate["av_vm_plastic_strain"]/p.mat.gamma_pl_trans);
+		double G_stat = p.mat.average_G;
+		double G_quench = p.mat.average_G_quench;
+		double G_new = (G_quench-G_stat)*x_global + G_stat;
+		if( not het_elasticity and std::abs(G_new/G_old-1)>0.001 and std::abs(G_old/G_stat-1)>0.005 )
+		{
+			timer->leave_subsection("Running AQS");
+			timer->enter_subsection("Reassembling with new stiffness");
+
+			G_old = G_new;
+
+			double K_stat = p.mat.average_K;
+			double K_quench = p.mat.average_K_quench;
+			double K_new = (K_quench-K_stat)*x_global + K_stat;
+
+			auto CC = utils::tensor::make_mandel_anisotropic_stiffness<dim>(K_new, G_new,
+																			G_new, 0.);
+			auto C = utils::tensor::mandel_to_standard_rank4<dim>(CC);
+
+			for(auto &element : elements)
+				element->C(C);
+
+			solver.reassemble_with_new_stiffness(C);
+
+			// we call add which will inform the macrostate and the elements
+			// about the change in external stress due to the change in global
+			// stiffness and will also record that change in the history
+			const std::vector<event::Plastic<dim>> added_yielding;
+			event::Driving<dim> driving_event_variation_stiffness;
+			driving_event_variation_stiffness.activation_protocol = mepls::dynamics::Protocol::variation_stiffness;
+			system.add(driving_event_variation_stiffness);
+
+			auto state = solver.get_state();
+			mepls::element::calculate_local_stress_coefficients_central(elements, solver);
+			mepls::element::calculate_ext_stress_coefficients(elements, solver);
+			solver.set_state(state);
+
+			// relax to ensure there are no unstable elements after the change
+			// in the elastic properties (if the shear modulus rises with strain,
+			// that will lead to stress rises that can unstabilise elements)
+			dynamics::relaxation(system, continue_simulation);
+
+			timer->leave_subsection("Reassembling with new stiffness");
+			timer->enter_subsection("Running AQS");
+		}
+
 		if(p.out.verbosity and omp_get_thread_num() == 0)
-			std::cout << aqs_history.index << " | " << std::fixed << macrostate["total_strain"]
+			std::cout << aqs_history.index() << " | " << std::fixed << macrostate["total_strain"]
 					  << " " << macrostate["ext_stress"] << " " << macrostate["pressure"]
 					  << std::endl;
 
 		if(snapshot_check(macrostate[p.sim.monitor_name]))
 		{
-			timer->leave_subsection("Running forward loading");
+			timer->leave_subsection("Running AQS");
 			timer->enter_subsection("Taking snapshots");
 
 			if(p.out.snapshots.find("slip_thresholds") != std::string::npos)
@@ -250,29 +307,32 @@ void run(const parameters::Standard &p)
 					snapshot::DefGrad(system, p.sim.monitor_name,
 									  snapshot_check.desired_value,
 									  macrostate[p.sim.monitor_name]));
-			if(p.out.snapshots.find("local_probe") != std::string::npos)
-				for(auto n_probe : p.sim.N_probe_list)
+			if(p.out.snapshots.find("patches") != std::string::npos)
+				for(auto n_patch : p.sim.N_patch_list)
 				{
 					if(p.out.verbosity and omp_get_thread_num() == 0)
-						std::cout << ">>> " << n_probe << std::endl;
+						std::cout << ">>> " << n_patch << std::endl;
 					patch_prop_snapshots.push_back(
 						patches::PatchPropertiesSnapshot<dim>(system,
 															  p.sim.monitor_name,
 															  snapshot_check.desired_value,
 															  macrostate[p.sim.monitor_name],
-															  n_probe,
+															  n_patch,
 															  theta_list, precalculate, do_ee));
 				}
 
 			timer->leave_subsection("Taking snapshots");
-			timer->enter_subsection("Running forward loading");
+			timer->enter_subsection("Running AQS");
 		}
 
-		aqs_history.add_macro(system);
 
 		/* ---- dyanmics ----- */
 		dynamics::finite_extremal_dynamics_step(1e-4 * 0.5, system);
-		dynamics::relaxation(system, p.sim.fracture_limit, continue_simulation);
+		aqs_history.add_macro(system);
+
+		dynamics::relaxation(system, continue_simulation);
+		aqs_history.add_macro(system);
+
 
 		continue_simulation(system.macrostate[p.sim.monitor_name] < p.sim.monitor_limit,
 							p.sim.monitor_name + " limit reached");
@@ -284,19 +344,30 @@ void run(const parameters::Standard &p)
 	if(p.out.verbosity and omp_get_thread_num() == 0)
 		std::cout << continue_simulation << std::endl;
 
+	timer->leave_subsection("Running AQS");
 
 
 	//////////////////////////////////
 	//////  thermal relaxation //////
 	////////////////////////////////
 
-	history::EventAndMacro<dim> kmc_relaxation_hist("KMC_relaxation");
+	timer->enter_subsection("Thermal relaxation");
 
-	if(kmc_relaxation)
+	history::History<dim> thermal_relaxation_hist("thermal_relaxation");
+
+	if(thermal_relaxation)
 	{
 		mepls::element::Vector<dim> elements_replica;
 		for(auto &element : elements_espci)
-			elements_replica.push_back( element->make_copy() );
+		{
+			auto element_copy = element->make_copy();
+
+			auto conf = element_copy->config();
+			conf.temperature = p.mat.temperature_relaxation;
+			element_copy->config(conf);
+
+			elements_replica.push_back( element_copy );
+		}
 
 		// the solver state is copied, so it contains the eigenstrain and the load
 		// in this case the elements elastic field need not be converted into a
@@ -306,46 +377,32 @@ void run(const parameters::Standard &p)
 		auto system_replica = system.get_new_instance(elements_replica, solver,
 													  system.generator);
 		system_replica->macrostate = macrostate_end_AQS;
-		system_replica->set_history(kmc_relaxation_hist);
+		system_replica->set_history(thermal_relaxation_hist);
 
 		// initiate dynamics using copied system
 		mepls::dynamics::KMC<dim> kmc;
 		mepls::utils::ContinueSimulation continue_relaxing;
 		auto &macrostate = system_replica->macrostate;
+		thermal_relaxation_hist.add_macro( *system_replica );
+
 		while(continue_relaxing())
 		{
-			// modify the temp. with time as in the MD system
-			double t = macrostate["time"];
-			double tp = 7.3*100;
-			double T = t < tp ? 0.5*p.mat.temperature_relaxation*(t/tp+1) : p.mat.temperature_relaxation;
-
-			// update the elements temperature
-			for(auto &element : elements_replica)
-			{
-				auto element_espci = static_cast<espci::element::Anisotropic<dim> *>(element);
-				auto conf = element_espci->config();
-				conf.temperature = T;
-				element_espci->config(conf);
-			}
 
 			if(p.out.verbosity and omp_get_thread_num() == 0)
-				std::cout << kmc_relaxation_hist.index << " | " << std::fixed
+				std::cout << thermal_relaxation_hist.index() << " | " << std::fixed
 						  << macrostate["total_strain"]
 						  << " " << macrostate["ext_stress"]
 						  << " " << macrostate["pressure"]
 						  << " " << macrostate["time"]
 						  << std::endl;
 
-			kmc(*system_replica, continue_relaxing);
-			mepls::dynamics::relaxation(*system_replica, p.sim.fracture_limit, continue_relaxing);
+			kmc(*system_replica);
+			thermal_relaxation_hist.add_macro( *system_replica );
 
-			kmc_relaxation_hist.add_macro( *system_replica );
-			// set the value of the temperature in the macro. evol. dataset
-			// TODO add_macro( *system_replica ) should have access to the
-			// elements' temperature and compute the average
-			kmc_relaxation_hist.macro_evolution.back().temperature = T;
+			mepls::dynamics::relaxation(*system_replica, continue_relaxing);
+			thermal_relaxation_hist.add_macro( *system_replica );
 
-			continue_relaxing(std::abs(macrostate["time"]) < 5000, "System relaxed");
+			continue_relaxing(macrostate["ext_stress"] > 0, "System relaxed");
 		}
 
 		delete system_replica;
@@ -357,13 +414,15 @@ void run(const parameters::Standard &p)
 		}
 	}
 
+	timer->leave_subsection("Thermal relaxation");
+
 	///////////////////////////////
 	//////  reloading step ///////
 	/////////////////////////////
 
-	history::EventAndMacro<dim> aqs_unloading("AQS_unloading");
-	history::EventAndMacro<dim> aqs_reload_forward("AQS_reload_forward");
-	history::EventAndMacro<dim> aqs_reload_backward("AQS_reload_backward");
+	history::History<dim> aqs_unloading("AQS_unloading");
+	history::History<dim> aqs_reload_forward("AQS_reload_forward");
+	history::History<dim> aqs_reload_backward("AQS_reload_backward");
 
 	if(reload)
 	{
@@ -380,17 +439,20 @@ void run(const parameters::Standard &p)
 
 		utils::ContinueSimulation continue_unloading;
 		auto &macrosate = system.macrostate;
+		aqs_unloading.add_macro(system);
+
 		while(continue_unloading())
 		{
 			if(p.out.verbosity and omp_get_thread_num() == 0)
-				std::cout << aqs_unloading.index << " | " << std::fixed
+				std::cout << aqs_unloading.index() << " | " << std::fixed
 						  << macrostate["total_strain"] << " " << macrostate["ext_stress"] << " "
 						  << macrostate["pressure"] << std::endl;
 
+			dynamics::finite_extremal_dynamics_step(1e-4 * 0.5, system, false);
 			aqs_unloading.add_macro(system);
 
-			dynamics::finite_extremal_dynamics_step(1e-4 * 0.5, system, false);
-			dynamics::relaxation(system, p.sim.fracture_limit, continue_unloading);
+			dynamics::relaxation(system, continue_unloading);
+			aqs_unloading.add_macro(system);
 
 			continue_unloading(macrostate["ext_stress"] > 0, "System unloaded");
 		}
@@ -413,10 +475,10 @@ void run(const parameters::Standard &p)
 	H5::H5File file(p.out.path + "/" + filename, H5F_ACC_TRUNC);
 	write::file_attrs(file, p);
 
-	if(kmc_quench)
-		write::evolution_history(file, kmc_history);
-	if(kmc_relaxation)
-		write::evolution_history(file, kmc_relaxation_hist);
+	if(parent_liquid)
+		write::evolution_history(file, liquid_history);
+	if(thermal_relaxation)
+		write::evolution_history(file, thermal_relaxation_hist);
 	write::evolution_history(file, aqs_history);
 	if(reload)
 	{
@@ -438,7 +500,10 @@ void run(const parameters::Standard &p)
 
 	if(p.out.verbosity and omp_get_thread_num() == 0)
 		timer->print_summary();
-}
+} // run
+
+}; // simulation launcher
+
 
 } // espci
 
@@ -452,74 +517,21 @@ int main(int argc, char *argv[])
 
 	dealii::deallog.depth_console(0);
 
+
+	espci::parameters::Standard p;
+
 	try
 	{
-
-		espci::parameters::Standard p;
-
-		try
-		{
-			p.load_file(parser.get<std::string>("f"));
-
-#if defined(OPENMP)
-
-			if(p.sim.n_rep < omp_get_max_threads())
-				p.sim.n_rep = omp_get_max_threads();
-
-			// create a seed to initialize the rnd engine of each thread
-			srand(p.sim.seed);
-			std::vector<unsigned int> seed_for_thread;
-			for(unsigned int n = 0; n < omp_get_max_threads(); ++n)
-				seed_for_thread.push_back(rand());
-
-#pragma omp parallel
-			{
-				auto pp = p;
-				unsigned int np = omp_get_num_threads();
-				unsigned int id = omp_get_thread_num();
-				unsigned int nmin = id * std::floor(p.sim.n_rep / omp_get_max_threads());
-				unsigned int nmax = (id + 1) * std::floor(p.sim.n_rep / omp_get_max_threads());
-				std::mt19937 generator_of_seeds(seed_for_thread[id]);
-
-				for(unsigned int n = nmin; n < nmax; ++n)
-				{
-					if(id == 0 and p.out.verbosity)
-						std::cout << double(n) / double(nmax) * 100 << "%" << std::endl;
-
-					generator_of_seeds.discard(1000);
-					pp.sim.seed = generator_of_seeds();
-
-					espci::run<2>(pp);
-				}
-
-			} // parallel region
-
-			#else
-			espci::run<2>(p);
-			#endif // defined(OPENMP)
-
-		}
-		catch(dealii::PathSearch::ExcFileNotFound &)
-		{
-			p.generate_file(parser.get<std::string>("f"));
-			std::cout << "Configuration file " << parser.get<std::string>("f") << " created" << std::endl;
-		}
-
+		p.load_file(parser.get<std::string>("f"));
 	}
-	catch(std::exception &exc)
+	catch(dealii::PathSearch::ExcFileNotFound &)
 	{
-		std::cerr << std::endl << std::endl << "----------------------------------------------------" << std::endl;
-		std::cerr << "Exception on processing: " << std::endl << exc.what() << std::endl << "Aborting!" << std::endl
-				  << "----------------------------------------------------" << std::endl;
-		return 1;
-	}
-	catch(...)
-	{
-		std::cerr << std::endl << std::endl << "----------------------------------------------------" << std::endl;
-		std::cerr << "Unknown exception!" << std::endl << "Aborting!" << std::endl
-				  << "----------------------------------------------------" << std::endl;
-		return 1;
+		p.generate_file(parser.get<std::string>("f"));
+		std::cout << "Configuration file " << parser.get<std::string>("f") << " created" << std::endl;
 	}
 
-	return 0;
+	espci::Simulation<2> sim;
+	int result = sim.run(p);
+
+	return result;
 }

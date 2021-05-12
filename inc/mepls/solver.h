@@ -283,7 +283,7 @@ class Solver
 		 * load is present. The solver remains assembled so it can be used
 		 * again. */
 
-		M_Assert(already_assembled, "");
+		assert(already_assembled);
 
 		load = 0.;
 		solution.reinit(dof_handler.n_dofs());
@@ -509,6 +509,8 @@ class Solver
 	template<int D>
 	friend void impl::assemble_unitary_eigenstrains(Solver<D> &solver);
 	template<int D>
+	friend void impl::assemble_unitary_eigenstrains_unique(Solver<D> &solver);
+	template<int D>
 	friend void impl::assemble_eigenstrain_rhs(
 		dealii::SymmetricTensor<2, D> &eigenstrain,
 		dealii::Vector<double> &cell_rhs,
@@ -628,6 +630,7 @@ class LeesEdwards: public Solver<dim>
 		dealii::Vector<double> rhs_eigenstrain;
 		dealii::Vector<double> system_rhs;
 		dealii::SymmetricTensor<2, dim> external_strain;
+		std::vector<dealii::SymmetricTensor<4, dim>> C;
 	};
 
   public:
@@ -646,6 +649,15 @@ class LeesEdwards: public Solver<dim>
 	void set_state(const State &state);
 	/*!< Set the internal state of the solver. This state can be used to revert
 	 * its state at a later stage. */
+
+	void reassemble_with_new_stiffness(dealii::SymmetricTensor<4,dim> &input_C);
+	/*!< This function assemble the solver using homogeneous elastic properties
+	 * given by the input stiffness tensor. Its purpose is the variation of the
+	 * global effective elastic properties during a simulatino run. For this
+	 * reason the assembly is optimized to leverage the homogeneity of the
+	 * properties and does not change the current plastic field and applied load.
+	 * The elastic strain and stress are recomputed according using the new elastic
+	 * properties. */
 
 	void setup_and_assembly() override;
 	void add_load_increment(double load_increment) override;
@@ -799,6 +811,7 @@ typename LeesEdwards<dim>::State LeesEdwards<dim>::get_state() const
 	state.strain = strain;
 	state.local_eigenstrain = local_eigenstrain;
 	state.total_eigenstrain = total_eigenstrain;
+	state.C = C;
 	state.global_displacement = global_displacement;
 	state.rhs_load = rhs_load;
 	state.rhs_eigenstrain = rhs_eigenstrain;
@@ -819,6 +832,7 @@ void LeesEdwards<dim>::set_state(const LeesEdwards<dim>::State &state)
 	strain = state.strain;
 	local_eigenstrain = state.local_eigenstrain;
 	total_eigenstrain = state.total_eigenstrain;
+	C = state.C;
 	global_displacement = state.global_displacement;
 	rhs_load = state.rhs_load;
 	rhs_eigenstrain = state.rhs_eigenstrain;
@@ -869,9 +883,6 @@ void LeesEdwards<dim>::assemble_external_strain_load(
 template<int dim>
 void LeesEdwards<dim>::setup_and_assembly()
 {
-	assert(
-		active_loading_mode == "xx" or active_loading_mode == "yy" or active_loading_mode == "xy");
-
 	// create PBC constraints and fix left-bottom node to avoid
 	// rigid body motions
 	constraints.clear();
@@ -884,6 +895,7 @@ void LeesEdwards<dim>::setup_and_assembly()
 
 
 	// assemble FEM system
+	system_matrix.clear();
 	dealii::DynamicSparsityPattern dsp(dof_handler.n_dofs(), dof_handler.n_dofs());
 	dealii::DoFTools::make_sparsity_pattern(dof_handler, dsp, constraints, true);
 	sparsity_pattern.copy_from(dsp);
@@ -914,70 +926,121 @@ void LeesEdwards<dim>::setup_and_assembly()
 
 	impl::assemble_unitary_eigenstrains<dim>(*this);
 
+	// within this call the solution to the unitary load is computed (this is
+	// a fundamental step)
+
 	already_assembled = true;
 
+	compute_global_effective_stiffness();
 
-	// compute the solution to the unitary loads under the 3 different
-	// loading modes considered. The solution to the external load is not
-	// trivial event if we impose homogeneous loadings since elastic
-	// heterogeneities can be present
+	// after assembling the system, the loading mode is set to pure shear xy
+	active_loading_mode = "xy";
+}
+
+
+template<int dim>
+void LeesEdwards<dim>::reassemble_with_new_stiffness(dealii::SymmetricTensor<4,dim> &input_C)
+{
+	for(unsigned int element = 0; element < triangulation.n_cells(); ++element)
+		Solver<dim>::set_elastic_properties(element, input_C);
+
+	/* ------ stiffness matrix assembly ------*/
+
+	if(not already_assembled)
+	{
+		constraints.clear();
+		std::vector<double> node = {0., 0.};
+		impl::fix_node<dim>(node, 0, constraints, *this);
+		impl::fix_node<dim>(node, 1, constraints, *this);
+		dealii::DoFTools::make_periodicity_constraints(dof_handler, 0, 1, 0, constraints);
+		dealii::DoFTools::make_periodicity_constraints(dof_handler, 2, 3, 1, constraints);
+		constraints.close();
+
+		dealii::DynamicSparsityPattern dsp(dof_handler.n_dofs(), dof_handler.n_dofs());
+		dealii::DoFTools::make_sparsity_pattern(dof_handler, dsp, constraints, true);
+		sparsity_pattern.copy_from(dsp);
+	}
+
+	system_matrix.clear();
+	system_matrix.reinit(sparsity_pattern);
+
+	dealii::FEValues<dim> fe_values(fe, quadrature_formula,
+									dealii::update_values | dealii::update_gradients |
+									dealii::update_quadrature_points | dealii::update_JxW_values);
+	const unsigned int dofs_per_cell = fe.dofs_per_cell;
+	std::vector<dealii::SymmetricTensor<2, dim> > symmetric_gradient(dofs_per_cell);
+
+	// assembly only one cell of the FEM system, and use it to assemble the rest
+	unsigned int element = 0;
+	impl::assemble_cell_system_matrix(element_to_cell[element], fe_values,
+									  cell_matrix_assembly_data[element], symmetric_gradient,
+									  C[element], *this);
+
+	// copy here because it will be used when we copy the assembly into patch solver
+	for(unsigned int element = 1; element < triangulation.n_cells(); ++element)
+		cell_matrix_assembly_data[element] = cell_matrix_assembly_data[0];
+
+	std::vector<dealii::types::global_dof_index> local_dof_indices(dofs_per_cell);
+	typename dealii::DoFHandler<dim>::active_cell_iterator cell;
+	for(cell = dof_handler.begin_active(); cell != dof_handler.end(); ++cell, ++element)
+	{
+		cell->get_dof_indices(local_dof_indices);
+		constraints.distribute_local_to_global(cell_matrix_assembly_data[0],
+											   local_dof_indices, system_matrix);
+	}
+
+	A_direct.initialize(system_matrix);
+
+
+	/* ------ eigenstrain RHS assembly ------*/
+
+	impl::assemble_unitary_eigenstrains_unique<dim>(*this);
+
+
+	/* ------ external load RHS assembly ------*/
+
 	dealii::Vector<double> displacement, rhs;
+	dealii::SymmetricTensor<2,dim> external_strain__;
 	{
-		external_strain.clear();
-		external_strain[0][0] = 1;
-		assemble_external_strain_load(external_strain, displacement, rhs);
+		external_strain__[0][1] = 1; // meaning of load value
+		assemble_external_strain_load(external_strain__, displacement, rhs);
 
 		SolutionToUnitLoad solution_to_load;
 		solution_to_load.displacement = displacement;
 		solution_to_load.rhs = rhs;
-		solution_to_load.unit_external_strain = external_strain;
-
-		solve_for_case(rhs, displacement);
-		solution_to_load.stress = stress;
-		solution_to_load.elastic_strain = elastic_strain;
-		solution_to_loads["xx"] = solution_to_load;
-		clear();
-	}
-	{
-		external_strain.clear();
-		external_strain[1][1] = 1;
-		assemble_external_strain_load(external_strain, displacement, rhs);
-
-		SolutionToUnitLoad solution_to_load;
-		solution_to_load.displacement = displacement;
-		solution_to_load.rhs = rhs;
-		solution_to_load.unit_external_strain = external_strain;
-
-		solve_for_case(rhs, displacement);
-		solution_to_load.stress = stress;
-		solution_to_load.elastic_strain = elastic_strain;
-		solution_to_loads["yy"] = solution_to_load;
-		clear();
-	}
-	{
-		external_strain.clear();
-		external_strain[0][1] = 1; // meaning of load value
-		assemble_external_strain_load(external_strain, displacement, rhs);
-
-		SolutionToUnitLoad solution_to_load;
-		solution_to_load.displacement = displacement;
-		solution_to_load.rhs = rhs;
-		solution_to_load.unit_external_strain = external_strain;
+		solution_to_load.unit_external_strain = external_strain__;
 
 		solve_for_case(rhs, displacement);
 		solution_to_load.stress = stress;
 		solution_to_load.elastic_strain = elastic_strain;
 		solution_to_loads["xy"] = solution_to_load;
-		clear();
 	}
 
-	// we use the solutions to the 3 indep. loading modes to compute the global
-	// effective stifness
-	compute_global_effective_stiffness();
+
+	/* ------ set the right solver state ------*/
 
 	// after assembling the system, the loading mode is set to pure shear xy
 	active_loading_mode = "xy";
-	external_strain.clear();
+
+	// we want to change the elastic properties and recompute the elastic fields
+	// using the same eigenstrain and external loads that were already present
+	auto &rhs_unit_load = solution_to_loads.at(active_loading_mode).rhs;
+	auto &global_displacement_unit_load = solution_to_loads.at(active_loading_mode).displacement;
+	for(unsigned int i = 0; i < solution.size(); ++i)
+	{
+		rhs_load[i] = load * rhs_unit_load[i];
+		global_displacement[i] = load * global_displacement_unit_load[i];
+	}
+
+	rhs_eigenstrain.reinit(rhs_eigenstrain.size());
+	for(unsigned int element = 0; element < triangulation.n_cells(); ++element)
+		impl::add_eigenstrain<dim>(element, local_eigenstrain[element], rhs_eigenstrain,
+		constraints, *this);
+
+	solve();
+
+
+	already_assembled = true;
 }
 
 
@@ -1062,7 +1125,65 @@ void LeesEdwards<dim>::solve_for_case(
 template<int dim>
 void LeesEdwards<dim>::compute_global_effective_stiffness()
 {
-	// local tensor in each finite element, obtained with 3 different loading modes
+	// compute the solution to the unitary loads under the 3 different
+	// loading modes considered. The solution to the external load is not
+	// trivial even if we impose homogeneous loadings since elastic
+	// heterogeneities can be present. Use the solutions to those loading
+	// modes to compute the global effective stiffness. Those solutions
+	// are stored and will be used to solve other problems when calling
+	// solve()
+
+	dealii::SymmetricTensor<2,dim> external_strain__;
+	dealii::Vector<double> displacement, rhs;
+	{
+		external_strain__.clear();
+		external_strain__[0][0] = 1;
+		assemble_external_strain_load(external_strain__, displacement, rhs);
+
+		SolutionToUnitLoad solution_to_load;
+		solution_to_load.displacement = displacement;
+		solution_to_load.rhs = rhs;
+		solution_to_load.unit_external_strain = external_strain__;
+
+		solve_for_case(rhs, displacement);
+		solution_to_load.stress = stress;
+		solution_to_load.elastic_strain = elastic_strain;
+		solution_to_loads["xx"] = solution_to_load;
+		clear();
+	}
+	{
+		external_strain__.clear();
+		external_strain__[1][1] = 1;
+		assemble_external_strain_load(external_strain__, displacement, rhs);
+
+		SolutionToUnitLoad solution_to_load;
+		solution_to_load.displacement = displacement;
+		solution_to_load.rhs = rhs;
+		solution_to_load.unit_external_strain = external_strain__;
+
+		solve_for_case(rhs, displacement);
+		solution_to_load.stress = stress;
+		solution_to_load.elastic_strain = elastic_strain;
+		solution_to_loads["yy"] = solution_to_load;
+		clear();
+	}
+	{
+		external_strain__.clear();
+		external_strain__[0][1] = 1; // meaning of load value
+		assemble_external_strain_load(external_strain__, displacement, rhs);
+
+		SolutionToUnitLoad solution_to_load;
+		solution_to_load.displacement = displacement;
+		solution_to_load.rhs = rhs;
+		solution_to_load.unit_external_strain = external_strain__;
+
+		solve_for_case(rhs, displacement);
+		solution_to_load.stress = stress;
+		solution_to_load.elastic_strain = elastic_strain;
+		solution_to_loads["xy"] = solution_to_load;
+		clear();
+	}
+
 	auto &stress_a = solution_to_loads["xx"].stress;
 	auto &strain_a = solution_to_loads["xx"].elastic_strain;
 

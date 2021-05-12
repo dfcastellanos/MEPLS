@@ -54,7 +54,7 @@ class Stress
 		monitor_name(monitor_mag_),
 		desired_target(desired_target_),
 		recorded_target(recorded_target_),
-		output_index(system.event_history->index)
+		output_index(system.history->index())
 	{
 		/*! Take and store the snapshot.
 		 *
@@ -66,7 +66,7 @@ class Stress
 		 * @param recorded_target value of the \ref monitor_name at which the
 		 * snapshot is actually taken */
 
-		for(auto &element : system.elements)
+		for(auto &element : system)
 		{ M_Assert(element->number() == data.size(), "Element data not written in the right order");
 
 			DataRow row;
@@ -139,7 +139,7 @@ class DefGrad
 		monitor_name(monitor_mag_),
 		desired_target(desired_target_),
 		recorded_target(recorded_target_),
-		output_index(system.event_history->index)
+		output_index(system.history->index())
 	{
 		/*! Take and store the snapshot.
 		 *
@@ -151,7 +151,7 @@ class DefGrad
 		 * @param recorded_target value of the \ref monitor_name at which the
 		 * snapshot is actually taken */
 
-		for(auto &element : system.elements)
+		for(auto &element : system)
 		{ M_Assert(element->number() == data.size(), "Element data not written in the right order");
 
 			DataRow row;
@@ -225,7 +225,7 @@ class Threshold
 		monitor_name(monitor_mag_),
 		desired_target(desired_target_),
 		recorded_target(recorded_target_),
-		output_index(system.event_history->index)
+		output_index(system.history->index())
 	{
 		/*! Take and store the snapshot.
 		 *
@@ -237,7 +237,7 @@ class Threshold
 		 * @param recorded_target value of the \ref monitor_name at which the
 		 * snapshot is actually taken */
 
-		for(auto &element : system.elements)
+		for(auto &element : system)
 			for(auto &slip : *element)
 			{
 				DataRow row;

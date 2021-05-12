@@ -19,10 +19,14 @@
 #include <algorithm>
 #include <set>
 #include <regex>
+
 #include <deal.II/base/symmetric_tensor.h>
 #include <deal.II/base/timer.h>
 #include <deal.II/lac/full_matrix.h>
 
+#if defined(OPENMP)
+#include <omp.h>
+#endif
 
 #ifndef _COLORS_
 #define _COLORS_
@@ -941,7 +945,104 @@ inline double mod(double a, double b)
 }
 
 
-/*! Singleton class to measure execution times. The advantage of using a 
+
+template<typename ParamType>
+class Launcher
+{
+
+  public:
+
+	int run(const ParamType &p)
+	{
+		try
+		{
+			#if defined(OPENMP)
+				run_parallel(p);
+			#else
+				run_serial(p);
+			#endif
+		}
+		catch(std::exception &exc)
+		{
+			std::cerr << std::endl << std::endl << "----------------------------------------------------" << std::endl;
+			std::cerr << "Exception on processing: " << std::endl << exc.what() << std::endl << "Aborting!" << std::endl
+					  << "----------------------------------------------------" << std::endl;
+			return 1;
+		}
+		catch(...)
+		{
+			std::cerr << std::endl << std::endl << "----------------------------------------------------" << std::endl;
+			std::cerr << "Unknown exception!" << std::endl << "Aborting!" << std::endl
+					  << "----------------------------------------------------" << std::endl;
+			return 1;
+		}
+
+		return 0;
+
+	}
+
+	void run_parallel(const ParamType &p)
+	{
+		#if defined(OPENMP)
+
+		unsigned int n_rep = p.sim.n_rep;
+		if(n_rep < omp_get_max_threads())
+			n_rep = omp_get_max_threads();
+
+		// create a seed to initialize the rnd engine of each thread
+		std::srand(p.sim.seed);
+		std::vector<unsigned int> seed_for_thread;
+		for(unsigned int n = 0; n < omp_get_max_threads(); ++n)
+			seed_for_thread.push_back(std::rand());
+
+		#pragma omp parallel
+		{
+			auto pp = p;
+
+			unsigned int n_threads = omp_get_max_threads();
+			unsigned int id = omp_get_thread_num();
+
+			unsigned int N = int( n_rep / n_threads );
+
+			std::mt19937 generator_of_seeds( seed_for_thread[id] );
+
+			for(unsigned int n = 0; n < N; ++n)
+			{
+				if(id == 0 and p.out.verbosity)
+					std::cout << double(n) / double(N) * 100 << "%" << std::endl;
+
+				generator_of_seeds.discard(1000);
+				pp.sim.seed = generator_of_seeds();
+
+				run_impl(pp);
+			}
+
+
+		}// parallel region
+
+		#endif // defined(OPENMP)
+	}
+
+	void run_serial(const ParamType &p)
+	{
+		unsigned int N = p.sim.n_rep;
+		std::mt19937 generator_of_seeds( p.sim.seed );
+
+		for(unsigned int n = 0; n < N; ++n)
+		{
+			auto pp = p;
+			pp.sim.seed = generator_of_seeds();
+			run_impl(pp);
+		}
+	}
+
+  private:
+
+	virtual void run_impl(const ParamType &p) = 0;
+};
+
+
+/*! Singleton class to measure execution times. The advantage of using a
  * singleton pattern is that we can measure the execution times of any part of
  * the code without the need to modify function interfaces. Specifically, in
  * every call to a function, we can get a pointer to an existing instance of

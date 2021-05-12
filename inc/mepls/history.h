@@ -24,6 +24,12 @@ template<int dim>
 class Slip;
 }
 
+namespace system
+{
+template<int dim>
+class System;
+}
+
 /*! This namespace contains Event classes, which are meant to represent
  * the occurrence of different kinds of discrete events within the system.
  * It contains as well as the History class which is used to register the
@@ -39,10 +45,7 @@ struct Plastic
 	Plastic(slip::Slip<dim> *slip_)
 		:
 		slip(slip_),
-		dplastic_strain(0.),
-		dtime(0.),
 		acting_stress(slip_->parent->stress()),
-		activation_protocol(0),
 		element(slip_->parent->number())
 	{
 		/*! Constructor.
@@ -54,10 +57,6 @@ struct Plastic
 	};
 
 	Plastic()
-		:
-		dplastic_strain(0.),
-		dtime(0.),
-		activation_protocol(0)
 	{
 		/*! Constructor.
 		 *
@@ -68,11 +67,11 @@ struct Plastic
 	slip::Slip<dim> *slip;
 	/*!<  Pointer to the Slip object which has been activated. */
 
-	double dplastic_strain;
+	double dplastic_strain = 0.;
 	/*!< Scalar effective plastic shear strain (see \ref
 	 * element::Element.vm_eigenstrain). */
 
-	double dtime;
+	double dtime = 0.;
 	/*!< Duration of the event. */
 
 	dealii::SymmetricTensor<2, dim> eigenstrain;
@@ -84,12 +83,18 @@ struct Plastic
 	/*!< Stress tensor acting on the parent element (see \ref base::Slip.parent)
 	 * at the moment of the platic event. */
 
-	unsigned int activation_protocol;
+	unsigned int activation_protocol = 0;
 	/*!< Dynamics protocol (see \ref dynamics::Protocol) by which the plastic
 	 * event has been triggered. */
 
-	unsigned int element;
+	unsigned int element = 0;
 	/*!< Number of the element in which the plastic deformation takes place. */
+
+	bool renew_slip_properties = true;
+	/*!< Renew the slip systems owned by the active slip's parent element. */
+
+	bool renew_elastic_properties = false;
+	/*!< Renew the elastic properties of the active slip's parent element. */
 };
 
 
@@ -206,6 +211,29 @@ struct RenewSlipRow
 	float slip_angle;
 };
 
+struct MacroSummaryRow
+{
+	/*! Struct to store system-scale properties */
+	double av_stress_00 = 0.;
+	double av_stress_11 = 0.;
+	double av_stress_01 = 0.;
+	double std_stress_00 = 0.;
+	double std_stress_11 = 0.;
+	double std_stress_01 = 0.;
+	double av_vm_plastic_strain = 0.;
+	double std_vm_plastic_strain = 0.;
+	double av_vm_stress = 0.;
+	double std_vm_stress = 0.;
+	double av_energy_el = 0.;
+	double std_energy_el = 0.;
+	double av_energy_conf = 0.;
+	double std_energy_conf = 0.;	
+	double time = 0.;
+	double total_strain = 0.;
+	double ext_stress = 0.;
+	unsigned int index = 0;
+};
+
 
 /*! This class registers the occurrence of events. The data contained in
  * the event objects are reformated into structs in a way that makes easier
@@ -241,17 +269,18 @@ class History
 {
   public:
 
-	History()
+	History(const std::string &inputname_ = "history")
 		:
-		index(0),
-		closed(false)
+		index_(0),
+		closed_(false),
+		name_(inputname_)
 	{
 		/*! Constructor. */
 	}
 
 	void close()
 	{
-		closed = true;
+		closed_ = true;
 	}
 
 	void add_row(const event::Driving<dim> &event)
@@ -266,7 +295,7 @@ class History
 		row.dload = event.dload;
 		row.dtime = event.dtime;
 		row.activation_protocol = event.activation_protocol;
-		row.index = index;
+		row.index = index_;
 		driving.push_back(row);
 	}
 
@@ -285,7 +314,7 @@ class History
 		row.acting_stress_11 = float(event.acting_stress[1][1]);
 		row.acting_stress_01 = float(event.acting_stress[0][1]);
 		row.activation_protocol = event.activation_protocol;
-		row.index = index;
+		row.index = index_;
 		plastic.push_back(row);
 	}
 
@@ -298,7 +327,7 @@ class History
 		row.element = event.element_number;
 		row.threshold = float(event.threshold);
 		row.slip_angle = float(event.slip_angle);
-		row.index = index;
+		row.index = index_;
 		renew.push_back(row);
 	}
 
@@ -309,11 +338,11 @@ class History
 		 * overloaded functions \ref History.add_row(). It calls
 		 * \ref History.add_row() and updates by one unit \ref History.index. */
 
-		if(closed)
+		if(closed_)
 			return;
 
 		add_row(event);
-		++index;
+		++index_;
 	}
 
 	template<typename EventType>
@@ -323,12 +352,12 @@ class History
 		 * takes a vector of events instead. Those events are added with
 		 * the same \ref History.index. */
 
-		if(closed)
+		if(closed_)
 			return;
 
 		for(auto &event : event_vector)
 			add_row(event);
-		++index;
+		++index_;
 	}
 
 	template<typename EventType>
@@ -338,12 +367,12 @@ class History
 		 * &event_vector) but takes a vector of pointers to events. Those events
 		 * are added with the same \ref History.index. */
 
-		if(closed)
+		if(closed_)
 			return;
 
 		for(auto &event : event_vector)
 			add_row(*event);
-		++index;
+		++index_;
 	}
 
 	void clear()
@@ -351,7 +380,114 @@ class History
 		driving.clear();
 		plastic.clear();
 		renew.clear();
-		index = 0;
+		macro_evolution.clear();
+		index_ = 0;
+	}
+
+
+   virtual void add_macro(const mepls::system::System<dim> &system)
+   {
+      if(closed_)
+         return;
+
+		MacroSummaryRow data;
+
+		const auto &elements = system.elements;
+		const auto &macrostate = system.macrostate;
+
+		double sum_stress_00 = 0.;
+		double sum_stress_11 = 0.;
+		double sum_stress_01 = 0.;
+		double sum_vm_plastic_strain = 0.;
+		double sum_vm_stress = 0.;
+		double sum_energy_el = 0.;
+		double sum_energy_conf = 0.;
+
+		double sum2_stress_00 = 0.;
+		double sum2_stress_11 = 0.;
+		double sum2_stress_01 = 0.;
+		double sum2_vm_plastic_strain = 0.;
+		double sum2_vm_stress = 0.;
+		double sum2_energy_el = 0.;
+		double sum2_energy_conf = 0.;
+
+		for(auto &element : elements)
+		{
+			auto &stress = element->stress();
+
+			sum_stress_00 += stress[0][0];
+			sum2_stress_00 += stress[0][0]*stress[0][0];
+
+			sum_stress_11 += stress[1][1];
+			sum2_stress_11 += stress[1][1]*stress[1][1];
+
+			sum_stress_01 += stress[0][1];
+			sum2_stress_01 += stress[0][1]*stress[0][1];
+
+			double vm_plastic_strain = element->integrated_vm_eigenstrain();
+			sum_vm_plastic_strain += vm_plastic_strain;
+			sum2_vm_plastic_strain += vm_plastic_strain * vm_plastic_strain;
+
+			double vm_stress = mepls::utils::get_von_mises_equivalent_stress(element->stress());
+			sum_vm_stress += vm_stress;
+			sum2_vm_stress += vm_stress * vm_stress;
+
+			double energy_el = element->energy_el();
+			sum_energy_el += energy_el;
+			sum2_energy_el += energy_el * energy_el;
+
+			double energy_conf = element->energy_conf();
+			sum_energy_conf += energy_conf;
+			sum2_energy_conf += energy_conf * energy_conf;
+		}
+
+		double N = double(elements.size());
+
+		data.av_stress_00 = sum_stress_00/N;
+		data.av_stress_11 = sum_stress_11/N;
+		data.av_stress_01 = sum_stress_01/N;
+		data.av_vm_stress = sum_vm_stress/N;
+		data.av_vm_plastic_strain = sum_vm_plastic_strain/N;
+		data.av_energy_el = sum_energy_el/N;
+		data.av_energy_conf = sum_energy_conf/N;
+
+		data.std_stress_00 = std::sqrt(
+			sum2_stress_00/N - data.av_stress_00 * data.av_stress_00);
+
+		data.std_stress_11 = std::sqrt(
+			sum2_stress_11/N - data.av_stress_11 * data.av_stress_11);
+
+		data.std_stress_01 = std::sqrt(
+			sum2_stress_01/N - data.av_stress_01 * data.av_stress_01);
+
+		data.std_vm_plastic_strain = std::sqrt(
+			sum2_vm_plastic_strain/N - data.av_vm_plastic_strain * data.av_vm_plastic_strain);
+
+		data.std_vm_stress = std::sqrt(sum2_vm_stress/N - data.av_vm_stress * data.av_vm_stress);
+
+		data.std_energy_el = std::sqrt(
+			sum2_energy_el/N - data.av_energy_el * data.av_energy_el);
+
+		data.std_energy_conf = std::sqrt(
+			sum2_energy_conf/N - data.av_energy_conf * data.av_energy_conf);
+
+		data.time = macrostate["time"];
+		data.total_strain = macrostate["total_strain"];
+		data.ext_stress = macrostate["ext_stress"];
+
+		data.index = index_;
+
+      macro_evolution.push_back(data);
+   }
+
+	std::string name() const
+	{
+		return name_;
+	}
+
+	unsigned int index() const
+	{
+		return index_;
 	}
 
 	std::vector<DrivingRow> driving;
@@ -366,7 +502,12 @@ class History
 	/*!< Vector to store the information contained in objects of the class
 	 * \ref event::RenewSlip reformated as \ref History.RenewSlipRow. */
 
-	unsigned int index;
+	std::vector<MacroSummaryRow> macro_evolution;
+
+
+  protected:
+
+	unsigned int index_;
 	/*!< This member keeps track of the index to be assigned to the next
 	 * registered event. It acts as a global identifier of each
 	 * event, independent of its type. Hence, it corresponds to the order
@@ -381,8 +522,10 @@ class History
 	 * It allows reconstructing the simulation history by merging different
 	 * datasets in the right way. */
 
-	bool closed;
+	bool closed_;
 	/*!< If true, no further events are added. */
+
+	std::string name_;
 };
 
 

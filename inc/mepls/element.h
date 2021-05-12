@@ -65,15 +65,23 @@ class Slip
   public:
 
 	Slip()
-		:
-		eff_shear_stress(0.),
-		pressure(0.),
-		threshold(0.),
-		barrier(0.),
-		activation_rate(0.),
-		angle(0.)
 	{
-		/*! Constructor. Initialize members zero. */
+		/*! Constructor. */
+	}
+
+	Slip(Slip *original)
+	{
+		/*! Copy constructor. Copy the value of all the data members except the
+		 * pointer to the parent element. Since the copied slip will in general
+		 * be added to a different elemetn, this pointer should be set by that
+		 * element when the slip is added to it. */
+
+		eff_shear_stress = original->eff_shear_stress;
+		pressure = original->pressure;
+		threshold = original->threshold;
+		barrier = original->barrier;
+		activation_rate = original->activation_rate;
+		angle = original->angle;
 	}
 
 	virtual ~Slip()
@@ -101,14 +109,14 @@ class Slip
 		 *
 		 * @warning the user is responsible for deleting the allocated copy. */
 
-		M_Assert(false, "make_copy() not implemented for the current slip object.");
+		return make_copy_impl();
 	}
 
-	double eff_shear_stress;
+	double eff_shear_stress = 0.;
 	/*!< Effective shear stress \f$ \tau \f$ in the slip system. It is
 	 * responsible for lowering the slip activation barrier, \ref barrier. */
 
-	double pressure;
+	double pressure = 0.;
 	/*!< Hydrostatic pressure, computed from the parent element stress tensor
 	 * element::\ref stress_ as
 	 * \f$ p = \frac{1}{dim}\textrm{tr}( \boldsymbol{\Sigma} )\f$.
@@ -117,19 +125,19 @@ class Slip
 	 * the same parent element, since the pressure is anisotropic and only a
 	 * single stress tensor per element is considered. */
 
-	double threshold;
+	double threshold = 0.;
 	/*!< Local yield threshold \f$ \hat{\tau} \f$, i.e. the effective shear
 	 * stress \ref eff_shear_stress necessary for a slip system to become
 	 * mechanically unstable. */
 
-	double barrier;
+	double barrier = 0.;
 	/*!< Stress barrier \f$ \hat{\tau} - \tau \f$ neccesary to be overcome
 	 * before the slip system becomes mechanically activated. */
 
-	double activation_rate;
+	double activation_rate = 0.;
 	/*!< Rate \f$ \nu \f$ for thermal slip activation. */
 
-	double angle;
+	double angle = 0.;
 	/*!< Orientation of the slip plane (in radians). */
 
 	element::Element<dim> *parent;
@@ -141,6 +149,18 @@ class Slip
 	 * deletion of slips objects must be done carefully. Usually, allocation and
 	 * deletion of slip objects is only done within the implementation of
 	 * element::Element objects. */
+
+  private:
+
+  	virtual Slip<dim> *make_copy_impl()
+	{
+		/*! Dynamically allocate a new object of the derive class type and
+		 * return a pointer to it. */
+
+		M_Assert(false, "Copying of the current type of slip not implemented.");
+
+		abort();
+	}
 };
 
 } // namespace slip
@@ -152,25 +172,6 @@ class Slip
  * extending its interface */
 namespace element
 {
-
-/*! This struct carries the information about how the microstructural properties
- * must be renewed within a mesoscale element after a slip event has taken
- * place within that element. */
-template<int dim>
-struct RenewInstruct
-{
-	bool slip_properties = true;
-	/*!< Renew the slip systems owned by the element. */
-
-	bool elastic_properties = false;
-	/*!< Renew the elastic properties of the element. */
-
-	event::Plastic<dim> plastic_event;
-	/*!< Plastic event responsible of the change of microstructural properties.
-	 * Its details, such as, e.g., the amplitude of the plastic deformation, can
-	 * be taken into account during the renewal process. */
-};
-
 
 /*! Element objects represent local mesoscale regions of a material. The state
  * of an element is defined by continuum mechanics magnitudes (stress, strain
@@ -199,9 +200,7 @@ class Element
 	Element()
 	{
 		/*! Constructor. Initialize the default values of the class members. */
-		integrated_vm_eigenstrain_ = 0.;
-		S_already_is_set = false;
-		ext_stress_coeff_is_set = false;
+
 		this->type("element");
 	}
 
@@ -228,7 +227,7 @@ class Element
 		}
 	}
 
-	void renew_structural_properties(RenewInstruct<dim> &renew_instruct)
+	void renew_structural_properties(mepls::event::Plastic<dim> &plastic_event)
 	{
 		/*! Renew the structural properties of the element (e.g., renewing slip
 		 * thresholds, slip angles, elastic properties, etc.). Specific renewal
@@ -237,7 +236,7 @@ class Element
 		 * carries information that might be taken into account when renewing
 		 * the properties. */
 
-		renew_structural_properties_impl(renew_instruct);
+		renew_structural_properties_impl(plastic_event);
 	}
 
 	void renew_structural_properties()
@@ -246,26 +245,15 @@ class Element
 		 * conviniency, takes no input. It wraps the original function and
 		 * passes to it a default-initialised RenewInstruct object. */
 
-		RenewInstruct<dim> renew_instruct;
-		renew_structural_properties(renew_instruct);
+		mepls::event::Plastic<dim> plastic_event;
+		renew_structural_properties(plastic_event);
 	}
 
-	virtual void renew_structural_properties_impl(RenewInstruct<dim> &renew_instruct) = 0;
+	virtual void renew_structural_properties_impl(mepls::event::Plastic<dim> &plastic_event) = 0;
 
 	/*!< Define how the element slip and elastic properties are to be renewed
 	 * when \ref renew_structural_properties is called. This abstract function
 	 * is to be implemented by derived classes. */
-
-	virtual mepls::element::Element<dim> *make_copy_impl()
-	{
-		/*! Specify how the members of a derived element class must be copied
-		 * when \ref make_copy is called. */
-
-		M_Assert(false, "Copying of the current type of element not implemented.");
-
-		abort();
-	}
-
 
 	mepls::element::Element<dim> *make_copy()
 	{
@@ -274,23 +262,40 @@ class Element
 		 *
 		 * @warning the user is responsible for deleting the allocated copy. */
 
-		mepls::element::Element<dim> *element_copy = make_copy_impl();
+		return make_copy_impl();
+	}
 
-		element_copy->C(C_);
-		element_copy->S(S_);
-		element_copy->eigenstrain(eigenstrain_);
-		element_copy->integrated_vm_eigenstrain(integrated_vm_eigenstrain_);
-		element_copy->ext_stress_coeff(ext_stress_coeff_);
-		element_copy->prestress(prestress_);
-		element_copy->elastic_stress(elastic_stress_);
-		element_copy->def_grad(def_grad_);
-		element_copy->type(type_);
-		element_copy->number(number_);
+	void make_copy(mepls::element::Element<dim> * input_element)
+	{
+		/*! Copy member-wise the full state of the input element. */
 
-		for(auto &slip : *this)
-			element_copy->add_slip_system(slip->make_copy());
+		eigenstrain_ = input_element->eigenstrain_;
+		integrated_vm_eigenstrain_ = input_element->integrated_vm_eigenstrain_;
+		prestress_ = input_element->prestress_;
+		elastic_stress_ = input_element->elastic_stress_;
+		stress_ = input_element->stress_;
+		def_grad_ = input_element->def_grad_;
+		S_ = input_element->S_;
+		J_ = input_element->J_;
+		C_ = input_element->C_;
+		ext_stress_coeff_ = input_element->ext_stress_coeff_;
+		energy_el_ = input_element->energy_el_;
+		energy_conf_ = input_element->energy_conf_;
+		energy_ = input_element->energy_;
+		number_ = input_element->number_;
+		type_ = input_element->type_;
+		S_already_is_set = input_element->S_already_is_set;
+		ext_stress_coeff_is_set = input_element->ext_stress_coeff_is_set;
 
-		return element_copy;
+		// The slip_systems vector cannot be just copied since it contains pointers.
+		// What we do is create copies of the input element slip objects and fill this
+		// element with them. The element might have slips already since they might
+		// be added by default when the object is created. To make sure the state
+		// is exactly the same as in the input element, firtst we remove
+		// exisint slips.
+		remove_slip_systems();
+		for(auto &slip : *input_element)
+			this->add_slip_system( slip->make_copy() );
 	}
 
 	void add_eigenstrain(const dealii::SymmetricTensor<2, dim> &eigenstrain_increment)
@@ -309,6 +314,24 @@ class Element
 		integrated_vm_eigenstrain_ += utils::get_von_mises_equivalent_strain(eigenstrain_increment);
 	}
 
+	const dealii::SymmetricTensor<2, dim> &eigenstrain() const
+	{
+		/*! Return a reference to the accumlated eigenstrain tensor
+		 * \ref eigenstrain_. */
+
+		return eigenstrain_;
+	}
+
+	void eigenstrain(const dealii::SymmetricTensor<2, dim> &eigenstrain)
+	{
+		/*! Set a new eigenstrain tensor. This calls sets the value of the
+		 * \ref integrated_vm_eigenstrain_ using the iput eigenstrain tensor. */
+
+		eigenstrain_ = eigenstrain;
+		integrated_vm_eigenstrain_ = utils::get_von_mises_equivalent_strain(eigenstrain_);
+
+	}
+
 	double integrated_vm_eigenstrain() const
 	{
 		/*! Return the value of the integrated von Mises eigenstrain
@@ -317,12 +340,14 @@ class Element
 		return integrated_vm_eigenstrain_;
 	}
 
-	const dealii::SymmetricTensor<2, dim> &eigenstrain() const
+	void integrated_vm_eigenstrain(double input_integrated_vm_eigenstrain)
 	{
-		/*! Return a reference to the accumlated eigenstrain tensor
-		 * \ref eigenstrain_. */
+		/*! Set a new value for integrated_vm_eigenstrain_.
+		 * @note in most situations, the user controls the eigenstrain only
+		 * through \ref add_eigenstrain and this function doesn't need
+		 * to be called. */
 
-		return eigenstrain_;
+		integrated_vm_eigenstrain_ = input_integrated_vm_eigenstrain;
 	}
 
 	const dealii::SymmetricTensor<2, dim> &prestress() const
@@ -406,7 +431,10 @@ class Element
 
 		C_ = input_C;
 
-		update_stress();
+		J_ = dealii::invert(C_);
+
+		// the elastic energy depends on C
+		update_energy();
 	}
 
 	const dealii::SymmetricTensor<4, dim> &C() const
@@ -414,6 +442,13 @@ class Element
 		/*! Return a reference to the \ref C_ tensor. */
 
 		return C_;
+	}
+
+	const dealii::SymmetricTensor<4, dim> &J() const
+	{
+		/*! Return a reference to the \ref J_ tensor. */
+
+		return J_;
 	}
 
 	const dealii::SymmetricTensor<2, dim> &ext_stress_coeff() const
@@ -527,23 +562,63 @@ class Element
 		return type_;
 	}
 
-	void set_zero_deformation()
+	double energy() const
 	{
-		/*! Reset the deformation history of the element, but not its structural
-		 * properties. Thus, eigenstrain, integrated von Mises eigenstrain,
-		 * stress, elastic stress, prestress, and deformation gradient are set
-		 * to 0. The slip system and elastic properties are not modified,
-		 * however, the slip systems are informed about the new parent's stress
-		 * state. */
+		/*! Return the energy of the element. */
+
+		return energy_;
+	}
+
+	double energy_el() const
+	{
+		/*! Return the elastic energy of the element. */
+
+		return energy_el_;
+	}
+
+	double energy_conf() const
+	{
+		/*! Return the configuration energy of the element. */
+
+		return energy_conf_;
+	}
+
+	void energy_conf(const double energy_conf_input)
+	{
+		/*! Set the value of the configurational energy. The total energy
+		 * is updated. */
+
+		energy_conf_ = energy_conf_input;
+
+		update_energy();
+	}
+
+	void state_to_prestress()
+	{
+		/*! Set the current total stress as prestress and clean the rest of
+		 * the deformation history, i.e. the eigenstrain, integrated von Mises
+		 * eigenstrain, elastic stress, and deformation gradient. */
+
+		prestress_ = stress_;
 
 		eigenstrain_.clear();
 		integrated_vm_eigenstrain_ = 0.;
-		prestress_.clear();
 		elastic_stress_.clear();
 		stress_.clear();
 		def_grad_.clear();
 
 		update_stress();
+	}
+
+	void clear_eigenstrain()
+	{
+		/*! Clear the eigenstrain of the element. Its elastic state remains
+		 *  unchanged.
+		 *  @note this calls sets the integrated von Mises eigenstrain to
+		 *  zero. */
+
+		eigenstrain_.clear();
+		integrated_vm_eigenstrain_ = 0.;
 	}
 
   private:
@@ -553,7 +628,7 @@ class Element
 	 * is the acumulation of the eigenstrain increments added with
 	 * \ref add_eigenstrain(). */
 
-	double integrated_vm_eigenstrain_;
+	double integrated_vm_eigenstrain_ = 0.;
 	/*!< The sum of von Mises eigenstrain increments. The increments are
 	 * computed from each eigenstrain tensorial increment added with
 	 * \ref add_eigenstrain(). */
@@ -590,6 +665,9 @@ class Element
 	 * (\mathbb{E}-\mathbb{I}) \f$, where \f$ \mathbb{I} \f$ is the rank-4
 	 * identity tensor. */
 
+	dealii::SymmetricTensor<4, dim> J_;
+	/*!< The inverse of the rank-4 stiffness tensor (also known as complience). */
+
 	dealii::SymmetricTensor<4, dim> C_;
 	/*!< rank-4 stiffness tensor \f$ \mathbb{C} \f$ characterising the element's
 	 * linear elastic response, i.e., \f$ \boldsymbol{\Sigma}_{\rm el} =
@@ -604,51 +682,62 @@ class Element
 	/*!< Vector containing the pointers to the slip objects owned by the
 	 * element. */
 
-	unsigned int number_;
+	double energy_el_ = 0.;
+	/*!< Elastic energy stored in the element. */
+
+	double energy_conf_ = 0.;
+	/*!< Configurational energy stored in the element. An energy term that must
+	 * be set from outside, since its origin is not elastic. */
+
+	double energy_ = 0.;
+	/*!< Total energy stored in the element. */
+
+	unsigned int number_ = 0;
 	/*!< Element number. */
 
-	std::string type_;
+	std::string type_ = "";
 	/*!< String containing the type of element object.*/
 
-	bool S_already_is_set;
+	bool S_already_is_set = false;
 	/*!< Indicates wheter the \ref S_ tensor has already been set. */
 
-	bool ext_stress_coeff_is_set;
+	bool ext_stress_coeff_is_set = false;
 
 	/*!< Indicates whether the ext_stress_coeff_ tensor has already been set. */
 
+	void update_energy()
+	{
+		/*! Compute the elastic energy using the stress, the stiffness tensor
+		 * and linear elasticity. Compute the total energy as the sum of the
+		 * configurational and the elastic energies. */
+
+		energy_el_ =  0.5 * J_ * stress_ * stress_;
+
+		energy_ = energy_conf_ + energy_el_;
+	}
+
 	void update_stress()
 	{
-		/*! Compute the total stres, which is a superposition of the prestress
-		 * and the elastic stress, i.e., \f$ \boldsymbol{\Sigma} =
-		 * \boldsymbol{\Sigma}_{\rm 0} +
-		 * \boldsymbol{\Sigma}_{\rm el}\f$. Afterwards, update the stress state
-		 * of the slip systems owned by the element. */
+		/*! Compute the total stres (which is a superposition of the prestress
+		 * and the elastic stress). Afterwards, update
+		 * the the slip systems owned by the element. */
 
-		stress_ = this->prestress() + this->elastic_stress();
+		stress_ = prestress_ + elastic_stress_;
+
+		update_energy();
 
 		for(auto &slip : *this)
 			slip->update();
 	}
 
-	void eigenstrain(const dealii::SymmetricTensor<2, dim> &eigenstrain)
+	virtual mepls::element::Element<dim> *make_copy_impl()
 	{
-		/*! Set a new eigenstrain tensor. Since the user controls the
-		 * eigenstrain only through \ref add_eigenstrain, this function is only
-		 * used for setting the state of the eigenstrain member when an element
-		 * object is copied. */
+		/*! Dynamically allocate a new object of the derive class type and
+		 * return a pointer to it. */
 
-		eigenstrain_ = eigenstrain;
-	}
+		M_Assert(false, "Copying of the current type of element not implemented.");
 
-	void integrated_vm_eigenstrain(double input_integrated_vm_eigenstrain)
-	{
-		/*! Set a new value for integrated_vm_eigenstrain_. Since the user
-		 * controls the eigenstrain only through \ref add_eigenstrain, this
-		 * function is only used for setting the state of the
-		 * integrated_vm_eigenstrain_ member when a element object is copied. */
-
-		integrated_vm_eigenstrain_ = input_integrated_vm_eigenstrain;
+		abort();
 	}
 };
 

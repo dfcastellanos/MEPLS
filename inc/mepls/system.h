@@ -36,7 +36,7 @@ class Element;
  * updated by registering the occurence of external load variation events
  * (event::Driving) and plastic activity in the form of slip events
  * (event::Plastic). The values of the macroscopic magnitudes (with keys
- * "av_plastic_strain", "load", "ext_stress", "pressure", "time" and
+ * "av_vm_plastic_strain", "load", "ext_stress", "pressure", "time" and
  * "total_strain") are then retrieved using the \ref operator[] with the key of
  * the magnitude. */
 template<int dim>
@@ -44,7 +44,7 @@ struct MacroState
 {
 	MacroState(unsigned int n_elements_)
 		:
-		av_plastic_strain(0.),
+		av_vm_plastic_strain(0.),
 		total_strain(0.),
 		load(0.),
 		ext_stress(0.),
@@ -57,7 +57,7 @@ struct MacroState
 		// Initialize the map of macroscopic magnitudes. The key-names given here
 		// will be used in other parts of the code to query the state of the
 		// different macroscale magnitudes
-		monitor_map["av_plastic_strain"] = &av_plastic_strain;
+		monitor_map["av_vm_plastic_strain"] = &av_vm_plastic_strain;
 		monitor_map["load"] = &load;
 		monitor_map["ext_stress"] = &ext_stress;
 		monitor_map["pressure"] = &pressure;
@@ -69,7 +69,7 @@ struct MacroState
 	{
 		/*! Assigment operator. Copy the rhs object into the lhs. */
 
-		av_plastic_strain = rhs.av_plastic_strain;
+		av_vm_plastic_strain = rhs.av_vm_plastic_strain;
 		total_strain = rhs.total_strain;
 		load = rhs.load;
 		ext_stress = rhs.ext_stress;
@@ -125,7 +125,7 @@ struct MacroState
 		/*! Update the macroscopic quantities using the information contained in
 		 * the input \ref event::Plastic object. */
 
-		av_plastic_strain += event.dplastic_strain / double(n_elements);
+		av_vm_plastic_strain += event.dplastic_strain / double(n_elements);
 		time += event.dtime;
 	};
 
@@ -133,7 +133,7 @@ struct MacroState
 	{
 		/*! Reset the value of all the magnitudes to zero. */
 
-		av_plastic_strain = 0.;
+		av_vm_plastic_strain = 0.;
 		total_strain = 0.;
 		load = 0.;
 		ext_stress = 0.;
@@ -141,7 +141,7 @@ struct MacroState
 	};
 
   private:
-	double av_plastic_strain;
+	double av_vm_plastic_strain;
 	/*!< Average plastic strain. It is defined as the sum of the von Mises
 	 * equivalent plastic strain introduced by all events slip events, divided by
 	 * the number of mesoscale elements in the system.
@@ -178,7 +178,7 @@ struct MacroState
 	/*!< Map relating the names of the macroscopic magnitudes to pointers to
 	 * their values. Consequently, when the value of a magnitude with a certain
 	 * name is requested, the map returns the current value of the magnitude.
-	 * Existing keys are "av_plastic_strain", "load", "ext_stress", "pressure",
+	 * Existing keys are "av_vm_plastic_strain", "load", "ext_stress", "pressure",
 	 * "time" and "total_strain". */
 
 	unsigned int n_elements;
@@ -201,7 +201,7 @@ namespace system
  * The class is composed of different members that represent different aspects
  * of the material: a vector \ref elements of element objects which represent
  * discrete non-overlapping mesoscale material regions; an elasticity solver
- * (\ref solver) to compute the elastic fields; the member \ref event_history to
+ * (\ref solver) to compute the elastic fields; the member \ref history to
  * register the details of each event occurring in the system. Normally,
  * system objects are operated by the algorithms in \ref dynamics controlling
  * its evolution using the events defined in \ref event. The operation is done
@@ -218,7 +218,7 @@ class System
 		:
 		generator(generator_),
 		macrostate(elements_.size()),
-		event_history(&default_history),
+		history(&default_history),
 		elements(elements_),
 		solver(solver_)
 	{
@@ -246,11 +246,44 @@ class System
 		return elements.end();
 	}
 
+	typename element::Vector<dim>::iterator begin() const
+	{
+		/*! Beginning of the iteration over the system. It corresponds to the
+		 * beginning of the vector containing the elements composing the system.*/
+
+		return elements.begin();
+	}
+
+	typename element::Vector<dim>::iterator end() const
+	{
+		/*! End of the iteration over the system. It corresponds to the end of the
+		 * vector containing the elements composing in the system. */
+
+		return elements.end();
+	}
+
+	unsigned int size() const
+	{
+		return elements.size();
+	}
+
 	virtual void solve_elastic_problem(
 		const std::vector<event::Plastic<dim>> &added_yielding,
 		event::Driving<dim> &driving_event) = 0;
 	/*!< This function defines how the elastic fields are computed and delivered
 	 * to each element. */
+
+	void solve_elastic_problem()
+	{
+		/*!< This function defines how the elastic fields are computed and delivered
+	 	* to each element. */
+
+	 	std::vector<event::Plastic<dim>> added_yielding;
+	 	event::Driving<dim> driving_event;
+
+	 	solve_elastic_problem(added_yielding, driving_event);
+
+	}
 
 	virtual void add(event::Driving<dim> &driving_event) = 0;
 	/*!< This function defines how driving events are performed. */
@@ -269,12 +302,12 @@ class System
 		 * If many events are to be added at once, \ref
 		 * add(std::vector<event::Plastic<dim>> &) is the preferred way. */
 
-		// TODO we should pass the original input plastic event instead of a copy,
-		// so after this call the user can inspect the changes in the event
-		// (i.e. the information about the event which is added during the call
-		// to add)
 		std::vector<event::Plastic<dim>> added_yielding = {plastic_event};
 		add(added_yielding);
+
+		// copy event into the input one so the user can see the changes made
+		// to it by the add() function
+		plastic_event = added_yielding[0];
 	}
 
 	virtual System<dim> *get_new_instance(
@@ -289,9 +322,9 @@ class System
 	 * @warning the user is responsible for deleting the returned object. */
 
 
-	void set_history(history::History<dim> &event_history_)
+	void set_history(history::History<dim> &history_)
 	{
-		event_history = &event_history_;
+		history = &history_;
 	}
 
 	std::mt19937 &generator;
@@ -302,7 +335,7 @@ class System
 
 	history::History<dim> default_history;
 
-	history::History<dim> *event_history;
+	history::History<dim> *history;
 	/*!< History of added plastic and driving events. */
 
 	element::Vector<dim> &elements;
@@ -399,7 +432,7 @@ class Standard: public System<dim>
 		 * input driving event (see event::Driving<dim>::dload). The elastic
 		 * fields are computed with \ref solver, and the \ref elements are informed
 		 * about their values. The \ref macrostate is updated. The input driving
-		 * event is registered in the \ref event_history. */
+		 * event is registered in the \ref history. */
 
 		solver.add_load_increment(driving_event.dload);
 
@@ -407,7 +440,7 @@ class Standard: public System<dim>
 
 		solve_elastic_problem(added_yielding, driving_event);
 
-		event_history->add(driving_event);
+		history->add(driving_event);
 
 		macrostate.update(driving_event);
 	}
@@ -423,17 +456,17 @@ class Standard: public System<dim>
 		 * their respective parent elements (see \ref slip::Slip<dim>::parent).
 		 * The elastic fields are computed with \ref solver and the \ref elements
 		 * are informed about their values. The \ref macrostate is updated. The
-		 * input plastic events are registered in the \ref event_history. All the
+		 * input plastic events are registered in the \ref history. All the
 		 * elements in which a slip event took place get their structural
 		 * properties renewed, as defined by \ref
 		 * element::Element<dim>::renew_structural_properties(). The new structural
 		 * properties are resgitered as events of type \ref
-		 * event::RenewSlip<dim> in \ref event_history.
+		 * event::RenewSlip<dim> in \ref history.
 		 *
 		 * @note since plastic deformation changes the external stress (if the
 		 * system is displacement-controlled) or the total strain (if the system
 		 * is traction-controlled), such changes in the external conditions are
-		 * registered in the \ref event_history as driving events
+		 * registered in the \ref history as driving events
 		 * (\ref event::Driving).*/
 
 		if(added_yielding.size() == 0)
@@ -445,7 +478,6 @@ class Standard: public System<dim>
 		// events from the map into a vector so they can be added simultaneously
 		// to the history with the same output index
 		std::vector<event::Plastic<dim>> combined_platic_events;
-		std::vector<element::RenewInstruct<dim>> combined_renew_instruct;
 		for(auto &plastic_event : added_yielding)
 		{
 			auto *slip = plastic_event.slip;
@@ -457,21 +489,15 @@ class Standard: public System<dim>
 			plastic_event.dplastic_strain = utils::get_von_mises_equivalent_strain(
 				eigenstrain_increment);
 
-			element::RenewInstruct<dim> renew_instruct;
-			renew_instruct.slip_properties = true;
-			renew_instruct.elastic_properties = false;
-			renew_instruct.plastic_event = plastic_event;
-
 			element->add_eigenstrain(eigenstrain_increment);
 
 			macrostate.update(plastic_event);
 
 			solver.add_eigenstrain(element->number(), eigenstrain_increment);
 
-			combined_renew_instruct.push_back(renew_instruct);
 			combined_platic_events.push_back(plastic_event);
 		}
-		event_history->add(combined_platic_events);
+		history->add(combined_platic_events);
 
 
 
@@ -479,7 +505,7 @@ class Standard: public System<dim>
 		// (external stress drops occur if the system is displacement-controlled)
 		event::Driving<dim> driving_variation_event;
 		solve_elastic_problem(added_yielding, driving_variation_event);
-		event_history->add(driving_variation_event);
+		history->add(driving_variation_event);
 		macrostate.update(driving_variation_event);
 
 #ifdef DEBUG
@@ -495,20 +521,18 @@ class Standard: public System<dim>
 		// renew the structural properties of the elements in which a plastic
 		// event has taken place
 		std::vector<event::RenewSlip<dim>> renewal_vector;
-		for(auto &r : combined_renew_instruct)
+		for(auto &plastic_event : added_yielding)
 		{
-			auto *slip = r.plastic_event.slip;
+			auto *slip = plastic_event.slip;
 			auto *element = slip->parent;
-			element->renew_structural_properties(r);
+			element->renew_structural_properties(plastic_event);
 			element->record_structural_properties(renewal_vector);
 		}
-		event_history->add(renewal_vector);
-
-		added_yielding.clear();
+		history->add(renewal_vector);
 	}
 
 	using system::System<dim>::macrostate;
-	using system::System<dim>::event_history;
+	using system::System<dim>::history;
 	using system::System<dim>::generator;
 	using system::System<dim>::elements;
 	using system::System<dim>::solver;
@@ -658,7 +682,7 @@ class ShuffledKernel: public Standard<dim>
 	}
 
 	using system::Standard<dim>::macrostate;
-	using system::Standard<dim>::event_history;
+	using system::Standard<dim>::history;
 	using system::Standard<dim>::generator;
 	using system::Standard<dim>::elements;
 	using system::Standard<dim>::solver;
@@ -802,7 +826,7 @@ class HomogeneousKernel: public Standard<dim>
 	}
 
 	using system::Standard<dim>::macrostate;
-	using system::Standard<dim>::event_history;
+	using system::Standard<dim>::history;
 	using system::Standard<dim>::generator;
 	using system::Standard<dim>::elements;
 	using system::Standard<dim>::solver;
