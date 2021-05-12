@@ -224,16 +224,22 @@ models are:
 ## How to build
 
 ####Linux
-MEPLS uses CMake for building. The only MEPLS dependency is the [deal.II] library,
-with version between 8.5 and 9.1. The recommended version is the 9.0, which can 
-be found in this repository. A minimal build of deal.II is enough. To build it, 
-unpack the deal.II sources in some directory `/path/to/dealii/sources`. Then, to 
-configure and build it in, e.g., `/path/to/dealii/build`, you can do:
+MEPLS uses CMake for building and depends on the [deal.II] library for using the
+Finite Element Method. Compatible deal.II versions are between the 8.5 
+and the 9.1. The recommended is the 9.0, which can be found in 
+[this repository](https://github.com/dealii/dealii/tree/dealii-9.0). We will need
+the LAPACK library, which is very standard, and you might already have it 
+installed in your system. If not, you can install it from your OS distribution 
+repositories. (For example, for Ubuntu-based distributions, simply do
+`sudo apt-get install liblapack-dev`).
+
+To build deal.II, unpack its sources in some directory `/path/to/dealii/sources`. 
+Then, to configure and build it in, e.g., `/path/to/dealii/build`, do:
 
 ```sh
 mkdir /path/to/dealii/build
 cd /path/to/dealii/build
-cmake /path/to/dealii/sources
+cmake /path/to/dealii/sources -DDEAL_II_WITH_UMFPACK=on
 make # use the argument -j<N> for a build using N parallel threads
 make test
 ```
