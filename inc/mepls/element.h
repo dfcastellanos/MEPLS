@@ -508,11 +508,9 @@ class Element
 		slip_systems_.clear();
 	}
 
-	slip::Slip<dim> *operator[](unsigned int n)
+	slip::Slip<dim> *slip(unsigned int n)
 	{
-		/*! Return the slip system number n, as stored in \ref slip_systems_.
-		 * It is recommended to accesses slip systems by iterating over the
-		 * element instead of indexing. */
+		/*! Return the slip system number n, as stored in \ref slip_systems_. */
 
 		M_Assert(n < slip_systems_.size(), "");
 

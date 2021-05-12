@@ -267,6 +267,11 @@ class System
 		return elements.size();
 	}
 
+	mepls::element::Element<dim> * operator[](unsigned int n) const
+	{
+		return elements[n];
+	}
+
 	virtual void solve_elastic_problem(
 		const std::vector<event::Plastic<dim>> &added_yielding,
 		event::Driving<dim> &driving_event) = 0;
