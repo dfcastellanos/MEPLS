@@ -1395,7 +1395,13 @@ void apply_initial_eigenstrain(mepls::system::System<dim> &system,
 	std::vector<dealii::SymmetricTensor<dim, 2>> eigenstrain(p.sim.Nx * p.sim.Ny);
 
 	std::normal_distribution<double> normal_dist_dev(0., p.mat.init_eigenstrain_std_dev);
-	std::normal_distribution<double> normal_dist_vol(0., p.mat.init_eigenstrain_std_vol);
+
+	// average volumetric eigenstrain, which is also a random var. since if fluctuates
+	// from sample to sample
+	std::normal_distribution<double> normal_dist_av_vol(p.mat.init_eigenstrain_av_vol, p.mat.init_eigenstrain_std_av_vol);
+	double av_vol_eigenstrain = normal_dist_av_vol(generator);
+
+	std::normal_distribution<double> normal_dist_vol(av_vol_eigenstrain, p.mat.init_eigenstrain_std_vol);
 
 	dealii::SymmetricTensor<dim, 2> eigenstrain_dev_0;
 	dealii::SymmetricTensor<dim, 2> eigenstrain_dev_1;
