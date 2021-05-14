@@ -404,13 +404,13 @@ public:
 		double temperature = 0.2;
 	};
 
-	Oriented(std::mt19937 &generator_, const Config &conf_)
+	Oriented(std::mt19937 &generator_, std::uniform_real_distribution<double> &unif_dist_, const
+	Config &conf_)
 		:
 		mepls::slip::Slip<dim>(),
 		conf(conf_),
 		threshold_0(conf_.threshold),
-		unif_distribution(0, 1.),
-		normal_dist(0, 1),
+		unif_distribution(unif_dist_),
 		generator(generator_)
 	{
 		M_Assert(threshold_0 > 0., "Expected threshold > 0");
@@ -426,8 +426,7 @@ public:
 		M(slip->M),
 		conf(slip->conf),
 		threshold_0(slip->threshold_0),
-		unif_distribution(0, 1.),
-		normal_dist(0, 1),
+		unif_distribution(slip->unif_distribution),
 		generator(slip->generator)
 	{
 	}
@@ -499,8 +498,7 @@ public:
 	dealii::SymmetricTensor<2, dim> M;
 	Config conf;
 	double threshold_0;
-	mutable std::uniform_real_distribution<double> unif_distribution;
-	mutable std::normal_distribution<double> normal_dist;
+	std::uniform_real_distribution<double> &unif_distribution;
 	std::mt19937 &generator;
 };
 
@@ -598,19 +596,19 @@ public:
 
 			slip_conf.angle = alpha2;
 			slip_conf.threshold = mepls::utils::rand::get_weibull_rand(k, lambda, unif_distribution(generator));
-			this->add_slip_system(new slip::Oriented<dim>(generator, slip_conf));
+			this->add_slip_system(new slip::Oriented<dim>(generator, unif_distribution, slip_conf));
 
 			slip_conf.angle = alpha2 + M_PI / 2.;
 			slip_conf.threshold = mepls::utils::rand::get_weibull_rand(k, lambda, unif_distribution(generator));
-			this->add_slip_system(new slip::Oriented<dim>(generator, slip_conf));
+			this->add_slip_system(new slip::Oriented<dim>(generator, unif_distribution, slip_conf));
 
 			slip_conf.angle = alpha2 + M_PI / 4.;
 			slip_conf.threshold = mepls::utils::rand::get_weibull_rand(k, lambda, unif_distribution(generator));
-			this->add_slip_system(new slip::Oriented<dim>(generator, slip_conf));
+			this->add_slip_system(new slip::Oriented<dim>(generator, unif_distribution, slip_conf));
 
 			slip_conf.angle = alpha2 + M_PI / 4. + M_PI / 2.;
 			slip_conf.threshold = mepls::utils::rand::get_weibull_rand(k, lambda, unif_distribution(generator));
-			this->add_slip_system(new slip::Oriented<dim>(generator, slip_conf));
+			this->add_slip_system(new slip::Oriented<dim>(generator, unif_distribution, slip_conf));
 		}
 	}
 
@@ -665,7 +663,7 @@ public:
 
 protected:
 	std::mt19937 &generator;
-	std::uniform_real_distribution<double> unif_distribution;
+	mutable std::uniform_real_distribution<double> unif_distribution;
 	Config conf;
 };
 
