@@ -29,10 +29,10 @@ namespace espci
 using namespace mepls;
 
 template<int dim>
-class Simulation : public mepls::utils::Launcher<parameters::Standard>
+class Simulation : public mepls::utils::Launcher<parameters::Parameters>
 {
 
-void run_impl(const parameters::Standard &p) override
+void run_impl(const parameters::Parameters &p) override
 {
 
 
@@ -518,7 +518,7 @@ int main(int argc, char *argv[])
 	dealii::deallog.depth_console(0);
 
 
-	espci::parameters::Standard p;
+	espci::parameters::Parameters p;
 
 	try
 	{

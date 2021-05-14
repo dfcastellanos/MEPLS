@@ -332,7 +332,7 @@ struct Output
 /*! A struct with all parameters necessary for running a simulation. It is composed of other structs
  *  defining the parameters of specific parts such as material parameters, simulation setup
  *  parameters, and output setup parameters. */
-struct Standard
+struct Parameters
 {
 	void load_file(const std::string &filename)
 	{
@@ -795,7 +795,7 @@ public:
 namespace write
 {
 
-inline void file_attrs(H5::H5File &file, const parameters::Standard &p)
+inline void file_attrs(H5::H5File &file, const parameters::Parameters &p)
 {
 	H5::DataSpace att_space(H5S_SCALAR);
 	file.createAttribute("lambda", H5::PredType::NATIVE_DOUBLE, att_space).write(
@@ -1303,7 +1303,7 @@ inline void snapshots(H5::H5File &file,
 }
 
 
-inline std::string make_filename(const parameters::Standard &p)
+inline std::string make_filename(const parameters::Parameters &p)
 {
 	std::ostringstream file_descriptor_ostrg;
 	std::ostringstream L;
@@ -1337,7 +1337,7 @@ inline std::string make_filename(const parameters::Standard &p)
 
 template<int dim>
 void equilibrate_structure_by_rejection(mepls::system::System<dim> &system,
-											 const parameters::Standard &p)
+											 const parameters::Parameters &p)
 {
 	// this ensures that initially all the thresholds are above the local stress
 
@@ -1373,7 +1373,7 @@ void equilibrate_structure_by_rejection(mepls::system::System<dim> &system,
 
 template<int dim>
 void apply_initial_eigenstrain(mepls::system::System<dim> &system,
-								const parameters::Standard &p)
+								const parameters::Parameters &p)
 {
 	auto &elements = system.elements;
 	auto &solver = system.solver;
@@ -1437,7 +1437,7 @@ void apply_initial_eigenstrain(mepls::system::System<dim> &system,
 template<int dim>
 void simulate_parent_liquid_KMC(mepls::system::System<dim> &system,
 							mepls::history::History<dim> &history,
-							const parameters::Standard &p,
+							const parameters::Parameters &p,
 							mepls::utils::ContinueSimulation &continue_simulation)
 {
 	mepls::dynamics::KMC<dim> kmc;
@@ -1482,7 +1482,7 @@ void simulate_parent_liquid_KMC(mepls::system::System<dim> &system,
 template<int dim>
 void simulate_parent_liquid_MH(mepls::system::System<dim> &system,
 							mepls::history::History<dim> &history,
-							const parameters::Standard &p,
+							const parameters::Parameters &p,
 							mepls::utils::ContinueSimulation &continue_simulation)
 {
 	mepls::dynamics::MetropolisHastings<dim> mh;
@@ -1530,7 +1530,7 @@ void simulate_parent_liquid_MH(mepls::system::System<dim> &system,
 
 
 template<int dim>
-std::vector<element::Anisotropic<dim> *> create_elements(const parameters::Standard &p,
+std::vector<element::Anisotropic<dim> *> create_elements(const parameters::Parameters &p,
 														 std::mt19937 &generator)
 {
 	std::vector<element::Anisotropic<dim> *> elements;
@@ -1566,7 +1566,7 @@ template<int dim>
 void perform_reloading(mepls::system::System<dim> &system,
 					   mepls::history::History<dim> &history,
 					   bool is_forward,
-					   const parameters::Standard &p)
+					   const parameters::Parameters &p)
 {
 	// Simulate using a copy of the original system; Clear the solver, and use the element stress
 	// as prestress. Clean the deformation of the elements;
