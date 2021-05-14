@@ -482,7 +482,6 @@ class Standard: public System<dim>
 		// macroscopic state, update the elasticity solver, and put the plastic
 		// events from the map into a vector so they can be added simultaneously
 		// to the history with the same output index
-		std::vector<event::Plastic<dim>> combined_platic_events;
 		for(auto &plastic_event : added_yielding)
 		{
 			auto *slip = plastic_event.slip;
@@ -499,10 +498,8 @@ class Standard: public System<dim>
 			macrostate.update(plastic_event);
 
 			solver.add_eigenstrain(element->number(), eigenstrain_increment);
-
-			combined_platic_events.push_back(plastic_event);
 		}
-		history->add(combined_platic_events);
+		history->add(added_yielding);
 
 
 

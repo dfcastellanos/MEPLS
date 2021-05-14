@@ -400,7 +400,7 @@ public:
 		double angle = 0.;
 		double coupling_constant = 0.;
 		double alpha_tau = 0.;
-		double activation_rate = 1.;
+		double activation_rate_0 = 1.;
 		double temperature = 0.2;
 	};
 
@@ -436,33 +436,22 @@ public:
 	{
 		eff_shear_stress = M * parent->stress();
 		pressure = dealii::trace(parent->stress()) / double(dim);
-		add_pressure_effects();
-		modify_barrier();
 
-		M_Assert(threshold > 0., "Expected threshold > 0");M_Assert(not std::isnan(threshold),
-																	"Threshold is NaN");M_Assert(
-			not std::isnan(eff_shear_stress), "eff_shear_stress is NaN");
-	}
-
-	void add_pressure_effects()
-	{
 		threshold = threshold_0 - conf.alpha_tau * pressure;
 		if(threshold < 0.)
 			threshold = 1e-3;
-	}
 
-	void modify_barrier()
-	{
 		barrier = threshold - eff_shear_stress;
-		activation_rate = conf.activation_rate * std::exp(-barrier / conf.temperature);
+		activation_rate = conf.activation_rate_0 * std::exp(-barrier / conf.temperature);
+
+		M_Assert(threshold > 0., "Expected threshold > 0");
+		M_Assert(not std::isnan(threshold),	"Threshold is NaN");
+		M_Assert(not std::isnan(eff_shear_stress), "eff_shear_stress is NaN");
 	}
 
 	double get_critical_load_increment() override
 	{
-		M_Assert(barrier >= 0,
-				 "Negative barrier found while looking for critical load increment.");M_Assert(
-			(parent->ext_stress_coeff()[0][0] != 0.) or (parent->ext_stress_coeff()[1][1] != 0.) or (parent->ext_stress_coeff()[0][1] != 0.),
-			"Ext. stress coeffs. are all 0");
+		M_Assert(barrier >= 0, "The barrier cannot be negative when computing the critical load increment.");
 
 		return barrier / (M * parent->ext_stress_coeff() + 0.5 * conf.alpha_tau * dealii::trace(
 			parent->ext_stress_coeff()));
@@ -536,7 +525,7 @@ public:
 		double alpha_tau = 0.;
 		double coupling_constant = 0.2;
 		double temperature = 0.2;
-		double activation_rate = 1.;
+		double activation_rate_0 = 1.;
 		double k = 2;
 		double k_quench = 2;
 		double lambda = 1.;
@@ -593,7 +582,7 @@ public:
 		typename slip::Oriented<dim>::Config slip_conf;
 		slip_conf.alpha_tau = conf.alpha_tau;
 		slip_conf.coupling_constant = conf.coupling_constant;
-		slip_conf.activation_rate = conf.activation_rate;
+		slip_conf.activation_rate_0 = conf.activation_rate_0;
 		slip_conf.temperature = conf.temperature;
 
 		//			slip_conf.angle = 0;
@@ -665,7 +654,7 @@ public:
 			slip_conf.alpha_tau = conf.alpha_tau;
 			slip_conf.coupling_constant = conf.coupling_constant;
 			slip_conf.temperature = conf.temperature;
-			slip_conf.activation_rate = conf.activation_rate;
+			slip_conf.activation_rate_0 = conf.activation_rate_0;
 		}
 
 		// slips must be informed. For example, if the temperature has changed,
@@ -1563,7 +1552,7 @@ std::vector<element::Anisotropic<dim> *> create_elements(const parameters::Stand
 		conf.lambda = p.mat.lambda;
 		conf.n_slip_systems = p.mat.n_slip_systems;
 		conf.coupling_constant = p.mat.coupling_constant;
-		conf.activation_rate = p.mat.activation_rate;
+		conf.activation_rate_0 = p.mat.activation_rate;
 		conf.number = n;
 		conf.gamma_pl_trans = p.mat.gamma_pl_trans;
 
