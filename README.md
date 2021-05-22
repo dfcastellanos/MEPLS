@@ -7,8 +7,8 @@
 * [About MEPLS](#about-MEPLS)
 * [Features](#features)
 * [Project structure](#project-structure)
-* [How to build](#how-to-build)
-* [Documentation](#documentation)
+* [How to build it](#how-to-build-it)
+* [Documentation and tutorial](#documentation-and-tutorial)
 * [Contact](#contact)
 * [License](#license)
 
@@ -35,31 +35,13 @@ Method. To achieve these goals, MEPLS is developed around three pillars:
 
 
 ##### Background & motivation
-At a range of scales between the micro and the macroscale, a material's plastic 
-deformation can be described with great independence of microscopic details at 
-the so-called mesocale. Models operating at the mesoscale are an excellent tool 
-for establishing links between micro and macroscale plastic deformation.
-Mesoscale models divide a material into mesoscale subdomains, known as elements.
-The state of the elements is defined by internal variables in terms of continuum
-mechanics. Their behavior is defined according to a set of simple local rules,
-representing only the most relevant characteristics of the plastic deformation 
-mechanisms and neglecting fine details. Such a simplified description means a 
-loss of information and imperfect knowledge about the elements' state. To 
-represent this uncertainty, the rules governing the behavior of the elements are
-stochastic processes. Finally, elements influence each other's behavior due to 
-elastic fields. This interaction leads to a highly correlated system that
-exhibits complex non-linear behavior. In these situations, analytical solutions 
-are not available, so we must resort to numerical methods.
- 
-MEPLS is a framework that provides easy-to-use numerical tools to build mesoscale
-models of the plastic deformation of materials under a broad range of physical 
-scenarios. An alternative description is that MEPLS allows the statistical 
-sampling of a mesoscale model's configuration space with Markov chain Monte Carlo
-methods. MEPLS enables the user to study the impact that microstructural 
-properties have on the macroscale elasto-plastic behavior of a material. This 
-question is especially challenging to answer when those properties are spatially
-heterogeneous and statistically distributed, which is, in turn, the most common
-situation. The built-in MEPLS tools abstract away unnecessary complexity 
+MEPLS provides easy-to-use tools to build mesoscale models of the plastic 
+deformation of materials and to statistically sample them with Markov chain 
+Monte Carlo methods. MEPLS enables the user to study the impact that 
+microstructural properties have on the macroscale elasto-plastic behavior of a 
+material. This question is especially challenging to answer when those properties
+are spatially heterogeneous and statistically distributed, which is, in turn, the
+most common situation. The built-in MEPLS tools abstract away unnecessary complexity 
 associated with model specification, allowing the user to focus on the physics 
 of the problem. Thus, the user can easily study the influence of: the local 
 statistics of elastic constants, yield criteria, plastic deformation, structural
@@ -221,7 +203,7 @@ models are:
     * Sampling local elasto-plastic response using the patch method
 
 
-## How to build
+## How to build it
 
 ####Linux
 MEPLS uses CMake for building and depends on the [deal.II] library for using the
@@ -280,24 +262,25 @@ cannot run in parallel.
 
 ####Windows
 Building on Windows has not been tested yet. You can follow [deal.II]'s own building
-instructions for Windows, after which building a MEPLS model should be trivial.
+instructions for Windows, after which building a MEPLS model should be straightforward.
 
 ####macOS
 Building on macOS has not been tested yet. You can follow [deal.II]'s own building
-instructions for macOS, after which building a MEPLS model should be trivial.
+instructions for macOS, after which building a MEPLS model should be straightforward.
 
 
-## Documentation
-You can access the documentation online on the [project's website]. 
-Alternatively, you can generate the documentation in different formats using 
+## Documentation and tutorial
+You can access the documentation and the tutorial online on the [project's website]. 
+Alternatively, you can generate them in different formats using 
 [Doxygen](https://www.doxygen.nl/index.html) and the generation script located 
 in `/path/to/MEPLS_dir/doc`.
 
 
 ## Contact
-You can contact the author for, e.g., reporting issues and bugs or submitting 
-requests and ideas through the contact methods provided on the 
-[author's website].
+You can report issues and bugs in the [project's repository](https://github.com/kastellane/MEPLS).
+You can contact the author through the methods provided on the [author's 
+website] for longer discussions regarding, e.g., requests and ideas for the project or 
+if you need some help to use MEPLS.
 
 
 ## License
