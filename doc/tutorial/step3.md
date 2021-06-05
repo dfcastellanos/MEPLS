@@ -6,37 +6,98 @@
 
 ## Introduction
 
-In this tutorial step, we will introduce the solver and system modules. These modules contain the 
-classes @ref mepls::elasticity_solver::Solver<dim> and @ref mepls::system::System<dim>, 
-whose goal is to make the mesoscale elements work together. The solver class calculates elastic 
-fields using the Finite Element Method. For that, it uses a mesh where each finite element is 
-associated with one mesoscale element. The system class brings together the solver and the 
-elements and provides higher-level functions to manage them based on events. It will also 
-automatically take care of recording the events and the evolution of many system properties.
+This tutorial step will use the tools introduced in the previous tutorial steps to create a 
+simple model. We will control the system by automatically creating events according to dynamical
+rules representing the driving conditions. In the end, we will save the simulation data to an output
+file and plot the results using a Python script.
 
-We will continue using the same slip and elements classes introduced in @ref Step1, i.e.,@ref 
-mepls::slip::Slip<dim> and  @ref mepls::element::Element<dim>.
+#### The model
+The model we consider represents a material being driven at a very low strain rate and
+temperature, the so-called athermal quasistatic limit. In this limit, the stress fields can rise
+ continuously until a plastic event is triggered, but during the event, the stress does not 
+rise further because the event is considered a much faster process. To understand this, we must 
+take into account the characteristic duration of a plastic event, \f$ \Delta t_{\rm pl} \f$. If 
+we apply an external shear strain rate \f$ \dot{\gamma}_{\rm ext} \f$, the shear stress rise 
+during a plastic event is \f$ \Delta \tau = G \dot{\gamma}_{\rm ext} \Delta t_{\rm pl} \f$. 
+This stress variation \f$ \Delta \tau \f$ must be compared with a typical slip threshold value given, e.g.,
+ by the parameter \f$ \lambda \f$ (remember that we are using Weibull-distributed slip thresholds with scale 
+\f$ \lambda \f$ and exponent \f$ k \f$, see @ref Step1). We want that, during a plastic event, the stress
+does not rise significantly compared to the threshold. In this case, we obtain the following condition
+for the quasistatic limit,
+
+\f[
+ \dot{\gamma}_{\rm ext} << \frac{\lambda}{G \Delta t_{\rm pl}}
+\f] 
+
+
+On the other hand, working in athermal conditions means that stress fluctuations induced by 
+temperature are negligible compared to the slip thresholds, i.e., temperature cannot trigger 
+plastic events. Energy fluctuations relate to temperature as \f$ \Delta E = k_{\rm B} T \f$ and to
+stress as \f$ \Delta E \approx V_{\rm a} \Delta \tau \f$. The quantity \f$ V_{\rm a} \f$ is the 
+so-called activation volume, which is the product of the typical local strain induced by a 
+plastic event and the volume of the region occupied by the event. Therefore, the athermal 
+limit holds if 
+
+\f[
+ T << \frac{V_{\rm a}\lambda}{k_{\rm B}}
+\f] 
+
+In our model, this limit is guaranteed because we won't include any temperature-dependent mechanism.
+
+A significant simplification in the implementation of the model is possible by combining the 
+quasistatic and the athermal limits. Since in the athermal limit plastic events cannot be 
+thermally activated, the only mechanism for their activation is that local stresses overcome 
+local slip thresholds. More specifically, in the case when the system is deforming elastically by
+the action of the driving mechanism, at some point, a plastic (slip) event will be somewhere 
+triggered by it. To simulate the activation of events in the quasistatic limit, it is enough to 
+make sure that (1) the external strain increments trigger a single slip event at a time and (2) that
+once a event is triggered we wait until the event (and possibly other events induced by the 
+first one) ends before rising the strain again.
+
+Therefore, to drive a system in the athermal quasistatic limit we do not need to take into 
+account the time scales explictely, but just to respect their hierarchy. For this reason, we 
+won't care what are the specific values of \f$ \dot{\gamma}_{\rm ext} \f$ and \f$ \Delta t_{\rm 
+pl} \f$. Instead, we will care that the discrete load increments that we apply (as seen in @ref 
+Step2) do not trigger many events at once (ideally, they trigger exactly 1). What is the 
+criterion for the quasistatic limit in this formulation without explicit time scales? In this case,
+ we require that the discrete external strain increments \f$ \Delta \gamma_{\rm ext} \f$ induce a 
+stress \f$ \Delta \tau = G \Delta \gamma_{\rm ext} \f$ much smaller than \f$ \lambda \f$, i.e.,
+
+\f[
+ \Delta \gamma_{\rm ext} << \frac{\lambda}{G}
+\f] 
+
+
+We can summarize the driving protocol as follows: we perform discrete external strain increments 
+of \f$ \Delta \gamma_{\rm ext} \f$. When a slip system becomes unstable, we keep \f$ \gamma_{\rm 
+ext} \f$ fixed and perform the event (and possible, further events induced by this one). When no 
+slip system is unstable, we increase the external strain again. We repeat until reaching an 
+external strain limit.
+
 
 
 ## The commented program
-
-First, we include the headers that are necessary for this tutorial step. We will include the same
-headers of the previous step (see @ref Step1) plus the headers containing the solver and system 
-classes. The event classes are defined in the history header.
- 
-
+   
+First, we include the headers that are necessary for this tutorial. We will include the same
+headers of the previous tutorial (see @ref Step2) plus the standard library header `fstream` to 
+write
+the final data to an output file.
+   
 ```cpp
 #include <example.h>
 #include <mepls/utils.h>
-#include <random>
-
-// new headers
 #include <mepls/solver.h>
 #include <mepls/system.h>
 #include <mepls/history.h>
+#include <random>
+
+// new header
+#include <fstream>
 ```
 
-Some things will be necessary for creating the elements, as in the previous tutorial step: 
+Now, we set up the elements, the solver, and the system as we saw in the previous tutorial (see @ref 
+Step2). However, now we will mind the values of the simulation parameters since they will affect 
+the final simulation output.
 
 ```cpp
 int main()
@@ -44,600 +105,448 @@ int main()
    constexpr unsigned dim = 2;
     std::mt19937 generator(1234567);
 
-   double G = 1.;
+   // let's consider a material with a shear modulus of 30 GPa,
+   double G = 30.;
    double nu = 0.3;
    dealii::SymmetricTensor<4,dim> C = mepls::utils::tensor::make_isotropic_stiffness<dim>(G, nu);
-```
 
-In the previous step, @ref Step1, we showed an element's elastic behavior in isolation. We 
-focus now on how it behaves when embedded in an elastic matrix formed by other elements. 
-
-MEPLS handles the elements as a 1D vector, independently of the dimensions of the problem (
-in this case, 2D). The reason is that elements behave only according to their own (local) state, and
-their actual spatial location only matters when computing the elastic fields. That 
-means that only the solver (internally) cares about spatial coordinates, but outside the solver
-most of the MEPLS classes don't. Let's discretize the domain into a lattice of 16x16 mesoscale 
-elements:
-
-```CPP
    unsigned int Nx = 16;
    unsigned int Ny = 16;
 
-    // this type is an alias for std::vector<mepls::element::Element<dim>>
    mepls::element::Vector<dim> elements;
-   
    for(double n = 0; n < Nx * Ny; ++n)
    {
       example::element::Scalar<dim>::Config conf;
       conf.number = n;
+
+      // plastic increments induce a local shear deformation of 5%
+      conf.gamma = 0.05;
+
+      // the slip thresholds have a scale of 1 GPa (see Weibull dist. for the relation between
+      // lambda, k and the average value)
+      conf.lambda = 1;
+
+      // the slip thresholds have some disorder. For that, we use a not too-high k (for k->inf
+      // the disorder vanishes, while it increases for k->0)
+      conf.k = 6;
 
       auto element = new example::element::Scalar<dim>(conf, generator);
       element->C( C );
 
       elements.push_back(element);
    }
-```
 
-The solver class calculates elastic fields using the Finite Element Method. For that, it
-uses a mesh where each finite element is associated with one mesoscale element. The
-average stress tensor computed over each of the finite elements is used as the stress tensor
-of the associated mesoscale element. The class @ref mepls::elasticity_solver::Solver<dim> provides 
-an abstract interface common to all the solver classes. Some of its virtual functions are 
-implemented by derived solver classes, allowing to compute the elastic fields under different 
-conditions but always relying on the standard interface. 
-
-In this tutorial, we will use the solver @ref mepls::elasticity_solver::LeesEdwards<dim>,
-but since it shares an interface common to all the solvers in the namespace @ref 
-mepls::elasticity_solver, this example is of wide applicability.
-
-The solver @ref mepls::elasticity_solver::LeesEdwards<dim> computes elastic fields with 
-bi-periodic boundary conditions, under the action of a load that induces an external shear stress
-field \f$ \boldsymbol{\Sigma}_{\textrm ext} = \Sigma_{\textrm xy} (\boldsymbol{e}_{\textrm x} 
-\otimes \boldsymbol{e}_{\textrm y} + \boldsymbol{e}_{\textrm y} \otimes \boldsymbol{e}_{\textrm
-x}) \f$. The finite element mesh is quadrilateral and structured, and threfore the material 
-domain discretization can be understood as a lattice of mesoscale elements. 
-@note currently, all the MEPLS solvers work only with structured meses. Moreover, all solvers 
-rely on the deal.II library, which means that only quadrilaterl meshes are possible.
-
-We will use a mesh of 16x16 elements to match the size of the vector of mesoscale elements
-created above. Each finite element has faces with a length of 1.0, which defines the units of length in the simulation.
-
-
-```cpp 
-   // create the solver
    mepls::elasticity_solver::LeesEdwards<dim> solver(Nx, Ny);
-   
-   // set the elastic properties using the ones specified for the elements
    for(auto &element : elements)
       solver.set_elastic_properties(element->number(), element->C());
-      
-    // this operation builds the FEM system. After this is called, the solver is
-    // ready to be used and its mesh geometry or loading model cannot be altered
    solver.setup_and_assembly();
 
-```
-
-Before continuing, let's take a very brief detour to show the basic members of the 
-solver interface. Usually, this interface is used only by other MEPLS classes such that
-the user need not care about it. However, a basic knowledge will help understand how MEPLS works.
-
-
-The solver computes elastic fields that arise due to an external load mechanism 
-and an internal plastic strain field. The external load is composed of 3 things: the loading 
-modes (pure shear, compression, bending, etc.), the driving mode (displacement- or 
-traction-controlled, also commonly known as strain- or stress-controlled) and the load value.
-The load value is a float number that controls the intensity of the applied load. Its exact 
-meaning depends on the specific solver implementation, but in general it is proportional to the 
-displacement (traction) imposed in the loaded surface in the case of a displacement-controlled 
-(traction-controlled) driving. In this example, we are using 
-@ref mepls::elasticity_solver::LeesEdwards<dim>, which implements a pure shear loading with 
-strain-controlled conditions, and the meaning of the load value here denotes the xy-component of the 
-strain imposed by the loading mechanism. 
-@note the specific meaning of the load value depends on the class of solver and loading 
-conditions. For further details, see the documentation of specific solvers in @ref 
-mepls::elasticity_solver.
-
-After calling @ref mepls::elasticity_solver::Solver<dim>::setup_and_assembly(), the type of 
-loading mode and driving mode is fixed, but the value of the load can be varyied by calling @ref
- mepls::elasticity_solver::Solver<dim>::add_load_increment().
-
-In MEPLS, plastic strain is represented as an eigenstrain field. Eigenstrain denotes the deformation
-that a material inclusion would undergo if it were in a stress-free situation, e.g., as cut out of 
-the material matrix. As with the other continuum mechanic fields, the eigenstrain field is discretized
-and is element-wise homogeneous over the elements. When we want to compute the solution to the stress
-equilibrium equation under a certain eigenstrain field and a certain external load value, we call @ref 
-mepls::elasticity_solver::Solver<dim>::solve(). This can be done only after @ref 
-mepls::elasticity_solver::Solver<dim>::setup_and_assembly() has been called. After solving, we can 
-get the stress field as @ref mepls::elasticity_solver::Solver<dim>::get_stress(). Let's see an 
-example of this:
-
-
-```cpp
-   std::cout << "Testing the solver..." << std::endl;
-
-   double delta_external_epsilon_xy = 0.1;
-    solver.add_load_increment( delta_external_epsilon_xy );
-
-    dealii::SymmetricTensor<2,dim> local_eigenstrain_increment;
-   local_eigenstrain_increment[0][1] = 0.2;
-   unsigned int element_number = 120;
-   solver.add_eigenstrain(element_number, local_eigenstrain_increment);
-
-   solver.solve();
-
-   const std::vector<dealii::SymmetricTensor<2,dim>> & stress_field = solver.get_stress();
-   const std::vector<dealii::Tensor<2,dim>> & def_grad = solver.get_deformation_gradient();
-
-    double external_stress = solver.get_external_stress();
-    double total_strain = solver.get_total_strain();
-
-   // just tau = G * 2eps_xy
-   std::cout << "    * external stress = " << external_stress << std::endl;
-
-   // just eps_xy
-   std::cout << "    * total strain = " << total_strain << std::endl;
-
-   std::cout << "Cleaning the solver..." << std::endl;
-
-   // this call resets the solver state, so the changes we made to load and the
-   // eigenstrain field disappear
-   solver.clear();    
-```
-
-After this quick example of how the solvers operate, let's retake our main goal now: building the 
-
-system of mesoscale elements.
-
-In the previous tutorial step, we saw how to set the elements' structural properties. Now, we will
-inform the elements about how the external loading mechanism changes their stress state upon 
-variation of the external load value. To do it, we call the function 
-@ref mepls::element::calculate_ext_stress_coefficients. This function simply computes the 
-local stress change induced by a load increment of value 1.0 and sets its in the elements with
-@ref mepls::element::Element<dim>::ext_stress_coeff().
-
-Knowing @ref mepls::element::Element<dim>::ext_stress_coeff will allow us to ask 
-specific slip systems, which is the minimum load increment necessary to unstabilize it, i.e.
-to make its barrier 0. This is also known as the critical load increment for a specific slip. 
-The value of the critical load increment is obtained by calling 
-@ref mepls::slip::Slip<dim>::get_critical_load_increment().
-
-
-```cpp
    mepls::element::calculate_ext_stress_coefficients(elements, solver);
-
-   // let's take some element
-   auto element = elements[40];
-   
-   // let's take the first slip of that element
-   auto slip = element->slip(0);
-
-   // this is the external load increment that is necessary to make this slip's sytem
-   // shear stress match its threshold, that is to make the barrier equal 0   
-   double critical_incr = slip->get_critical_load_increment();
-   
-   std::cout << "\nSlip's system critical load increment = " << critical_incr << std::endl;
-```
-
-We can ask that specific slip system for the eigenstrain increment associated with a slip event 
-along its plane. Such increment represents, at the mesoscale, the effects of a slip event occurring
- within the element. We can obtain it by calling @ref 
-example::Slip::Scalar<dim>::get_eigenstrain_increment.
-How this eigenstrain is calculated depends on the specific class of
-slip object. Many times, that eigenstrain is related to the local acting stress by some 
-rule. Think e.g. of a rule stating that slips amplitudes lead to local shear stress drops of a 
-10%. Applying such a rule requires knowledge of how local plastic deformation leads to changes 
-in local stress.
-@note the class of slips used in this tutorial, @ref example::slip::Scalar<dim>, implement fixed 
-slip amplitudes with a value given by @ref example::slip::Scalar<dim>::Config::gamma. However, it 
-is illustrative to consider here the more general case.
-
-Although it's the slips objects that will use this knowledge, both eigenstrain and 
-stress tensors are defined at the element scale. Thus, the question to answer is: if an element 
-suffers a change in its eigenstrain, what local stress changes does it cause? This information 
-can be obtained by calling @ref mepls::element::calculate_local_stress_coefficients. 
-This function applies different local eigenstrain changes and computes the resulting local stress 
-changes. With these changes, the function calculates a rank-4 tensor relating them and sets it in 
-the elements with @ref mepls::element::Element<dim>::S().
-
-In general, this tensor is different for each element if there are elastic inhomogeneities, 
-different element shapes or surfaces. In this example, the system is elastically homogeneous and
-has periodic boundaries. On the other hand, the elements have the same shape and size 
-(since we use a structured finite element mesh). In this case, the tensor is the same for 
-all the elements, and it would be a waste of effort to compute it for each element, which can 
-take considerable time. To avoid computing it everywhere, we call instead @ref 
-mepls::element::calculate_local_stress_coefficients_central, which computes it in the element 
-located in the center of the domain and reuses it for every other element.
-
-```cpp
    mepls::element::calculate_local_stress_coefficients_central(elements, solver);
 
-    // this increment is to be added to the slips parent element to represents the effects
-    // of the slip event
-   dealii::SymmetricTensor<2,dim> eigenstrain_incr = slip->get_eigenstrain_increment();
-   
-   std::cout << "Slip's system local eigenstrain increment = " << eigenstrain_incr << std::endl;
-```
-
-As expected, the eigenstrain increment has only a shear component due to the orientation of the 
-slip plane for @ref example::slip::Scalar<dim>, as explained in the previous tutorial (@ref Step1).
-This eigenstrain could be added to the solver, as we saw before. 
-However, if we want the elements to be aware of their plastic deformation, we should also add
-the increment to the slip's  parent element with @ref mepls::element::Element<dim>::add_eigenstrain.
-This call does not perform changes in the system, but it allows the elements to have an updated 
-knowledge of their plastic deformation. This matters if we want to request, e.g., the value of 
-their local von Mises plastic strain. The reason why we need to add the increment to the solver 
-and the elements separately is a design decision, which allows different MEPLS modules to remain
-as independent and uncoupled from each other as possible. This design also gives the users a 
-great deal of freedom when implementing models since they can be very specific about how the 
-different modules should interact with each other.
-
-However, the fact that we must perform several function calls from different objects to 
-represent a single operation (adding a slip event's plastic deformation) means that there's still
-a lot of room for abstraction. Therefore,  we take another step in the abstraction of the problem 
-and introduce the System class, which brings together the solver and the elements and provides 
-higher-level functions to manage them based on events. The events represent the occurrence of 
-local slip events or  variations of the external loading conditions. The system class also 
-takes care of recording the events and the evolution of the magnitudes of interests, which 
-will be used for output purposes in the following tutorial. Again, the class @ref 
-mepls::system::System<dim> provides an abstract interface common to all the system classes, while 
-its derived classes implement specific ways of handling events. 
-
-To understand what this means, let's remember that elements can renew their structural properties 
-when they are asked to do so (see @ref Step1). Among other things, the system class will be 
-responsible for telling the elements when to do it. For example, a certain system class might 
-renew an element's properties whenever a slip event occurs within that element, while another 
-class might renew the element's also neighborhood. A system class 
-might use the elastic fields as computed by the finite element solver while another class might use 
-only a mean-field approximation. A system class might add a plastic strain 
-increment to the element in which a slip event occurs while another class might redistribute the same 
-strain over the element's neighborhood. In summary, 
-the system class offers many possibilities for defining what happens to the elements when events 
-occur, and how and when the solver should update the elastic fields.
-
-In this tutorial, we will use the system class @ref mepls::system::Standard<dim>. This class 
-provides a simple behavior: when a slip event occurs within an element, that element's 
-structural properties are renewed, and a plastic strain increment is added to that element. 
-Then, the elastic fields are re-computed, taking into account the changes in the plastic strain 
-field and loading conditions. 
- 
-Let's create the system object, and also get a handle to an object that keeps track of the 
-macroscale state of the system (that is, of the global properties such as external stress etc.):
-
-```cpp  
    mepls::system::Standard<dim> system(elements, solver, generator);
-   
-   auto & macrostate = system.macrostate;
 ```
 
-Now we can easily perform slip events, and the system will take care of everything for us. To do 
-it, first we create a event of class @ref mepls::history::event::Plastic<dim>. The event takes 
-for its constructions the slip that we want to activate. It is performed by calling @ref 
-mepls::system::System<dim>::add.
-
-```cpp  
-   mepls::event::Plastic<dim> plastic_event( slip );
-   system.add(plastic_event);
-```
-
-To understand in detail what happened, let's summarize the main operations 
-performed by the add function, each of which we already saw before:
-
-1. Compute the local eigenstrain increment by calling @ref mepls::slip::Slip<dim>::get_eigenstrain_increment()
-   from the active slip
-
-2. Add that increment to the solver
-
-3. Add that increment to the slip's parent element
-
-4. Solve the FEM problem
-
-5. Update the stress tensor of all the elements
-
-6. Renew the structural properties of the parent element (note: this operation deletes the active
-    slip system, invalidating the pointers to it from now on)
-
-7. Update macrostate: external stress, total strain, plastic strain etc.
-
-8. Record the slip event and the macrostate in the system's internal history. Record a driving 
-    event (see next) associated with external stress drops or increments due to plastic deformation
-    
-After we have added the event to the system, let's check the effects of these operations by 
-chekcing the parent's element and the macroscate: 
-
-```cpp  
-    std::cout << "\nAfter adding the slip event: "
-              << "\n    * Local eigenstrain = " << element->eigenstrain()
-              << "\n    * Local von Mises eigenstrain = " << element->integrated_vm_eigenstrain()
-              << "\n    * Local stress = " << element->stress()
-              << "\n    * External stress = " << macrostate["ext_stress"]
-              << "\n    * Total strain = " << macrostate["total_strain"]
-              << "\n    * Global von Mises plastic strain = " << macrostate["av_vm_plastic_strain"]
-              << std::endl;
-
-   system.solver.write_vtu("slip_event.vtu");              
-```
-
-We can see that the parent's element state has been updated with the same eigenstrain increment 
-that we calculated above when calling @ref example::Slip::Scalar<dim>::get_eigenstrain_increment 
-by ourselves. Also, the elastic effects of adding such increment have been computed, and the 
-elements stress state updated accordingly. The slip event also influences the macroscale 
-properties: there is a non-zero global von Mises plastic deformation and, since the total strain is 
-kept fixed to 0, the external stress is now slightly negative due to
-the plastic deformation.
-
-Sometimes, it is useful to see the changes introduced by the event itself. When we create 
-the event object, it is only given the active slip, and the rest of its members remain with their 
-default initialization. However, when after we added to the system, its members have been updated.
-For example, we can check the eigenstrain increment associated with the event with
-@ref mepls::history::event::Plastic<dim>::eigenstrain_increment. In this case, this increment is
-already known to us, and we won't show it. We can also check the number of the mesoscale element
-to which the increment is added by checking @ref mepls::history::event::Plastic<dim>::element. The 
-active slip is @ref mepls::history::event::Plastic<dim>::slip, however as explained above 
- , accessing this slip is dangerous since it gets deleted when renewing the structural properties of
-  its parent element.
-
-Let's now consider a driving event, of class @ref mepls::history::event::Driving<dim>. ThisThis class
-allows us to control the loading mechanism by performing a load increment. As with 
-the slip events, the system will take care of everything for us when adding a driving 
-event.
-
-```cpp  
-    mepls::event::Driving<dim> driving_event;
-    
-    // a load increment of 0.01
-    driving_event.dload = 0.01;
-    
-    system.add(driving_event);
-```
-
-Let's summarize the main operations performed by the add function:
-
-1. Add the load increment to the solver and solve the FEM problem
-
-2. Update the stress tensor of all the elements
-
-3. Update the external stress
-
-4. Record the driving event and the macrostate in the system's internal history
-
-A driving event only updates the stress fields. Let's take a look at the local stress state
-and the external stress after having added the driving event:
-
-```cpp  
-    std::cout << "\nAfter adding the driving event: "
-              << "\n    * Local eigenstrain = " << element->eigenstrain()
-              << "\n    * Local von Mises eigenstrain = " << element->integrated_vm_eigenstrain()
-              << "\n    * Local stress = " << element->stress()
-              << "\n    * External stress = " << macrostate["ext_stress"]
-              << "\n    * Total strain = " << macrostate["total_strain"]
-              << "\n    * Global von Mises plastic strain = " << macrostate["av_vm_plastic_strain"]
-              << std::endl;
-              
-   system.solver.write_vtu("slip_and_driving_events.vtu");
-   
-}              
-```
-
-We see that the plastic quantities did not change by the driving event. However, the total 
-strain has now the value set by the load increment we just added. Remember that the solver
-we are using here, of class @ref mepls::elasticity_solver::LeesEdwards<dim>, is working under 
-strain-controlled condition, and the load refers to the globally applied shear strain \f$ 
-\varepsilon_{\textrm xy} \f$). Also, the external stress has risen according to 
-\f$ \tau = G 2 \varepsilon_{\textrm xy}\f$.
-
-After the driving event object has been passed to the add function, its members have been updated. 
-Thus, we could look at, e.g., the external stress change induced by the event by checking 
-@ref mepls::history::event::Driving<dim>::dext_stress. This member tells us the change in external 
-stress independently of the specific meaning of the load value (remember that the load value can 
-have different meanings, depending on the solver, loading conditions, and driving mode). 
-
-
-In this tutorial, we saw how the system class manages the elements and the solver for us. For this, 
-it needs to be told what to do using slip and driving events. However, when we simulate a model, we 
-don't want to tell the system what to do. On the contrary, we want to automatize the creation of 
-events using some dynamic rules that represent a specific physical process. In the following 
-tutorial, we will see how to do this and also how to access the system's evolution history for 
-outputting the results.
-
-
-## Results
-
-This is the terminal output:
+To have access to the history of driving and slip events, as well as to the evolution of
+different macroscale properties, we create an object of class @ref 
+mepls::history::History<dim>. The macroscale properties refer to global, system-scale quantities 
+such as the applied strain, the external stress, the global plastic deformation, etc. The history 
+object must be passed to the system to 
+inform the history about the added events. The history object will store the data in an output-friendly way, and
+ we will use it at the end to write some data to a CSV file.
 
 ```cpp
-Testing the solver...
-    * external stress = 0.198437
-    * total strain = 0.1
-Cleaning the solver...
+   // we create a history object to record the evolution of the sytem
+   mepls::history::History<dim> sim_history("Simulation_history");
 
-Slip's system critical load increment = 0.235111
-Slip's system local eigenstrain increment = -0 0.025 0.025 0
-
-After adding the slip event: 
-    * Local eigenstrain = 0 0.025 0.025 0
-    * Local von Mises eigenstrain = 0.05
-    * Local stress = 3.71726e-19 -0.0215013 -0.0215013 1.23909e-18
-    * External stress = -0.000195313
-    * Total strain = 0
-    * Global von Mises plastic strain = 0.000195313
-slip_event.vtu
-
-After adding the driving event: 
-    * Local eigenstrain = 0 0.025 0.025 0
-    * Local von Mises eigenstrain = 0.05
-    * Local stress = -5.94762e-18 -0.00150134 -0.00150134 -1.98254e-17
-    * External stress = 0.0198047
-    * Total strain = 0.01
-    * Global von Mises plastic strain = 0.000195313
-slip_and_driving_events.vtu
+   // the system needs to know the history object so that it can record the driving
+   // and slip events that we add
+   system.set_history(sim_history);
 ```
 
-These are the generated vtu files. The one on the left shows the material after the 
-slip event has been performed. The one on the right shows the material after the slip and the 
-driving events. The color scale corresponds to the shear stress component. The displacement of the
-mesh has been increased by a factor of 10 to enhance the visualization.
+Now, we start the main simulation loop, in which the evolution of the system takes place. We will 
+simulate until the externally applied strain reaches a target value of 5%. In each iteration, we 
+will print the value of the applied strain and the external stress, whose values can be accessed 
+using the `macrostate` member of the system:
 
-<center><img src="step1_events.jpg" width="50%"></center>
+```cpp
+   // main simulation loop till 5% applied shear strain (epsilon_xy, not gamma)
+   while( system.macrostate["total_strain"] < 0.05 )
+   {
+
+      // print some output
+      std::cout << system.macrostate["total_strain"] << " " <<  system.macrostate["ext_stress"] << std::endl;
+```
+
+In every main-loop iteration, we perform an increment of the applied load. 
+As seen in @ref Step2, for the solver @ref mepls::elasticity_solver::LeesEdwards<dim> that we are using,
+the load value is the xy-component of the the applied strain, and the system is driven under strain-controlled 
+conditions. Threfore, following from the discussion in the introduction, the load increment must fulfill
+\f$  \Delta \gamma_{\rm ext} << \lambda / G = 3 \cdot 10^{-2} \f$. To be on the safe side, we will 
+use \f$  \Delta \gamma_{\rm ext} = 10^{-4} \f$.
+
+```cpp
+        // the applied shear strain is (instantaneously) increased by a small
+        // ammout of 0.01%, and is kept fixed afterward
+        mepls::event::Driving<dim> driving_event;
+        driving_event.dload = 0.0001;
+        system.add(driving_event);
+```
+      
+After adding the load increment event, the shear stress field has increased everywhere, and some 
+slip systems might have become active. Since the increment was very small and respected the 
+criterion for the quasistatic limit, it is very unlikely that more than one slip system is 
+unstable, although the probability is not zero. As discussed in the introduction, after 
+triggering an event from applying a small load increment, we must let the system locally relax 
+any stress above the local slip thresholds, as soon as those slips systems become unstable. 
+This relaxation must be finished before we increment the load again. 
+
+To check for unstable slip systems, we can iterate over the elements, and for each element, 
+iterate again over its slip systems. If we find an slip with a negative barrier (i.e., the shear 
+stress on its slip plane is above its critical value), we add a slip event to its parent element, as
+we saw in the previous tutorial. This procedure is fine, but we need to consider what would 
+happen if more than a single slip system becomes simultaneously unstable within the same 
+element simultaneously. Fortunately, this is no problem here since for the element class 
+@ref example::element::Scalar<dim>, only one of its two slip systems can be, by definition, 
+unstable. The reason is that they represent the two slip directions of a single slip plane, 
+with shear orientations given by the angles \f$ 0 \f$ and \f$ \pi/2 \f$, respectively. 
+ 
+@note the external loading represents a positive and homogeneous contribution to the
+xy-component of the stress tensor. However, the local stress is the superposition of the external
+stress and the internal stress. The internal stress is induced by the plastic strain field, and is 
+heterogeneous with non-zero xx-, yy- and xy- components. Moreover, these components can be negative
+in some locations, depending on the spatial position relative to a plastic event. 
+Consequently, in general, the magnitude and sign of the local shear stress fluctuates in space 
+(and time), activating slips in both the \f$ 0 \f$ and \f$ \pi/2 \f$ orientations.
+   
+In summary, the process works as follows: we iterate over the elements, and for each element, we 
+iterate over its slip systems. We check if the slip's barrier is negative, in which case we add a
+slip event to a vector of events and move to the next element. After we have checked all the 
+elements, we add the vector of events to the system. The purpose of adding a vector of slip 
+events instead of individual events is that the events occur simultaneously. By adding them 
+through a vector they will be recorded in the event history in this way. Also, the elastic fields
+will be computed only once for all the events simultaneously, which increases the performance a 
+great deal. Also, after iterating over the elements, we check if we added any slip event. If we 
+didn't, that means that the system is stable everywhere, and we can escape from the relaxation 
+loop. If we added at least one new event, the stress fields have been updated. Therefore we must
+check again everywhere for instabilities. In this case, we repeat the relaxation loop. This 
+process gives rise to a cascade of slip events. The external load increment triggers the first
+generation events. The second-generation events are triggered by the first generation ones, and so on.
+     
+    
+```cpp   
+      std::vector< mepls::event::Plastic<dim> > events_relax_step;
+      bool continue_relaxation = true;
+
+      // relaxation loop (cascade of slip events)
+      while( continue_relaxation )
+      {
+         events_relax_step.clear();
+
+         // whenever we find an unstable slip system, we the corresponding plastic
+         // event to the system. Instead of one at a time, we add a vector of them
+         // to consider them simoultaneous in time (also, this increases performce since
+         // the FEM problem is solved only once for all of them)
+         for(auto &element : system)
+            for(auto &slip : *element)
+               if(slip->barrier < 0.)
+               {
+                  mepls::event::Plastic<dim> plastic_event(slip);
+                  events_relax_step.push_back(plastic_event);
+
+                  // go to the next element, since the other slip system cannot have
+                  // a negative barrier too
+                  break;                
+               }
+
+         system.add(events_relax_step);
+
+         // if some slip events were added, the stress field has changed, and new slip systems
+         // might be unstable, so we repeat the relaxation loop to check it. However, if no slip
+         // event was added, which means the all the slip systems are stable, and no changes can occur
+         // anymore. In this case, don't repeat the relaxation loop
+         continue_relaxation = events_relax_step.size() > 0;
+
+      } // relaxation loop
+```
+
+Now, the system is relaxed, i.e., no more plastic activity takes place until we increase again the 
+externally applied strain. At this stable state, we tell the history that the macrostate of the 
+system must be recorded. In contrast with the slip and driving events, we are responsible for telling
+the history object when the macrostate should be recorded since it does not know 
+which state is meaningful to us. In this case, it is only the equilibrium ones.
+ 
+```cpp
+      // record the system's macroscale properties. We do it after the relaxation loop
+      // so we record a stable state.
+      sim_history.add_macro(system);
+
+   } // main simulation loop
+   
+   // remember that we allocated dynamically using the new operator
+   // when we build a model, it will be our responsibility to delete them
+   for(auto &element : elements)
+      delete element;    
+```
+   
+This two-step dynamics (load increments followed by a relaxation in the form of) will repeat until the 
+applied strain reaches the target value of 5%, as established in the condition of the main 
+simulation loop. 
+
+When we scape the main simulation loop, we want to save the evolution of some macroscale 
+properties. For this, we can iterate over the `macro_evolution` member of the history 
+object, @ref mepls::history::History<dim>::macro_evolution. This member is a vector of structs 
+@ref mepls::history::History<dim>::MacroSummaryRow, which contain many different macroscale 
+properties of the system.
+
+Specifically, we are interested in the applied strain and external stress. Both scalar 
+quantities refer to the xy-components of the tensors and will allow us to see plot the 
+stress-strain curve of the material. We save the data in CSV format, that is, in two columns 
+separated by a comma. The first line contains the name of each column.
+
+```cpp   
+   // write in CSV format the total strain and external stress columns from the macroevolution
+   // stored in the history object
+   std::ofstream output_file("out.csv");
+
+   // columns names
+   output_file << "total_strain,ext_stress\n";
+
+   // the data
+   for(auto &row : sim_history.macro_evolution)
+      output_file << row.total_strain << "," << row.ext_stress << "\n";
+
+   output_file.close();
+}   
+```
+   
+   
+## Results
+
+When running the program, the output will consist of two columns. The first one is the total 
+applied strain, and the second is the external stress. Instead of showing here the raw output, we 
+will redirect it to a file and use a very simple Python script (see next) to plot it:
+
+```sh
+$ ./run_sim
+
+$ head out.csv
+0.0001,0.006
+0.0002,0.012
+0.0003,0.018
+0.0004,0.024
+0.0005,0.03
+0.0006,0.036
+0.0007,0.042
+0.0008,0.048
+0.0009,0.054
+
+$ python plot.py out.dat
+```
+
+@note when you run `plot.py`, you might need to adapt the command above to use the right path to `out.dat`.
+
+You can find the plotting script `plot.py` in this tutorial's directory. It needs the module 
+`pandas`. The script is the following:
+
+```python
+import pandas as pd
+import matplotlib.pyplot as plt
+import sys
+
+# read the data
+data = pd.read_csv( sys.argv[1] )
+
+# strain in % and stress in MPa
+data['total_strain'] *= 100
+data['ext_stress'] *= 1000
+
+data.plot(x='total_strain', y='ext_stress', legend=None)
+
+# tune plot details
+plt.xlabel(r'$\varepsilon_{\rm xy}$ (%)', fontsize=15)
+plt.ylabel(r'$\Sigma_{\rm xy}$ (MPa)', fontsize=15)
+plt.tick_params(labelsize=13)
+plt.tight_layout()  
+plt.show()
+```
+
+The resulting plot is:
+<center><img src="step3_stress_strain_curve.png" width="30%"></center>
+
+We see how the stress-strain response adopts the traditional shape observed for most 
+materials. Namely, an initial linear regime with a slope defined by the shear modulus, followed 
+plastic deformation reflected in the stress drops. The characteristics of this curve depend on the simulation parameters used, and their impact has
+been widely studied, see, e.g.,
+
+@note it is common in the literature of elasto-plastic mesoscale models to rescale the stress units 
+and work in units of `lambda` or of average slip threshold. The value of the `shear_modulus` is then
+given in units of `lambda` instead of GPa. On the other hand, the strains are rescaled by `shear_modulus / lambda`.
+This system of units leverages the fact that the system's dynamics
+are not sensitive to all the simulation parameters independently but to some adimensional ratio of them.
+In this case, that adimensional ratio is `shear_modulus * gamma / lambda`, and it tunes the 
+influence of a slip event on its neighborhood (i.e., the intensity of the stress field induced by
+the event, of the order of `shear_modulus * gamma`) over the typical resistance `lambda` of the 
+neighborhood to imitate it (i.e., to also slip).
 
 
+In this tutorial, we saw how to control the system according to rules representing a specific 
+physical scenario, namely a slowly driven material in athermal conditions. In the next tutorial, we 
+will improve the implementation of the same model developed here. To this end, we will MEPLS 
+built-in dynamic protocols to implement the same dynamics more efficiently. 
+
+We performed some rudimentary output to obtain the stress-strain curve. This output was very simple 
+but was enough for illustrating the tutorial results. In the next tutorial, we will also show how
+ to do a full output, which will allow us to visualize the evolution of the system more in detail.
+ 
 
 ## The full program
 
 ```cpp
 #include <example.h>
 #include <mepls/utils.h>
-#include <random>
-
-// new headers
 #include <mepls/solver.h>
 #include <mepls/system.h>
 #include <mepls/history.h>
+#include <random>
+
+// new header
+#include <fstream>
 
 int main()
 {
+	constexpr unsigned dim = 2;
+	std::mt19937 generator(1234567);
 
-   // ------ SETTING UP THE ELEMENTS ------
+	// let's consider a material with a shear modulus of 30 GPa,
+	double G = 30.;
+	double nu = 0.3;
+	dealii::SymmetricTensor<4, dim> C = mepls::utils::tensor::make_isotropic_stiffness<dim>(G, nu);
 
-   constexpr unsigned dim = 2;
-    std::mt19937 generator(1234567);
+	unsigned int Nx = 16;
+	unsigned int Ny = 16;
 
-   double G = 1.;
-   double nu = 0.3;
-   dealii::SymmetricTensor<4,dim> C = mepls::utils::tensor::make_isotropic_stiffness<dim>(G, nu);
+	mepls::element::Vector<dim> elements;
+	for(double n = 0; n < Nx * Ny; ++n)
+	{
+		example::element::Scalar<dim>::Config conf;
+		conf.number = n;
 
-   unsigned int Nx = 16;
-   unsigned int Ny = 16;
+		// plastic increments induce a local shear deformation of 5%
+		conf.gamma = 0.05;
 
-    // this type is an alias for std::vector<mepls::element::Element<dim>>
-   mepls::element::Vector<dim> elements;
+		// the slip thresholds have a scale of 1 GPa (see Weibull dist. for the relation between
+		// lambda, k and the average value)
+		conf.lambda = 1;
 
-   for(double n = 0; n < Nx * Ny; ++n)
-   {
-      example::element::Scalar<dim>::Config conf;
-      conf.number = n;
+		// the slip thresholds have some disorder. For that, we use a not too-high k (for k->inf
+		// the disorder vanishes, while it increases for k->0)
+		conf.k = 6;
 
-      auto element = new example::element::Scalar<dim>(conf, generator);
-      element->C( C );
+		auto element = new example::element::Scalar<dim>(conf, generator);
+		element->C(C);
 
-      elements.push_back(element);
-   }
+		elements.push_back(element);
+	}
 
-   // create the solver
-   mepls::elasticity_solver::LeesEdwards<dim> solver(Nx, Ny);
+	mepls::elasticity_solver::LeesEdwards<dim> solver(Nx, Ny);
+	for(auto &element : elements)
+		solver.set_elastic_properties(element->number(), element->C());
+	solver.setup_and_assembly();
 
-   // set the elastic properties using the ones specified for the elements
-   for(auto &element : elements)
-      solver.set_elastic_properties(element->number(), element->C());
+	mepls::element::calculate_ext_stress_coefficients(elements, solver);
+	mepls::element::calculate_local_stress_coefficients_central(elements, solver);
 
-    // this operation builds the FEM system. After this is called, the solver is
-    // ready to be used and its mesh geometry or loading model cannot be altered
-   solver.setup_and_assembly();
-
-
-
-   // ------ EXPLORING THE SOLVER'S INTERFACE ------
-
-   std::cout << "Testing the solver..." << std::endl;
-
-   double delta_external_epsilon_xy = 0.1;
-    solver.add_load_increment( delta_external_epsilon_xy );
-
-    dealii::SymmetricTensor<2,dim> local_eigenstrain_increment;
-   local_eigenstrain_increment[0][1] = 0.2;
-   unsigned int element_number = 120;
-   solver.add_eigenstrain(element_number, local_eigenstrain_increment);
-
-   solver.solve();
-
-   const std::vector<dealii::SymmetricTensor<2,dim>> & stress_field = solver.get_stress();
-   const std::vector<dealii::Tensor<2,dim>> & def_grad = solver.get_deformation_gradient();
-
-    double external_stress = solver.get_external_stress();
-    double total_strain = solver.get_total_strain();
-
-   // just tau = G * 2eps_xy
-   std::cout << "    * external stress = " << external_stress << std::endl;
-
-   // just eps_xy
-   std::cout << "    * total strain = " << total_strain << std::endl;
-
-   std::cout << "Cleaning the solver..." << std::endl;
-
-   // this call resets the solver state so the changes we made to load and the
-   // eigenstrain field dissapear
-   solver.clear();
+	mepls::system::Standard<dim> system(elements, solver, generator);
 
 
-   // ------ FINISHING THE ELEMENTS SETUP ------
+	// we create a history object to record the evolution of the sytem
+	mepls::history::History<dim> sim_history("Simulation_history");
 
-   mepls::element::calculate_ext_stress_coefficients(elements, solver);
-
-   // let's take some element
-   auto element = elements[40];
-
-   // let's take the first slip of that element
-   auto slip = element->slip(0);
-
-   // this is the external load increment that is necessary to make this slip's sytem
-   // shear stress match its threshold, that is to make the barrier equal 0
-   double critical_incr = slip->get_critical_load_increment();
-
-   std::cout << "\nSlip's system critical load increment = " << critical_incr << std::endl;
+	// the system needs to know the history object so that it can record the driving
+	// and slip events that we add
+	system.set_history(sim_history);
 
 
-   mepls::element::calculate_local_stress_coefficients_central(elements, solver);
+	//----- DYNAMICS OF THE SYSTEM ------
 
-    // this increment is to be added to the slips parent element to represents the effects
-    // of the slip event
-   dealii::SymmetricTensor<2,dim> eigenstrain_incr = slip->get_eigenstrain_increment();
+	// main simulation loop till 5% applied shear strain (epsilon_xy, not gamma)
+	while(system.macrostate["total_strain"] < 0.05)
+	{
 
-   std::cout << "Slip's system local eigenstrain increment = " << eigenstrain_incr << std::endl;
+		// print some output
+		std::cout << system.macrostate["total_strain"] << " " << system.macrostate["ext_stress"]
+				  << std::endl;
 
+		//----- PERTURB THE SYTEM ------
 
-   // ------ CREATING A SYSTEM ------
-
-   mepls::system::Standard<dim> system(elements, solver, generator);
-
-   auto & macrostate = system.macrostate;
-
-
-   // ------ ADDING A SLIP EVENT ------
-
-   mepls::event::Plastic<dim> plastic_event( slip );
-   system.add(plastic_event);
-
-   std::cout << "\nAfter adding the slip event: "
-           << "\n    * Local eigenstrain = " << element->eigenstrain()
-           << "\n    * Local von Mises eigenstrain = " << element->integrated_vm_eigenstrain()
-           << "\n    * Local stress = " << element->stress()
-           << "\n    * External stress = " << macrostate["ext_stress"]
-           << "\n    * Total strain = " << macrostate["total_strain"]
-           << "\n    * Global von Mises plastic strain = " << macrostate["av_vm_plastic_strain"]
-           << std::endl;
-
-   system.solver.write_vtu("slip_event.vtu");
+		// the applied shear strain is (instantaneously) increased by a small
+		// ammout of 0.01%, and is kept fixed afterward
+		mepls::event::Driving<dim> driving_event;
+		driving_event.dload = 0.0001;
+		system.add(driving_event);
 
 
-   // ------ ADDING A DRIVING EVENT ------
+		//----- RELAX THE SYTEM ------
 
-    mepls::event::Driving<dim> driving_event;
+		std::vector<mepls::event::Plastic<dim> > events_relax_step;
+		bool continue_relaxation = true;
 
-    // a load increment of 0.01
-    driving_event.dload = 0.01;
+		// relaxation loop (cascade of slip events)
+		while(continue_relaxation)
+		{
+			events_relax_step.clear();
 
-    system.add(driving_event);
+			// whenever we find an unstable slip system, we the corresponding plastic
+			// event to the system. Instead of one at a time, we add a vector of them
+			// to consider them simoultaneous in time (also, this increases performce since
+			// the FEM problem is solved only once for all of them)
+			for(auto &element : system)
+				for(auto &slip : *element)
+					if(slip->barrier < 0.)
+					{
+						mepls::event::Plastic<dim> plastic_event(slip);
+						events_relax_step.push_back(plastic_event);
+
+						// go to the next element, since the other slip system cannot have
+						// a negative barrier too
+						break;
+					}
+
+			system.add(events_relax_step);
+
+			// if some slip events were added, the stress field has changed, and new slip systems
+			// might be unstable, so we repeat the relaxation loop to check it. However, if no slip
+			// event was added, which means the all the slip systems are stable, and no changes can occur
+			// anymore. In this case, don't repeat the relaxation loop
+			continue_relaxation = events_relax_step.size() > 0;
+
+		} // relaxation loop
+
+		// record the system's macroscale properties. We do it after the relaxation loop
+		// so we record a stable state.
+		sim_history.add_macro(system);
+
+	} // main simulation loop
+
+	// remember that we allocated dynamically using the new operator
+	// when we build a model, it will be our responsibility to delete them
+	for(auto &element : elements)
+		delete element;
 
 
-   std::cout << "\nAfter adding the driving event: "
-           << "\n    * Local eigenstrain = " << element->eigenstrain()
-           << "\n    * Local von Mises eigenstrain = " << element->integrated_vm_eigenstrain()
-           << "\n    * Local stress = " << element->stress()
-           << "\n    * External stress = " << macrostate["ext_stress"]
-           << "\n    * Total strain = " << macrostate["total_strain"]
-           << "\n    * Global von Mises plastic strain = " << macrostate["av_vm_plastic_strain"]
-           << std::endl;
+	// write in CSV format the total strain and external stress columns from the macroevolution
+	// stored in the history object
+	std::ofstream output_file("out.csv");
 
-   system.solver.write_vtu("slip_and_driving_events.vtu");
+	// columns names
+	output_file << "total_strain,ext_stress\n";
+
+	// the data
+	for(auto &row : sim_history.macro_evolution)
+		output_file << row.total_strain << "," << row.ext_stress << "\n";
+
+	output_file.close();
 }
 ```
 
