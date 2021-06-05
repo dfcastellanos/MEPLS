@@ -98,8 +98,8 @@ field \f$ \boldsymbol{\Sigma}_{\textrm ext} = \Sigma_{\textrm xy} (\boldsymbol{e
 \otimes \boldsymbol{e}_{\textrm y} + \boldsymbol{e}_{\textrm y} \otimes \boldsymbol{e}_{\textrm
 x}) \f$. The finite element mesh is quadrilateral and structured, and threfore the material 
 domain discretization can be understood as a lattice of mesoscale elements. 
-@note currently, all the MEPLS solvers work only with structured meses. Moreover, all solvers 
-rely on the deal.II library, which means that only quadrilaterl meshes are possible.
+@note currently, all the MEPLS solvers work only with structured quadrilateral meshes, and solve 
+the stress equilibrium equation in static conditions (i.e., no elastic waves).
 
 We will use a mesh of 16x16 elements to match the size of the vector of mesoscale elements
 created above. Each finite element has faces with a length of 1.0, which defines the units of length in the simulation.
@@ -311,6 +311,9 @@ macroscale state of the system (that is, of the global properties such as extern
    auto & macrostate = system.macrostate;
 ```
 
+@note the system object stores references to the vector of elements, the solver and the 
+generator, therefore these objects are expected to live during the entire life of the system.
+
 Now we can easily perform slip events, and the system will take care of everything for us. To do 
 it, first we create a event of class @ref mepls::history::event::Plastic<dim>. The event takes 
 for its constructions the slip that we want to activate. It is performed by calling @ref 
@@ -402,8 +405,8 @@ Let's summarize the main operations performed by the add function:
 
 4. Record the driving event and the macrostate in the system's internal history
 
-A driving event only updates the stress fields. Let's take a look at the local stress state
-and the external stress after having added the driving event:
+Let's take a look at the local stress state and the external stress after having added the 
+driving event:
 
 ```cpp  
     std::cout << "\nAfter adding the driving event: "
@@ -420,12 +423,12 @@ and the external stress after having added the driving event:
 }              
 ```
 
-We see that the plastic quantities did not change by the driving event. However, the total 
-strain has now the value set by the load increment we just added. Remember that the solver
+We see that the plastic quantities did not change by the driving event. Remember that the solver
 we are using here, of class @ref mepls::elasticity_solver::LeesEdwards<dim>, is working under 
 strain-controlled condition, and the load refers to the globally applied shear strain \f$ 
-\varepsilon_{\textrm xy} \f$). Also, the external stress has risen according to 
-\f$ \tau = G 2 \varepsilon_{\textrm xy}\f$.
+\varepsilon_{\textrm xy} \f$. Thus, the total strain has now the value set by the load increment 
+we just added and the external stress has risen according to \f$ \tau = G 2 \varepsilon_{\textrm 
+xy}\f$.
 
 After the driving event object has been passed to the add function, its members have been updated. 
 Thus, we could look at, e.g., the external stress change induced by the event by checking 
@@ -433,13 +436,17 @@ Thus, we could look at, e.g., the external stress change induced by the event by
 stress independently of the specific meaning of the load value (remember that the load value can 
 have different meanings, depending on the solver, loading conditions, and driving mode). 
 
+Lastly, we delete the elements that we created. Since they were dynamically allocated, it is our 
+responsibility to delete them. In this case, the program has reached its end, so we don't really 
+need to do it. But you should remember this operation when dealing with more complex models, in 
+which element objects might be, e.g., copied around.
 
-In this tutorial, we saw how the system class manages the elements and the solver for us. For this, 
-it needs to be told what to do using slip and driving events. However, when we simulate a model, we 
-don't want to tell the system what to do. On the contrary, we want to automatize the creation of 
-events using some dynamic rules that represent a specific physical process. In the following 
-tutorial, we will see how to do this and also how to access the system's evolution history for 
-outputting the results.
+```cpp  
+	// remember that we allocated dynamically using the new operator
+	// when we build a model, it will be our responsibility to delete them
+	for(auto &element : elements)
+		delete element;
+```
 
 
 ## Results
@@ -479,8 +486,14 @@ slip event has been performed. The one on the right shows the material after the
 driving events. The color scale corresponds to the shear stress component. The displacement of the
 mesh has been increased by a factor of 10 to enhance the visualization.
 
-<center><img src="step1_events.jpg" width="50%"></center>
+<center><img src="step2_events.jpg" width="50%"></center>
 
+In this tutorial, we saw how the system class manages the elements and the solver for us. For this, 
+it needs to be told what to do using slip and driving events. However, when we simulate a model, we 
+don't want to tell the system what to do. On the contrary, we want to automatize the creation of 
+events using some dynamic rules that represent a specific physical process. In the following 
+tutorial, we will see how to do this and also how to access the system's evolution history for 
+outputting the results.
 
 
 ## The full program
@@ -640,6 +653,11 @@ int main()
            << std::endl;
 
    system.solver.write_vtu("slip_and_driving_events.vtu");
+   
+    // remember that we allocated dynamically using the new operator
+    // when we build a model, it will be our responsibility to delete them
+    for(auto &element : elements)
+        delete element;   
 }
 ```
 

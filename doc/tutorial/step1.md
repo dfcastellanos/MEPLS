@@ -106,6 +106,10 @@ int main()
    example::element::Scalar<dim> element(conf, generator);
 ```
 
+@note the element stores a reference to the generator, which is expected
+ to live during the entire life of the element. On the other hand, the configuration struct
+ is copied and it could be destroyed safely after the element has been constructed.
+
 To access and modify the state of the element, we can set and get the value of 
 its members as follows: `element.X()` returns the value of member `X`, while `element.X(X_)` 
 sets the value `X_` to it. For example, to set the stress tensor of the element, first we create
@@ -237,11 +241,6 @@ its members:
 As expected, since we didn't change the parent's stress, the `eff_shear_stress` 
 remains the same, however, the threshold and the barrier are different.
 
-In the netx tutorial step (@ref Step2), we will keep exploring the interfaces of the element and 
-slip classes. We will see e.g. how to get the plastic strain increments associated to a slip 
-event and how to add it to an element.
-
-
 
 ## Results
 
@@ -268,6 +267,10 @@ Properties of the *new* slip system #1:
     * shear stress = -0.5
     * barrier = 1.50718
 ```
+
+In the netx tutorial step (@ref Step2), we will keep exploring the interfaces of the element and 
+slip classes. We will see e.g. how to get the plastic strain increments associated to a slip 
+event and how to add it to an element.
 
 
 
