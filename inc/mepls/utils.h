@@ -1160,6 +1160,58 @@ bool TimerSingleton::instanceFlag = false;
 TimerSingleton *TimerSingleton::single = NULL;
 
 
+
+class Interpolator
+{
+  public:
+
+	Interpolator(std::vector<double> &xData_, std::vector<double> &yData_)
+		:
+	xData(xData_),
+	yData(yData_)
+	{}
+
+	Interpolator(std::string filename,
+				unsigned int skip=0,
+				unsigned int col_x=0,
+				unsigned int col_y=1)
+	{
+		utils::str::read_csv(xData, yData, filename, skip, col_x, col_y);
+	}
+
+
+	double operator()(double x)
+	{
+		// adapted from http://www.cplusplus.com/forum/general/216928/
+
+	   int size = xData.size();
+
+	   int i = 0;                                                                  // find left end of interval for interpolation
+	   if ( x >= xData[size - 2] )                                                 // special case: beyond right end
+	   {
+		  i = size - 2;
+	   }
+	   else
+	   {
+		  while ( x > xData[i+1] ) i++;
+	   }
+	   double xL = xData[i], yL = yData[i], xR = xData[i+1], yR = yData[i+1];      // points on either side (unless beyond ends)
+
+ 	   if ( x < xL ) yR = yL;
+  	   if ( x > xR ) yL = yR;
+
+	   double dydx = ( yR - yL ) / ( xR - xL );                                    // gradient
+
+	   return yL + dydx * ( x - xL );                                              // linear interpolation
+	}
+
+  private:
+
+	std::vector<double> xData;
+	std::vector<double> yData;
+};
+
+
 } // namespace utils
 
 } // namespace mepls
