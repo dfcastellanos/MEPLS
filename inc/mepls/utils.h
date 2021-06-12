@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <set>
 #include <regex>
+#include <string>
 
 #include <deal.II/base/symmetric_tensor.h>
 #include <deal.II/base/timer.h>
@@ -848,6 +849,37 @@ bool read_from_file(std::vector<double> &x, const std::string &file_name)
 	}
 
 	return file_open;
+}
+
+void read_csv(std::vector<double> &xData, std::vector<double> &yData, std::string filename,
+				unsigned int skip=0, unsigned int col_x=0, unsigned int col_y=1)
+{
+	/*! Read 2 columns of numerical values and parse it into 2 vectors of doubles. */
+
+	// adapted from https://stackoverflow.com/a/30181684
+
+	std::ifstream ifile(filename);
+
+	std::string line; // we read the full line here
+
+	// skip these first lines
+	for(unsigned int n=0; n < skip; ++n)
+		std::getline(ifile, line);
+
+	while (std::getline(ifile, line)) // read the current line
+	{
+		std::istringstream iss{line}; // construct a string stream from line
+
+		// read the tokens from current line separated by comma
+		std::vector<std::string> tokens; // here we store the tokens
+		std::string token; // current token
+		while (std::getline(iss, token, ','))
+			tokens.push_back(token); // add the token to the vector
+
+		xData.push_back( std::stof(tokens[col_x]) );
+		yData.push_back( std::stof(tokens[col_y]) );
+	}
+
 }
 
 } // namespace string
