@@ -51,11 +51,6 @@ namespace elasticity_solver
 template<int dim>
 class Solver;
 
-enum ControlMode
-{
-	traction = 0, displacement = 1
-};
-
 
 namespace impl
 {

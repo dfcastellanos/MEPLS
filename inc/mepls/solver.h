@@ -61,6 +61,12 @@ namespace elasticity_solver
 {
 
 
+enum ControlMode
+{
+	traction = 0, displacement = 1
+};
+
+
 /*!
  * This abstract class provides a common interface for different specialized
  * solvers.
@@ -230,6 +236,14 @@ class Solver
 		 * by a single average tensor. */
 
 		return stress;
+	}
+
+	const std::vector<dealii::Tensor<2, dim> > &get_deformation_gradient()
+	{
+		/*! Get the deformation gradient in all the elements. Each element is characterized
+		 * by a single average tensor. */
+
+		return deformation_gradient;
 	}
 
 	const std::vector<dealii::SymmetricTensor<2, dim> > &get_elastic_strain()
@@ -630,12 +644,13 @@ class LeesEdwards: public Solver<dim>
 		dealii::Vector<double> rhs_eigenstrain;
 		dealii::Vector<double> system_rhs;
 		dealii::SymmetricTensor<2, dim> external_strain;
+		dealii::SymmetricTensor<2, dim> external_stress;
 		std::vector<dealii::SymmetricTensor<4, dim>> C;
 	};
 
   public:
 
-	LeesEdwards(unsigned int Nx_, unsigned int Ny_);
+	LeesEdwards(unsigned int Nx_, unsigned int Ny_, ControlMode control_mode_= ControlMode::displacement);
 	/*!< Constructor.
 	*
 	* @param Nx number of elements in the x-direction
@@ -658,6 +673,9 @@ class LeesEdwards: public Solver<dim>
 	 * properties and does not change the current plastic field and applied load.
 	 * The elastic strain and stress are recomputed according using the new elastic
 	 * properties. */
+
+	void set_control_mode(ControlMode control_mode);
+
 
 	void setup_and_assembly() override;
 	void add_load_increment(double load_increment) override;
@@ -781,15 +799,21 @@ class LeesEdwards: public Solver<dim>
 	dealii::SymmetricTensor<4, dim> global_C_eff;
 	/*!< System-scale effective stiffness*/
 
+	dealii::SymmetricTensor<2, dim> external_stress;
+	/*<! External stress. */
+
 	dealii::SymmetricTensor<2, dim> external_strain;
-	/*<! Externally imposed strain. */
+	/*<! External strain. */
+
+	ControlMode control_mode;
 };
 
 
 template<int dim>
-LeesEdwards<dim>::LeesEdwards(unsigned int Nx_, unsigned int Ny_)
+LeesEdwards<dim>::LeesEdwards(unsigned int Nx_, unsigned int Ny_, ControlMode control_mode_)
 	:
-	Solver<dim>(Nx_, Ny_)
+	Solver<dim>(Nx_, Ny_),
+	control_mode(control_mode_)
 {
 	global_displacement.reinit(dof_handler.n_dofs());
 	rhs_eigenstrain.reinit(dof_handler.n_dofs());
@@ -817,6 +841,7 @@ typename LeesEdwards<dim>::State LeesEdwards<dim>::get_state() const
 	state.rhs_eigenstrain = rhs_eigenstrain;
 	state.system_rhs = system_rhs;
 	state.external_strain = external_strain;
+	state.external_stress = external_stress;
 
 	return state;
 }
@@ -838,6 +863,36 @@ void LeesEdwards<dim>::set_state(const LeesEdwards<dim>::State &state)
 	rhs_eigenstrain = state.rhs_eigenstrain;
 	system_rhs = state.system_rhs;
 	external_strain = state.external_strain;
+	external_stress = state.external_stress;
+}
+
+
+template<int dim>
+void LeesEdwards<dim>::set_control_mode(ControlMode control_mode_)
+{
+	unsigned int i, j;
+	loading_mode_components(i, j);
+
+	if(control_mode == control_mode_)
+	{
+		return;
+	}
+	else if(control_mode == ControlMode::displacement)
+	{
+		// displacement is changed by traction
+		load = external_stress[i][j];
+	}
+	else if(control_mode == ControlMode::traction)
+	{
+		// traction is changed by displacement
+		load = external_strain[i][j];
+	}
+	else
+	{
+		abort();
+	}
+
+	control_mode = control_mode_;
 }
 
 
@@ -1069,13 +1124,36 @@ void LeesEdwards<dim>::add_load_increment(double load_increment)
 {
 	M_Assert(already_assembled, "");
 
+	// the solver is implemented using strain-controlled conditions, however after it
+	// has been assembled, we can also do stress-controlled since we know the global effective
+	// stiffness. To do this, we will compute a strain-equivalent load, which is the one that we
+	// will use for computing rhs_load and global_displacement. If we use strain controleld
+	// conditions, the strain-equivalent load is simply the load
+
+	load += load_increment;
+
 	// depending on the active loading mode, we must update a certain component
 	// of the applied external strain
 	unsigned int i, j;
 	loading_mode_components(i, j);
-	external_strain[i][j] += load_increment;
 
-	load += load_increment;
+	dealii::SymmetricTensor<2,dim> external_strain_incr;
+	dealii::SymmetricTensor<2,dim> external_stress_incr;
+
+	if(control_mode == ControlMode::displacement)
+	{
+		external_strain_incr[i][j] = load_increment;
+		external_stress_incr = global_C_eff * external_strain_incr;
+	}
+	else
+	{
+		external_stress_incr[i][j] = load_increment;
+		external_strain_incr = dealii::invert(global_C_eff) * external_stress_incr;
+	}
+
+	external_strain += external_strain_incr;
+	external_stress += external_stress_incr;
+	double eq_strain_load_increment = external_strain_incr[i][j];
 
 	// the rhs and global displacement are updated using the solution to the
 	// unit load problem for the active loading mode
@@ -1084,8 +1162,8 @@ void LeesEdwards<dim>::add_load_increment(double load_increment)
 
 	for(unsigned int i = 0; i < solution.size(); ++i)
 	{
-		rhs_load[i] += load_increment * rhs_unit_load[i];
-		global_displacement[i] += load_increment * global_displacement_unit_load[i];
+		rhs_load[i] += eq_strain_load_increment * rhs_unit_load[i];
+		global_displacement[i] += eq_strain_load_increment * global_displacement_unit_load[i];
 	}
 }
 
@@ -1118,6 +1196,11 @@ void LeesEdwards<dim>::solve_for_case(
 		solution[i] += global_displacement[i];
 
 	impl::calculate_strain<dim>(solution, *this);
+
+	if(control_mode == ControlMode::traction)
+		for(unsigned int element=0; element < triangulation.n_active_cells(); ++element)
+			strain[element] += total_eigenstrain / double(triangulation.n_active_cells());
+
 	impl::calculate_stress<dim>(*this);
 }
 
@@ -1258,6 +1341,11 @@ void LeesEdwards<dim>::loading_mode_components(unsigned int &i, unsigned int &j)
 template<int dim>
 double LeesEdwards<dim>::get_external_stress()
 {
+	// since the load imposes homogeneous elastic fields, we can compute the
+	// external stress as the average over the system, instead of on the
+	// loaded surface. When the system is traction controlled, the external
+	//stress is the load, but when it is displacement controlled we must compute it
+
 	unsigned int i, j;
 	loading_mode_components(i, j);
 
@@ -1274,11 +1362,22 @@ double LeesEdwards<dim>::get_external_stress()
 template<int dim>
 double LeesEdwards<dim>::get_total_strain()
 {
-	// since it is strain-controlled, the total strain is what we imposed.
-	// Instead of returning the external_strain tensor, we return the load,
-	// which corresponds to the relevant component (e.g., for the pure shear xy
-	// mode, we return the xy component, whose value is the current load)
-	return load;
+	// since the load imposes homogeneous elastic fields, we can compute the
+	// total strain as the average over the system, instead of on the
+	// loaded surface. When the system is displacement controlled, the total
+	// strain is the load, but when it is traction controlled we must compute it
+	// taking into account the eigenstrain
+
+	unsigned int i, j;
+	loading_mode_components(i, j);
+
+	// compute the external stress as the average stress of the relevant
+	// stress tensor component (depending on the active loading mode)
+	double S = 0.;
+	for(unsigned int n = 0; n < strain.size(); ++n)
+		S += strain[n][i][j];
+
+	return S / double(strain.size());
 };
 
 
@@ -1290,6 +1389,7 @@ void LeesEdwards<dim>::clear_impl()
 	rhs_load.reinit(dof_handler.n_dofs());
 	global_displacement.reinit(dof_handler.n_dofs());
 	external_strain.clear();
+	external_stress.clear();
 }
 
 
