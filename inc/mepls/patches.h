@@ -491,14 +491,20 @@ void analyze_patch_ensemble(
 
 		/* ------- make patches and test them ------- */
 
-		// do not make a patch for every element, just every N/2 elements.
-		// This reduces patch overlap and increases performance
-		unsigned int di = int(N / 2);
-		di = di >= 1 ? di : 1;
+		// we select random non-repeated reference elements. We build a patch using the
+		// reference element's neighborhood using select_patch_elements(). The number of
+		// elements per patch is N^2, therefore number of elements in the system divided by N^2
+		// gives a number of patches such that their overlap is, on average, not too big
+		unsigned int n_patches = int( double(elements.size())/double(N*N) );
+		assert(n_patches >= 1);
 
-		for(unsigned int i = 0; i < elements.size(); i += di)
+		mepls::element::Vector<dim> reference_elements;
+
+   		 std::sample(elements.begin(), elements.end(), std::back_inserter(reference_elements),
+   		             n_patches, generator);
+
+		for(auto &reference_element : reference_elements)
 		{
-			auto &reference_element = elements[i];
 			select_patch_elements<dim>(patch_elements, patch_center_coords, reference_element,
 									   elements, Nx, Ny, N);
 
@@ -666,12 +672,20 @@ void analyze_patch_ensemble_opt(
 
 		/* ------- proceed as in \ref analyze_patch_ensemble ------- */
 
-		unsigned int di = int(N / 2);
-		di = di >= 1 ? di : 1;
+		// we select random non-repeated reference elements. We build a patch using the
+		// reference element's neighborhood using select_patch_elements(). The number of
+		// elements per patch is N^2, therefore number of elements in the system divided by N^2
+		// gives a number of patches such that their overlap is, on average, not too big
+		unsigned int n_patches = int( double(elements.size())/double(N*N) );
+		assert(n_patches >= 1);
 
-		for(unsigned int i = 0; i < elements.size(); i += di)
+		mepls::element::Vector<dim> reference_elements;
+
+   		 std::sample(elements.begin(), elements.end(), std::back_inserter(reference_elements),
+   		             n_patches, generator);
+
+		for(auto &reference_element : reference_elements)
 		{
-			auto &reference_element = elements[i];
 			select_patch_elements<dim>(patch_elements, patch_center_coords, reference_element,
 									   elements, Nx, Ny, N);
 
