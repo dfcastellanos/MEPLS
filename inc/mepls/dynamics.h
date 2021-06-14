@@ -449,10 +449,10 @@ void fixed_load_increment(double increment, system::System<dim> &system)
 
 
 template<int dim>
-void relaxation(
-	system::System<dim> &system,
-	utils::ContinueSimulation &continue_simulation,
-	double fracture_limit = 10)
+std::vector<event::Plastic<dim>> relaxation(
+								system::System<dim> &system,
+								utils::ContinueSimulation &continue_simulation,
+								double fracture_limit = 10)
 {
 	/*! Perform plastic events associated with each active slip system. The
 	 * events are performed and the state of the system are updated. After that,
@@ -463,6 +463,7 @@ void relaxation(
 
 	bool continue_relaxation = true;
 	double ongoing_size = 0.;
+	std::vector<event::Plastic<dim>> all_events;
 	std::vector<event::Plastic<dim>> events_relax_step;
 
 	/* ---- while there are mechanicaally unstable slip systems ----- */
@@ -496,6 +497,10 @@ void relaxation(
 		/* ---- add & perform the events ----- */
 		system.add(events_relax_step);
 
+		for(auto & event : events_relax_step)
+			all_events.push_back(event);
+
+
 		continue_simulation(ongoing_size / double(system.size()) < fracture_limit,
 							" fractured (avalanche size limit reached)");
 	}
@@ -506,6 +511,8 @@ void relaxation(
 		  for(auto &slip : *element)
 			 M_Assert(slip->barrier > 0, "Relaxation did not make all the barriers positive");
 #endif
+
+	return all_events;
 }
 
 
