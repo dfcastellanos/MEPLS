@@ -54,6 +54,12 @@ enum Values
 } // protocol
 
 
+template<int dim>
+std::vector<event::Plastic<dim>> relaxation(
+								system::System<dim> &system,
+								utils::ContinueSimulation &continue_simulation,
+								double fracture_limit = 10);
+
 /*! This class implements the Kinetic Monte Carlo method, used for simulating
  * the thermal activation of slip systems. */
 template<int dim>
@@ -147,6 +153,8 @@ class KMC
 
 
 
+
+
 /*! This class implements the Metropolis-Hastings algorithm. */
 template<int dim>
 class MetropolisHastings
@@ -160,11 +168,14 @@ class MetropolisHastings
 		/*! Constructor. */
 	}
 
-	bool operator()(system::System<dim> &system)
+	bool operator()(system::System<dim> &system, bool stress_redist = true)
 	{
-		/*! Perform as Metropolis-Hastings step. This means that a random slip
-		 * event is performed, and the energy change computed. The event will
-		 * be accepted or rejected according to the Metropolis-Hastings rule.
+		/*! Perform as Metropolis-Hastings step: a random slip event is
+		 * performed, and the global energy change computed. The event will be
+		 * accepted if it energy change is negative. If it is positive, it will
+		 * be accepted with probability exp(-energy_change/T). If stress_redist
+		 * is false, the yielding element structural properties will be renewed
+		 * but the elastic fields will not be updated.
 		 *
 		 * @return whether the event has been accepted or rejected. If it has
 		 * been rejected, the state of the system is exactly the same as
@@ -191,93 +202,90 @@ class MetropolisHastings
 			}
 
 
-		// the idea is that if the candidate event is rejected, we set the whole
-		// system's state back to where it was. We cannot simply copy the modified
-		// element and set it back in place of the original, because the elements
-		// are pointers to the actual objects, and doing that will break the
-		// simulation outside this function, when the elements are being accessed
-		// using the pointers to the old elements. We could replace the element
-		// by a new one in exactly the same memory location as the original to
-		// avoid that problem, but we don't know the dynamic types so it is not
-		// easy or safe. The way we do it is by not replacing the elements, but just
-		// modying the properties that get modified when performing an event.
-		// Namely, the elastic state, the eigenstrain tensor, the von Mises eigenstrain
-		// and the structural properties. Since calling system.add would potentially
-		// delete slip objects, we will tell to system.add not to modify the
-		// structural properties. If the event is accepted: we will modify the
-		// structural properties by calling manually element->renew_structural_properties()
-		// If the event is rejected: we will won't renew the structural properties,
-		// we will remove the changes in eigenstrain in the solver and the
-		// element, and we will call system.solve_elastic_problem() to set back
-		// the elastic fields before the candidate event was performed (NOTE:
-		// this implies solving twice the FEM, this could be improved by storing
-		// the solver's state before the event and replacing it back again, but
-		// right now it doesn't seem to be a problem because the method converges
-		// fast enough to an equilibrium state).
+		double energy_before = get_sum_energy(system.elements);
 
+		auto stress_before = system.solver.get_stress();
 
-		double energy_before = get_average_energy(system.elements);
+		mepls::element::Vector<dim> elements_before;
+		for(auto & element : system)
+			elements_before.push_back( element->make_copy() );
+
+		std::vector<event::Plastic<dim>> all_events;
+		utils::ContinueSimulation continue_simulation;
+
 
 		// select the candidate slip
 		unsigned int i = int(unif_distribution(generator) * n_slips);
 		auto candidate_slip = slips[i];
-
-		auto element = candidate_slip->parent;
-		auto eigenstrain_before = element->eigenstrain();
-
 		event::Plastic<dim> cadidate_event( candidate_slip );
 		cadidate_event.activation_protocol = Protocol::metropolis_hastings;
-		// do not renew properties, since the event might be rejected. When we
-		// accept it, we will renew the properties
-		cadidate_event.renew_slip_properties = false;
-		// perform the candidate slip
-		system.add(cadidate_event);
+		auto element = candidate_slip->parent;
 
-		double energy_after = get_average_energy(system.elements);
+		if(stress_redist)
+		{
+			system.add(cadidate_event);
+			all_events = dynamics::relaxation(system, continue_simulation);
+			all_events.push_back(cadidate_event); // add also the first event
+			if(not continue_simulation())
+			{
+				std::cout << continue_simulation << std::endl;
+				abort();
+			}
+		}
+		else
+			element->renew_structural_properties();
+
+		double energy_after = get_sum_energy(system.elements);
 
 		// decide if it is accepted
 		double energy_change = energy_after - energy_before;
 		double prob_accept = energy_change < 0. ? 1. : std::exp(-energy_change/T);
 		bool accepted = unif_distribution(generator) < prob_accept;
 
+		// TODO if rejected and we called system.add, the last renew event
+		//  history should be deleted
 
-		if( accepted )
+		if(not accepted)
 		{
-			element->renew_structural_properties();
+			for(auto & element : system)
+				element->make_copy( elements_before[element->number()] );
 
-			std::vector<event::RenewSlip<dim>> renewal_vector;
-			element->record_structural_properties(renewal_vector);
-			system.history->add(renewal_vector);
+			if(stress_redist)
+			{
+				// add the opposite eigenstrain increment to the solver, so that
+				// in the next elastic solution the effects of this event are
+				// undone. To keep things as clean as possible, do it also in the
+				// element
+				for(auto &event : all_events)
+				{
+					unsigned int n = event.element;
+					system.solver.add_eigenstrain(n, -1.*event.eigenstrain);
+				}
 
-		}else{
-			// add the opposite eigenstrain increment to the solver, so that
-			// in the next elastic solution the effects of this event are
-			// undone. To keep things as clean as possible, do it also in the
-			// element
-			system.solver.add_eigenstrain(element->number(), -1.*cadidate_event.eigenstrain);
-			system.solve_elastic_problem();
-
-			// if add an increment the integrated von Mises eigenstrain won't have
-			// the right value. To do it correctly, we set the total eigenstrain
-			element->eigenstrain( eigenstrain_before );
+				// we avoid callig system.solve_elastic_problem() by setting the
+				// previous	stress
+				for(unsigned int n = 0; n < system.size(); ++n)
+					system[n]->elastic_stress( stress_before[n] );
+			}
 		}
+
+		for(auto &element : elements_before)
+			delete element;
 
 		return accepted;
 	}
 
 
-	double get_average_energy(element::Vector<dim> &elements)
+	double get_sum_energy(element::Vector<dim> &elements)
 	{
 		/*! Compute the average elastic energy over the input elements. */
 
-		double av_energy = 0.;
+		double sum_energy = 0.;
 
 		for(auto &element : elements)
-			av_energy += element->energy();
+			sum_energy += element->energy();
 
-		av_energy /= double(elements.size());
-
-		return av_energy;
+		return sum_energy;
 	}
 
 	double T = 1.;
@@ -291,7 +299,6 @@ class MetropolisHastings
 	 * \ref element::Element<dim>::slip_systems_ in all the elements in \ref
 	 * system.elements. */
 };
-
 
 
 template<int dim>
@@ -452,7 +459,7 @@ template<int dim>
 std::vector<event::Plastic<dim>> relaxation(
 								system::System<dim> &system,
 								utils::ContinueSimulation &continue_simulation,
-								double fracture_limit = 10)
+								double fracture_limit)
 {
 	/*! Perform plastic events associated with each active slip system. The
 	 * events are performed and the state of the system are updated. After that,
