@@ -24,7 +24,7 @@
 
 
 
-/* ejemplo
+/* Example
 *
 *	cli::Parser parser(argc, argv);
 *	parser.set_optional<bool>("t", "test", false, "If given, run in test mode");
