@@ -10,8 +10,15 @@ add_executable(${TARGET} "step_4.cc")
 
 # Include MEPLS
 set(MEPLS_DIR $ENV{MEPLS_DIR})
-set(MEPLS_TUTORIAL_DIR "${MEPLS_DIR}/tutorial")
 
+if (NOT DEFINED MEPLS_DIR)
+    message(FATAL_ERROR "\n"
+            "*** Could not locate MEPLS ***\n\n"
+            "You need to set an environment variable MEPLS_DIR with the path to the MEPLS root directory ($ export MEPLS_DIR=\"/path/to/MEPLS\"), or pass a flag -DMEPLS_DIR=/path/to/MEPLS to cmake.\n"
+            )
+endif ()
+
+set(MEPLS_TUTORIAL_DIR "${MEPLS_DIR}/tutorial")
 set(MEPLS_INCLUDE_DIR "${MEPLS_DIR}/inc")
 set(MEPLS_TUTORIAL_INCLUDE_DIR "${MEPLS_TUTORIAL_DIR}/inc")
 
@@ -19,7 +26,7 @@ include_directories(${MEPLS_INCLUDE_DIR} ${MEPLS_TUTORIAL_INCLUDE_DIR})
 target_include_directories(${TARGET} PUBLIC ${MEPLS_INCLUDE_DIR} ${MEPLS_TUTORIAL_INCLUDE_DIR})
 
 # Link to deal.II
-find_package(deal.II 8.0 QUIET HINTS ${deal.II_DIR} ${DEAL_II_DIR} ../ ../../ $ENV{DEAL_II_DIR})
+find_package(deal.II 9.0 REQUIRED QUIET HINTS ${deal.II_DIR} ${DEAL_II_DIR} ../ ../../ $ENV{DEAL_II_DIR})
 
 if (NOT ${deal.II_FOUND})
     message(FATAL_ERROR "\n"
