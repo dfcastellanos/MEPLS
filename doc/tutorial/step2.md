@@ -2,11 +2,21 @@
 
 # Step 2
 
-
 [< previous ](@ref Step1) | [next >](@ref Step3)
 
+### Table of contents
 
-## Introduction
+- [Introducion](#introducion) 
+- [The commented program](#comented_program)
+    - [The solver](#the_solver)
+    - [The system](#the_system)
+    - [Plastic events](#plastic_events)
+    - [Driving events](#driving_events)
+    - [Cleaning up](#cleaning)
+- [Results](#results)
+- [The complete program](#full)
+
+# Introduction{#introducion}
 
 In this tutorial step, we will introduce the solver and system modules. These modules contain the 
 classes @ref mepls::elasticity_solver::Solver<dim> and @ref mepls::system::System<dim>, 
@@ -20,7 +30,7 @@ We will continue using the same slip and elements classes introduced in @ref Ste
 mepls::slip::Slip<dim> and  @ref mepls::element::Element<dim>.
 
 
-## The commented program
+# The commented program{#comented_program}
 
 First, we include the headers that are necessary for this tutorial step. We will include the same
 headers of the previous step (see @ref Step1) plus the headers containing the solver and system 
@@ -61,7 +71,7 @@ means that only the solver (internally) cares about spatial coordinates, but out
 most of the MEPLS classes don't. Let's discretize the domain into a lattice of 16x16 mesoscale 
 elements:
 
-```CPP
+```cpp
    unsigned int Nx = 16;
    unsigned int Ny = 16;
 
@@ -80,6 +90,8 @@ elements:
    }
 ```
 
+### The solver{#the_solver}
+
 The solver class calculates elastic fields using the Finite Element Method. For that, it
 uses a mesh where each finite element is associated with one mesoscale element. The
 average stress tensor computed over each of the finite elements is used as the stress tensor
@@ -94,8 +106,8 @@ mepls::elasticity_solver, this example is of wide applicability.
 
 The solver @ref mepls::elasticity_solver::LeesEdwards<dim> computes elastic fields with 
 bi-periodic boundary conditions, under the action of a load that induces an external shear stress
-field \f$ \boldsymbol{\Sigma}_{\textrm ext} = \Sigma_{\textrm xy} (\boldsymbol{e}_{\textrm x} 
-\otimes \boldsymbol{e}_{\textrm y} + \boldsymbol{e}_{\textrm y} \otimes \boldsymbol{e}_{\textrm
+field \f$ \boldsymbol{\Sigma}_{\rm ext} = \Sigma_{\rm xy} (\boldsymbol{e}_{\rm x} 
+\otimes \boldsymbol{e}_{\rm y} + \boldsymbol{e}_{\rm y} \otimes \boldsymbol{e}_{\textrm
 x}) \f$. The finite element mesh is quadrilateral and structured, and threfore the material 
 domain discretization can be understood as a lattice of mesoscale elements. 
 @note currently, all the MEPLS solvers work only with structured quadrilateral meshes, and solve 
@@ -186,8 +198,9 @@ example of this:
    solver.clear();    
 ```
 
-After this quick example of how the solvers operate, let's retake our main goal now: building the 
+### The system{#the_system}
 
+After this quick example of how the solvers operate, let's retake our main goal now: building the
 system of mesoscale elements.
 
 In the previous tutorial step, we saw how to set the elements' structural properties. Now, we will
@@ -220,17 +233,17 @@ The value of the critical load increment is obtained by calling
    std::cout << "\nSlip's system critical load increment = " << critical_incr << std::endl;
 ```
 
-We can ask that specific slip system for the eigenstrain increment associated with a slip event 
-along its plane. Such increment represents, at the mesoscale, the effects of a slip event occurring
- within the element. We can obtain it by calling @ref 
-example::Slip::Scalar<dim>::get_eigenstrain_increment.
+We can ask that specific slip system for the eigenstrain increment associated with a slip of its 
+plane. Such increment represents, at the mesoscale, the effects of a slip event 
+occurring within the element. We can obtain it by calling @ref 
+example::slip::Scalar<dim>::get_eigenstrain_increment.
 How this eigenstrain is calculated depends on the specific class of
 slip object. Many times, that eigenstrain is related to the local acting stress by some 
 rule. Think e.g. of a rule stating that slips amplitudes lead to local shear stress drops of a 
 10%. Applying such a rule requires knowledge of how local plastic deformation leads to changes 
 in local stress.
 @note the class of slips used in this tutorial, @ref example::slip::Scalar<dim>, implement fixed 
-slip amplitudes with a value given by @ref example::slip::Scalar<dim>::Config::gamma. However, it 
+slip amplitudes with a value given by @ref example::slip::Scalar<dim>::gamma. However, it 
 is illustrative to consider here the more general case.
 
 Although it's the slips objects that will use this knowledge, both eigenstrain and 
@@ -279,7 +292,7 @@ a lot of room for abstraction. Therefore,  we take another step in the abstracti
 and introduce the System class, which brings together the solver and the elements and provides 
 higher-level functions to manage them based on events. The events represent the occurrence of 
 local slip events or  variations of the external loading conditions. The system class also 
-takes care of recording the events and the evolution of the magnitudes of interests, which 
+takes care of recording the events and the evolution of the magnitudes of interest, which 
 will be used for output purposes in the following tutorial. Again, the class @ref 
 mepls::system::System<dim> provides an abstract interface common to all the system classes, while 
 its derived classes implement specific ways of handling events. 
@@ -314,9 +327,11 @@ macroscale state of the system (that is, of the global properties such as extern
 @note the system object stores references to the vector of elements, the solver and the 
 generator, therefore these objects are expected to live during the entire life of the system.
 
+### Plastic events{#plastic_events}
+
 Now we can easily perform slip events, and the system will take care of everything for us. To do 
-it, first we create a event of class @ref mepls::history::event::Plastic<dim>. The event takes 
-for its constructions the slip that we want to activate. It is performed by calling @ref 
+it, first we create a event of class @ref mepls::event::Plastic<dim>. The event takes 
+as argument the slip that we want to activate. It is performed by calling @ref 
 mepls::system::System<dim>::add.
 
 ```cpp  
@@ -363,7 +378,7 @@ chekcing the parent's element and the macroscate:
 ```
 
 We can see that the parent's element state has been updated with the same eigenstrain increment 
-that we calculated above when calling @ref example::Slip::Scalar<dim>::get_eigenstrain_increment 
+that we calculated above when calling @ref example::slip::Scalar<dim>::get_eigenstrain_increment 
 by ourselves. Also, the elastic effects of adding such increment have been computed, and the 
 elements stress state updated accordingly. The slip event also influences the macroscale 
 properties: there is a non-zero global von Mises plastic deformation and, since the total strain is 
@@ -374,14 +389,16 @@ Sometimes, it is useful to see the changes introduced by the event itself. When 
 the event object, it is only given the active slip, and the rest of its members remain with their 
 default initialization. However, when after we added to the system, its members have been updated.
 For example, we can check the eigenstrain increment associated with the event with
-@ref mepls::history::event::Plastic<dim>::eigenstrain_increment. In this case, this increment is
+@ref mepls::event::Plastic<dim>::eigenstrain_increment. In this case, this increment is
 already known to us, and we won't show it. We can also check the number of the mesoscale element
-to which the increment is added by checking @ref mepls::history::event::Plastic<dim>::element. The 
-active slip is @ref mepls::history::event::Plastic<dim>::slip, however as explained above 
- , accessing this slip is dangerous since it gets deleted when renewing the structural properties of
-  its parent element.
+to which the increment is added by checking @ref mepls::event::Plastic<dim>::element. The 
+active slip is @ref mepls::event::Plastic<dim>::slip, however as explained above, 
+accessing this slip is dangerous since it gets deleted when renewing the structural properties of
+ its parent element.
 
-Let's now consider a driving event, of class @ref mepls::history::event::Driving<dim>. ThisThis class
+### Driving events{#driving_events}
+
+Let's now consider a driving event, of class @ref mepls::event::Driving<dim>. ThisThis class
 allows us to control the loading mechanism by performing a load increment. As with 
 the slip events, the system will take care of everything for us when adding a driving 
 event.
@@ -426,15 +443,17 @@ driving event:
 We see that the plastic quantities did not change by the driving event. Remember that the solver
 we are using here, of class @ref mepls::elasticity_solver::LeesEdwards<dim>, is working under 
 strain-controlled condition, and the load refers to the globally applied shear strain \f$ 
-\varepsilon_{\textrm xy} \f$. Thus, the total strain has now the value set by the load increment 
-we just added and the external stress has risen according to \f$ \tau = G 2 \varepsilon_{\textrm 
+\varepsilon_{\rm xy} \f$. Thus, the total strain has now the value set by the load increment 
+we just added and the external stress has risen according to \f$ \tau = G 2 \varepsilon_{\rm 
 xy}\f$.
 
 After the driving event object has been passed to the add function, its members have been updated. 
 Thus, we could look at, e.g., the external stress change induced by the event by checking 
-@ref mepls::history::event::Driving<dim>::dext_stress. This member tells us the change in external 
+@ref mepls::event::Driving<dim>::dext_stress. This member tells us the change in external 
 stress independently of the specific meaning of the load value (remember that the load value can 
 have different meanings, depending on the solver, loading conditions, and driving mode). 
+
+### Cleaning up{#cleaning}
 
 Lastly, we delete the elements that we created. Since they were dynamically allocated, it is our 
 responsibility to delete them. In this case, the program has reached its end, so we don't really 
@@ -449,7 +468,7 @@ which element objects might be, e.g., copied around.
 ```
 
 
-## Results
+# Results{#results}
 
 This is the terminal output:
 
@@ -496,9 +515,20 @@ tutorial, we will see how to do this and also how to access the system's evoluti
 outputting the results.
 
 
-## The full program
+# The complete program{#full}
 
 ```cpp
+// -----------------------------------------------------------------------
+//
+// Copyright (C) 2020  - David Fernández Castellanos
+//
+// This file is part of the MEPLS software. You can use it, redistribute
+// it, and/or modify it under the terms of the Creative Commons Attribution
+// 4.0 International Public License. The full text of the license can be
+// found in the file LICENSE at the top level of the MEPLS distribution.
+//
+// -----------------------------------------------------------------------
+
 #include <example.h>
 #include <mepls/utils.h>
 #include <random>

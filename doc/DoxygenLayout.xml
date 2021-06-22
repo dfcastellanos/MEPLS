@@ -16,12 +16,15 @@
     <tab type="user" visible="yes" title="Background" url="@ref Background" />
 
     <tab type="user" visible="yes" title="Tutorial" url="@ref Tutorial">
+        <tab type="user" visible="yes" title="Overview" url="@ref Tutorial"/>
         <tab type="user" visible="yes" title="Step 1" url="@ref Step1"/>
         <tab type="user" visible="yes" title="Step 2" url="@ref Step2"/>
         <tab type="user" visible="yes" title="Step 3" url="@ref Step3"/>
+        <tab type="user" visible="yes" title="Step 4" url="@ref Step4"/>
+        <tab type="user" visible="yes" title="Step 5" url="@ref Step5"/>
     </tab>
 
-   <tab type="user" visible="yes" title="Models" url="@ref Models">        
+   <tab type="user" visible="yes" title="Models" url="@ref Models">
 	    <tab type="user" visible="yes" title="ESPCI" url="@ref ESPCI" />
     </tab>
 

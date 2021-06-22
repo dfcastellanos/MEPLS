@@ -4,38 +4,44 @@
 
 [< previous ](@ref StepNULL) | [next >](@ref Step2)
 
-## Introduction
+### Table of contents
 
-In this tutorial step, we will introduce the element and the slip modules. These modules contain 
-the classes @ref mepls::element::Element<dim> and @ref mepls::slip::Slip<dim>, which are 
-the building blocks of any model implemented with MEPLS. The element class represents the 
-mesocale subdomains
-in which we discretize the simulated material. The slip class represents the internal mechanisms 
-present within the elements by which slip events occur. First, you will learn the basics and 
-explore the essential parts of their interfaces. Next, you can find the example program 
-commented step by step. After that, you can find the results of running the 
-program. (in this case, the results correspond just to the information printed on the 
-screen). Finally, you can find the entire program.
+- [Introducion](#introducion) 
+- [The commented program](#comented_program)
+    - [The model](#the_model)
+- [Results](#results)
+- [The complete program](#full)
 
+# Introduction{#introducion}
+
+In this tutorial step, we will introduce the @ref mepls::element::Element<dim>  and @ref 
+mepls::slip::Slip<dim> classes, the most fundamental building blocks of any model 
+implemented with MEPLS. The element class represents the mesocale subdomains in which we 
+discretize the simulated material. The slip class represents the internal mechanisms present 
+within the elements by which slip events occur. First, you will learn the basics and explore the 
+essential parts of their interfaces. Next, you can find the example program commented step by 
+step. After that, you can find the results of running the program. (in this case, the results 
+correspond just to the information printed on the screen). Finally, you can find the entire program.
 
 The class @ref mepls::element::Element<dim> is abstract and defines an interface common to 
-all the element classes. Some of its virtual functions are impelemented by derived element objects
+all the element classes. Some of its virtual functions are implemented by derived element objects
 with the goal of simulating materials with different microstructural properties. For this tutorial, 
 we will create an object of class @ref example::element::Scalar<dim>. Since we rely on
 the standard element interface, the example also applies to any other element classes. 
-
 
 Each element posses one or more slip objects of a class derived from the @ref 
 mepls::slip::Slip<dim>, which provides an abstract interface to all slip classes. Slip objects 
 represent the mechanisms by which a plastic deformation takes place in a specific type of material.
 In other words, they define how a slip event occurs within a mesoscale element. It's important to
- remark that they represent the "how." but not the "when," which is controlled elsewhere by the dynamic 
+remark that they represent the "how." but not the "when," which is controlled elsewhere by the dynamic 
 protocols that we will see in later tutorial steps. Since the elements represent material 
 subdomains, these slip events consequently represent plastic deformation which 
 is spatially localized. 
 
+### The model{#the_model}
+
 The example class @ref example::element::Scalar<dim> implements 2D single-slip crystal plasticity, 
-where slip events can occur along a single plane of fixed orientation. This behavior is 
+where slip events can occur on a single plane of fixed orientation. This behavior is 
 implemented by slip objects of class @ref example::slip::Scalar<dim>, which implements some of the 
 virtual functions of the base class @ref mepls::slip::Slip<dim>. In this case, we can interpret 
 the slip objects as slip systems. However, in general, this need not be so. For example, a slip 
@@ -75,7 +81,7 @@ associated with a shear angle \f$ \theta=0 \f$ and its reversed, associated with
  \f$
  
  
-## The commented program
+# The commented program{#comented_program}
 
 First, we include the headers that are necessary for this tutorial step. The 
 element and slip classes that we will use are defined in the header 
@@ -242,7 +248,7 @@ As expected, since we didn't change the parent's stress, the `eff_shear_stress`
 remains the same, however, the threshold and the barrier are different.
 
 
-## Results
+# Results{#results}
 
 This is the terminal output:
 
@@ -274,9 +280,20 @@ event and how to add it to an element.
 
 
 
-## The full program
+# The complete program{#full}
 
 ```cpp
+// -----------------------------------------------------------------------
+//
+// Copyright (C) 2020  - David Fernández Castellanos
+//
+// This file is part of the MEPLS software. You can use it, redistribute
+// it, and/or modify it under the terms of the Creative Commons Attribution
+// 4.0 International Public License. The full text of the license can be
+// found in the file LICENSE at the top level of the MEPLS distribution.
+//
+// -----------------------------------------------------------------------
+
 #include <example.h>
 #include <mepls/utils.h>
 #include <random>

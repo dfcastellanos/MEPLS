@@ -4,14 +4,31 @@
 
 [< previous ](@ref Step2) | [next >](@ref Step4)
 
-## Introduction
+### Table of contents
+
+- [Introducion](#introducion) 
+    - [The model](#the_model)
+- [The commented program](#comented_program)
+    - [Setting up the system](#setting_up)
+    - [The history class](#history)
+    - [The stopping condition](#stopping)
+    - [Rising the external load](#rising_load)
+    - [Relaxing the unstable slip systems](#relaxin_slips)
+    - [Writing output data](#writing_data)
+- [Results](#results)
+- [The complete program](#full)
+
+
+# Introduction{#introducion}
 
 This tutorial step will use the tools introduced in the previous tutorial steps to create a 
 simple model. We will control the system by automatically creating events according to dynamical
 rules representing the driving conditions. In the end, we will save the simulation data to an output
 file and plot the results using a Python script.
 
-#### The model
+
+### The model{#the_model}
+
 The model we consider represents a material being driven at a very low strain rate and
 temperature, the so-called athermal quasistatic limit. In this limit, the stress fields can rise
  continuously until a plastic event is triggered, but during the event, the stress does not 
@@ -76,7 +93,7 @@ external strain limit.
 
 
 
-## The commented program
+# The commented program{#comented_program}
    
 First, we include the headers that are necessary for this tutorial. We will include the same
 headers of the previous tutorial (see @ref Step2) plus the standard library header `fstream` to 
@@ -94,6 +111,8 @@ the final data to an output file.
 // new header
 #include <fstream>
 ```
+
+### Setting up the system{#setting_up}
 
 Now, we set up the elements, the solver, and the system as we saw in the previous tutorial (see @ref 
 Step2). However, now we will mind the values of the simulation parameters since they will affect 
@@ -147,6 +166,8 @@ int main()
    mepls::system::Standard<dim> system(elements, solver, generator);
 ```
 
+### The history class {#history}
+
 To have access to the history of driving and slip events, as well as to the evolution of
 different macroscale properties, we create an object of class @ref 
 mepls::history::History<dim>. The macroscale properties refer to global, system-scale quantities 
@@ -164,6 +185,8 @@ inform the history about the added events. The history object will store the dat
    system.set_history(sim_history);
 ```
 
+### The stopping condition {#stopping}
+
 Now, we start the main simulation loop, in which the evolution of the system takes place. We will 
 simulate until the externally applied strain reaches a target value of 5%. In each iteration, we 
 will print the value of the applied strain and the external stress, whose values can be accessed 
@@ -177,6 +200,8 @@ using the `macrostate` member of the system:
       // print some output
       std::cout << system.macrostate["total_strain"] << " " <<  system.macrostate["ext_stress"] << std::endl;
 ```
+
+### Rising the external load {#rising_load}
 
 In every main-loop iteration, we perform an increment of the applied load. 
 As seen in @ref Step2, for the solver @ref mepls::elasticity_solver::LeesEdwards<dim> that we are using,
@@ -192,6 +217,8 @@ use \f$  \Delta \gamma_{\rm ext} = 10^{-4} \f$.
         driving_event.dload = 0.0001;
         system.add(driving_event);
 ```
+
+### Relaxing the unstable slip systems {#relaxin_slips}
       
 After adding the load increment event, the shear stress field has increased everywhere, and some 
 slip systems might have become active. Since the increment was very small and respected the 
@@ -270,6 +297,8 @@ generation events. The second-generation events are triggered by the first gener
       } // relaxation loop
 ```
 
+### Writing output data {#writing_data}
+
 Now, the system is relaxed, i.e., no more plastic activity takes place until we increase again the 
 externally applied strain. At this stable state, we tell the history that the macrostate of the 
 system must be recorded. In contrast with the slip and driving events, we are responsible for telling
@@ -321,7 +350,7 @@ separated by a comma. The first line contains the name of each column.
 ```
    
    
-## Results
+# Results{#results}
 
 When running the program, the output will consist of two columns. The first one is the total 
 applied strain, and the second is the external stress. Instead of showing here the raw output, we 
@@ -400,9 +429,20 @@ but was enough for illustrating the tutorial results. In the next tutorial, we w
  to do a full output, which will allow us to visualize the evolution of the system more in detail.
  
 
-## The full program
+# The complete program{#full}
 
 ```cpp
+// -----------------------------------------------------------------------
+//
+// Copyright (C) 2020  - David Fernández Castellanos
+//
+// This file is part of the MEPLS software. You can use it, redistribute
+// it, and/or modify it under the terms of the Creative Commons Attribution
+// 4.0 International Public License. The full text of the license can be
+// found in the file LICENSE at the top level of the MEPLS distribution.
+//
+// -----------------------------------------------------------------------
+
 #include <example.h>
 #include <mepls/utils.h>
 #include <mepls/solver.h>
