@@ -1,6 +1,4 @@
 # MEPLS
-[https://mepls.davidfcastellanos.com/](https://mepls.davidfcastellanos.com/)
-
 
 ## Table of contents
 
@@ -33,74 +31,69 @@ Method. To achieve these goals, MEPLS is developed around three pillars:
     and simplicity facilitate the task of extending it according to the user's 
     needs.
 
-
 ##### Background & motivation
-MEPLS provides easy-to-use tools to build mesoscale models of the plastic 
-deformation of materials and to statistically sample them with Markov chain 
-Monte Carlo methods. MEPLS enables the user to study the impact that 
-microstructural properties have on the macroscale elasto-plastic behavior of a 
-material. This question is especially challenging to answer when those properties
-are spatially heterogeneous and statistically distributed, which is, in turn, the
-most common situation. The built-in MEPLS tools abstract away unnecessary complexity 
-associated with model specification, allowing the user to focus on the physics 
-of the problem. Thus, the user can easily study the influence of: the local 
-statistics of elastic constants, yield criteria, plastic deformation, structural
-evolution, etc.; the driving protocol: strain-controlled tests, creep, cyclic 
-loading, etc.; the loading mode: simple shear, compression, bending, etc. 
-Moreover, suppose a feature is not readily available. In that case, chances are
-that the user can seamlessly implement it thanks to MEPLS extensibility, 
+MEPLS provides easy-to-use tools to build simulations that statistically sample mesoscale models of 
+the plastic deformation of material. MEPLS enables the user to study the impact that 
+microstructural properties have on the macroscale elasto-plastic behavior of a material. This 
+question is especially challenging to answer when those properties are spatially heterogeneous 
+and statistically distributed, which is, in turn, the most common situation. The built-in MEPLS 
+tools abstract away unnecessary complexity associated with the model implementation, allowing the 
+user to focus on the physics of the problem. Thus, the user can easily study the influence of: 
+the local elastic properties, yield criteria, plastic deformation, structural evolution, etc.; 
+the driving protocol: strain-controlled tests, creep, cyclic loading, etc.; the loading mode: 
+simple shear, compression, bending, etc. Moreover, suppose a feature is not readily available. In
+that case, chances are that the user can seamlessly implement it thanks to MEPLS extensibility, 
 availability of examples, and thorough documentation.
 
-You can find more information about MEPLS on the [project's website]. 
 
+MEPLS is developed and maintained by David Fernández Castellanos. You can find more information 
+about MEPLS on the [project's website]. 
 
 ## Features
 MEPLS has some built-in features, while others have been implemented in some of 
-the example models. If you are looking for some of these features, you are lucky
-since you can use them out-of-the-box. Otherwise, they might be implemented in 
-future releases, or you can do it yourself. Some of them might fall into the 
-category for which MEPLS extensibility was planned and are therefore very 
-straightforward to implement. Others may imply a significant amount of effort. 
-Here is a list of currently available and unavailable features. If a feature is 
-unavailable, you can see an estimation of how difficult it would be to implement
-it. Of course, since the list of imaginable features is almost infinite, the 
-currently unavailable features will always outnumber the available ones.  
+the bundled tutorial and gallery models. If you are looking for some of these features, you are 
+lucky since you can use them out-of-the-box. Otherwise, they might be implemented in 
+future releases, or you can do it yourself (to do it yourself, you can get familiar with MEPLS
+by following its tutorial, taking a look at the gallery of models, and reading its official 
+documentation). Some of the desired features might fall into the category for which MEPLS 
+extensibility was planned and are straightforward to implement. Others may imply a
+significant amount of effort. Here is a list of currently available and unavailable features. If 
+a feature is unavailable, you can see an estimation of how difficult it would be to implement
+it.
 
-#### Available
-  * Control of the eigenstrain field
 
-  * Control over microstructural properties and their evolution
+### Available
+  * Manipulation of the plastic strain field and the microstructural properties
 
-  * Fully tensorial stress and strain
+  * Fully tensorial elastic fields
 
   * 2D simulations with quadrilateral structured meshes
 
   * Periodic boundary conditions
+  
+  * Different algorithms for the activation of plastic slips such as, e.g.,
+    Kinetic Monte Carlo, Metropolis-Hastings or extremal dynamics
 
-  * Quasistatic strain-driven tests
+  * Quasistatic strain- and stress-controlled tests
 
-  * Kinetic Monte Carlo, Metropolis-Hastings, and extremal dynamics for the 
-    activation of plastic events
-
+  * Creep by thermally-activated plastic activity
+  
   * Relaxation tests by thermally-activated plastic activity
 
   * Quenched heterogeneous elastic properties
 
-  * Local plastic yield criteria: von Mises, Drucker-Prager, and slip-based 
+  * Local plastic yield criteria such as, e.g., von Mises, Drucker-Prager or slip-based 
     crystal plasticity
 
   * Mean-field elastic & randomized elastic interaction kernels
 
-#### Available soon
+### Available soon
   * Different external loading conditions
 
-  * Quasistatic stress-driven tests
 
-  * Creep by thermally-activated plastic activity
+### Currently unavailable: 
 
-#### Currently unavailable but: 
-
-##### Easy to implement
+#### Easy to implement
   * Any other local plastic yield criterion such as Mohr-Coulomb
 
   * Any law for the evolution of local plastic properties: strain-softening, 
@@ -139,8 +132,7 @@ currently unavailable features will always outnumber the available ones.
 
   * Internal parallelization of individual simulation runs
 
-
-##### Implementation affecting only the FEM solver
+##### The implementation deals only with the FEM solver
 The following features are easily compatible with MEPLS, and their implementation
 deals mainly with creating a new deal.II-based FEM solver specialized for the 
 task. Therefore, the difficulty of implementing them depends on the user's 
@@ -159,128 +151,88 @@ the models):
   * Material advection
 
 
-## Project structure
-MEPLS is the combination of a header-only library and a set of bundled
-example models illustrating how to apply and combine different classes and 
-algorithms provided by the headers. If none of the existing models is suitable 
-for a user's needs, a new model can be easily implemented following the example 
-models and the project's documentation. This task will involve implementing some
-classes derived from the abstract classes provided by MEPLS. The implementation
-of the derived classes focuses on the physics of the model that the user is 
-interested in. Once this is done, the user can rely on MEPLS to handle the rest.
+## Documentation and tutorial
 
-#### MEPLS core
-The core of MEPLS is the header-only library located in 
-`/path/to/MEPLS_dir/inc/MEPLS`. The available tools are defined in the namespace
-`mepls`. Within that namespace, there are several namespaces containing classes 
-and functions with well-differentiated reponsabilities:
-
-| Namespace | Responsibility of the members |
-| ------ | ------ |
-| `element` | represent the material's mesoscale subdomains, a.k.a elements |
-| `slip` | implement the physics of slip activation within the elements |
-| `elasticity_solver` | compute the elastic fields, i.e., how the elements influence each other |
-| `history` | record, continuously in time, the evolution and changes in the system |
-| `system` | manage the elements, the solver, and the history  |
-| `dynamics` | algorithms for the dynamical evolution of the system |
-| `snapshot` | take snapshots of the elements' state at certain discrete time steps |
-| `patches` | sample the local elasto-plastic response of the system at different length scales |
-
-#### Existing models & key features
-The bundled models are located in `/path/to/MEPLS_dir/models/`. The available 
-models are:
-
-  * ESPCI:
-
-    * Random local slip planes as glass microstructure
-    
-    * Monte Carlo simulation of a super-cooled liquid
-    
-    * Athermal quasistatic strain-controlled test
-    
-    * Unloading and reloading
-    
-    * Sampling local elasto-plastic response using the patch method
+You can access the documentation and the tutorial online on the [project's website]. 
+Alternatively, you can generate them using [Doxygen](https://www.doxygen.nl/index.html) and the 
+generation script located in `/path/to/MEPLS_dir/doc`.
 
 
-## How to build it
+## How to build
+ 
+MEPLS is a header-only library. However, the distribution includes a set of bundled models that compose the
+tutorial and the gallery. All those models can be built according to the following instructions. 
+The instructions can also serve as a guide to build your own model.
 
-####Linux
-MEPLS uses CMake for building and depends on the [deal.II] library for using the
-Finite Element Method. Compatible deal.II versions are between the 8.5 
-and the 9.1. The recommended is the 9.0, which can be found in 
-[this repository](https://github.com/dealii/dealii/tree/dealii-9.0). We will need
-the LAPACK library, which is very standard, and you might already have it 
-installed in your system. If not, you can install it from your OS distribution 
-repositories. (For example, for Ubuntu-based distributions, simply do
-`sudo apt-get install liblapack-dev`).
+First of all, MEPLS depends on the [deal.II] library for using the Finite Element Method. 
+Compatible deal.II versions are between the 8.5 and the 9.1. The recommended is the 9.0, which 
+can be found in [this repository](https://github.com/dealii/dealii/tree/dealii-9.0). You will need
+the LAPACK library, which is very standard, and you might already have it installed in your 
+system. If not, you can install it from your OS distribution repositories (for example, for 
+Ubuntu-based systems, do `sudo apt-get install liblapack-dev`). 
 
-To build deal.II, unpack its sources in some directory `/path/to/dealii/sources`. 
-Then, to configure and build it in, e.g., `/path/to/dealii/build`, do:
+Deal.II is built using [CMake](https://cmake.org/). MEPLS bundled models will also use it.  
+
+#### Linux  
+
+To build deal.II, unpack its sources in some directory `/path/to/dealii/sources`. Then, to 
+configure and build it in, e.g., `/path/to/dealii/build`, you can do:
 
 ```sh
 mkdir /path/to/dealii/build
 cd /path/to/dealii/build
 cmake /path/to/dealii/sources -DDEAL_II_WITH_UMFPACK=on
 make # use the argument -j<N> for a build using N parallel threads
-make test
 ```
+@note Alternatively, you can do `make install` to install the library in you system, but is not 
+mandatory.
+
+If you have any doubts about the process of building deal.II, you can find a more extensive 
+explanation on its documentation (see [deal.II installation](https://www.dealii.org/current/readme
+.html#installation))
 
 Now, we can compile some of the MEPLS models. First, unpack MEPLS in some 
-directory `/path/to/MEPLS_dir`. Let’s build the model located in 
-`/path/to/MEPLS_dir/models/example`. To build it in `/path/to/model/build`, simply
+directory `/path/to/MEPLS_dir`. The tutorial steps are located int `/path/to/MEPLS_dir/tutorial` 
+and the gallery models in `/path/to/MEPLS_dir/gallery`. Let’s build the model located in 
+`/path/to/MEPLS_dir/tutorial/step5`. To build it in `/path/to/model/build`, simply
 do:
 
 ```sh
 mkdir /path/to/model/build
 cd /path/to/model/build
-cmake /path/to/MEPLS_dir/models/example -DDEAL_II_DIR=/path/to/dealii/build
+cmake /path/to/MEPLS_dir/tutorial/step5 -DDEAL_II_DIR=/path/to/dealii/build -DMEPLS_DIR=/path/to/MEPLS_dir
 make
 ```
 
-After that, an executable named `run_sim` should appear in `/path/to/model/build`.
+@note Instead of adding the flags `-DDEAL_II_DIR` and `-DMEPLS_DIR`, you can also set the 
+corresponding environment variables as `export DEAL_II_DIR=/path/to/dealii/build` and `export 
+MEPLS_DIR=/path/to/MEPLS_dir`. Also, if you chose to install deal.II in your system, CMake should
+find it automatically.
 
-Each model is built using its own `CMakeLists.txt`. Thus, in general, cmake 
-configuration flags are model-specific and are defined by the model’s author. 
-However, there are two flags that control MEPLS built-in capabilities, namely:
+After calling make, an executable named `run_sim` should appear in `/path/to/model/build`.
 
-  * `DDEFINE_DEBUG=[on/off]` defines whether to build the model using the debug
+Each model is built using its own `CMakeLists.txt`, so different models might accept different 
+configuration flags. However, the flag `DEFINE_DEBUG` turns on MEPLS debug mode,
+
+  * `-DDEFINE_DEBUG=[on/off]` defines whether to build the model using the debug
     mode. In debug mode, MEPLS performs intensive checks, which can reduce the 
-    performance significantly.
+    performance significantly. If the flag is not set, the default value is `off`.
     
-  * `DOPENMP=[on/off]` will allow performing several simulation runs in parallel
-    using OpenMP.
 
-Details on how to control the parameters of the parallelization can be found in 
-the [OpenMP](https://www.openmp.org/) documentation. The most important parameter
-is the number of threads, which is specified by the environment variable 
-`OMP_NUM_THREADS`. It is recommended that we also set the variable 
-`OMP_PROC_BIND=TRUE` to pin the threads to specific CPU cores and prevent 
-continous switches, which can introduce considerable overhead. Currently, MEPLS
-does not support internal parallelization. Therefore, a single simulation run 
-cannot run in parallel.
-
-####Windows
-Building on Windows has not been tested yet. You can follow [deal.II]'s own building
+#### Windows
+Building on Windows has not been tested yet. You can follow [deal.II]'s building
 instructions for Windows, after which building a MEPLS model should be straightforward.
 
-####macOS
-Building on macOS has not been tested yet. You can follow [deal.II]'s own building
+#### macOS
+Building on macOS has not been tested yet. You can follow [deal.II]'s building
 instructions for macOS, after which building a MEPLS model should be straightforward.
 
 
-## Documentation and tutorial
-You can access the documentation and the tutorial online on the [project's website]. 
-Alternatively, you can generate them in different formats using 
-[Doxygen](https://www.doxygen.nl/index.html) and the generation script located 
-in `/path/to/MEPLS_dir/doc`.
-
-
 ## Contact
-You can report issues and bugs in the [project's repository](https://github.com/kastellane/MEPLS).
-You can contact the author through the methods provided on the [author's 
-website] for longer discussions regarding, e.g., requests and ideas for the project or 
-if you need some help to use MEPLS.
+MEPLS is developed and maintained by David Fernández Castellanos. You can report issues and bugs 
+in the [project's repository](https://github.com/kastellane/MEPLS). You can contact the author 
+through the methods provided on the [author's website] for longer discussions regarding, e.g., 
+requests and ideas for the project or if you need some help to use MEPLS.
 
 
 ## License
