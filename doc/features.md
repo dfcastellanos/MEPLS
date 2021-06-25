@@ -1,40 +1,42 @@
 @page Features
 
+<div id="TextBox">
+
 # Features
 MEPLS has some built-in features, while others have been implemented in some of 
-the example models. If you are looking for some of these features, you are lucky
-since you can use them out-of-the-box. Otherwise, they might be implemented in 
-future releases, or you can do it yourself. Some of them might fall into the 
-category for which MEPLS extensibility was planned and are therefore very 
-straightforward to implement. Others may imply a significant amount of effort. 
-Here is a list of currently available and unavailable features. If a feature is 
-unavailable, you can see an estimation of how difficult it would be to implement
-it. Of course, since the list of imaginable features is almost infinite, the 
-currently unavailable features will always outnumber the available ones.  
+the bundled tutorial and gallery models. If you are looking for some of these features, you are 
+lucky since you can use them out-of-the-box. Otherwise, they might be implemented in 
+future releases, or you can do it yourself (to do it yourself, you can get familiar with MEPLS
+by following its tutorial, taking a look at the gallery of models, and reading its official 
+documentation). Some of the desired features might fall into the category for which MEPLS 
+extensibility was planned and are straightforward to implement. Others may imply a
+significant amount of effort. Here is a list of currently available and unavailable features. If 
+a feature is unavailable, you can see an estimation of how difficult it would be to implement
+it.
 
 
 
 ## Available
-  * Control of the eigenstrain field
+  * Manipulation of the plastic strain field and the microstructural properties
 
-  * Control over microstructural properties and their evolution
-
-  * Fully tensorial stress and strain
+  * Fully tensorial elastic fields
 
   * 2D simulations with quadrilateral structured meshes
 
   * Periodic boundary conditions
+  
+  * Different algorithms for the activation of plastic slips such as, e.g.,
+    Kinetic Monte Carlo, Metropolis-Hastings or extremal dynamics
 
-  * Quasistatic strain-driven tests
+  * Quasistatic strain- and stress-controlled tests
 
-  * Kinetic Monte Carlo, Metropolis-Hastings, and extremal dynamics for the 
-    activation of plastic events
-
+  * Creep by thermally-activated plastic activity
+  
   * Relaxation tests by thermally-activated plastic activity
 
   * Quenched heterogeneous elastic properties
 
-  * Local plastic yield criteria: von Mises, Drucker-Prager, and slip-based 
+  * Local plastic yield criteria such as, e.g., von Mises, Drucker-Prager or slip-based 
     crystal plasticity
 
   * Mean-field elastic & randomized elastic interaction kernels
@@ -42,15 +44,10 @@ currently unavailable features will always outnumber the available ones.
 ## Available soon
   * Different external loading conditions
 
-  * Quasistatic stress-driven tests
 
-  * Creep by thermally-activated plastic activity
+## Currently unavailable: 
 
-
-
-## Currently unavailable but: 
-
-### Easy to implement
+#### Easy to implement
   * Any other local plastic yield criterion such as Mohr-Coulomb
 
   * Any law for the evolution of local plastic properties: strain-softening, 
@@ -69,7 +66,7 @@ currently unavailable features will always outnumber the available ones.
 
   * Evolution of homogeneous elastic properties with time or strain
 
-### Challenging to implement
+#### Challenging to implement
   * Non-quasistatic strain- or stress-driven tests
 
   * Evolution of non-homogeneous elastic properties (computationally expensive 
@@ -80,7 +77,7 @@ currently unavailable features will always outnumber the available ones.
 
   * 3D 
 
-### Difficult to implement
+#### Difficult to implement
   * Non-structured meshes
 
   * Triangular meshes (impossible with the deal.II library, but adding a 
@@ -89,7 +86,7 @@ currently unavailable features will always outnumber the available ones.
 
   * Internal parallelization of individual simulation runs
 
-### Implementation affecting only the FEM solver
+#### The implementation deals only with the FEM solver
 The following features are easily compatible with MEPLS, and their implementation
 deals mainly with creating a new deal.II-based FEM solver specialized for the 
 task. Therefore, the difficulty of implementing them depends on the user's 
@@ -106,3 +103,5 @@ the models):
   * Finite strains
 
   * Material advection
+
+</div>

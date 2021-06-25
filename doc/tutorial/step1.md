@@ -250,7 +250,13 @@ remains the same, however, the threshold and the barrier are different.
 
 # Results{#results}
 
-This is the terminal output:
+You can compile this program as explained in @ref HowToBuild. Then, you can run it as follows,
+
+```sh
+$ ./run_sim
+```
+
+This is the output:
 
 ```
 Stress = 1 0.5 0.5 -1

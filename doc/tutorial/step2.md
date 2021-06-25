@@ -470,7 +470,13 @@ which element objects might be, e.g., copied around.
 
 # Results{#results}
 
-This is the terminal output:
+You can compile this program as explained in @ref HowToBuild. Then, you can run it as follows,
+
+```sh
+$ ./run_sim
+```
+
+This is the output:
 
 ```cpp
 Testing the solver...

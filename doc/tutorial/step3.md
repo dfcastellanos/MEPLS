@@ -352,9 +352,10 @@ separated by a comma. The first line contains the name of each column.
    
 # Results{#results}
 
-When running the program, the output will consist of two columns. The first one is the total 
-applied strain, and the second is the external stress. Instead of showing here the raw output, we 
-will redirect it to a file and use a very simple Python script (see next) to plot it:
+You can compile this program as explained in @ref HowToBuild.When running the program, the output
+will consist of two columns. The first one is the total applied strain, and the second is the 
+external stress. Instead of showing here the raw output, we will redirect it to a file and use a
+very simple Python script (see next) to plot it:
 
 ```sh
 $ ./run_sim

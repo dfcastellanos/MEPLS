@@ -1791,3 +1791,11 @@ u {
 	text-decoration: underline;
 }
 
+#TextBox {
+	width: 60%;
+	margin: 0 auto;
+	background: #f3f6ff;
+	display: table;
+  padding-left: 50px;
+  padding-right: 50px;
+}

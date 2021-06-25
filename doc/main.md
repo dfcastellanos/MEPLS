@@ -2,7 +2,10 @@
 
 @page mainpage
 
-### About
+
+<div id="TextBox">
+
+# MEPLS
 
 MEPLS (Mesoscale Elasto-Plasticity Simulator) is an open-source C++ framework 
 for simulating the plastic deformation of materials based on the combination of 
@@ -47,6 +50,18 @@ MEPLS allow to study the influcence of many different ingredients such as:
 
 You can find an extensive list in the features section.
 
+### Tutorial 
+
+Each tutorial step introduces different tools and illustrates how to use them. After going 
+through the tutorial steps, you will have a good idea of where to start to implement a new model.
+
+
+### Gallery
+
+New models can be implemented following the tutorial and the MEPLS documentation. However, 
+sometimes a model might require a use of MEPLS more advanced than illustrated in the tutorial. In
+this case, the @ref Gallery of models shows examples of models built for very specific purposes. 
+
 
 ### Download
 
@@ -59,7 +74,7 @@ You can report issues and bugs in the [project's repository]. You can contact th
 the methods provided on the [author's website] for longer discussions regarding, e.g., requests 
 and ideas for the project or if you need some help to use MEPLS.
 
-
+</div> 
 
 
 [deal.II]: https://www.dealii.org/
