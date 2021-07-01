@@ -2,7 +2,7 @@
 
 ## Table of contents
 
-* [About MEPLS](#about-MEPLS)
+* [About](#about)
 * [Features](#features)
 * [Project structure](#project-structure)
 * [How to build it](#how-to-build-it)
@@ -11,7 +11,7 @@
 * [License](#license)
 
 
-## About MEPLS
+## About
 MEPLS (Mesoscale Elasto-Plasticity Simulator) is an open-source C++ framework 
 for simulating the plastic deformation of materials based on the combination of 
 stochastic processes and solid mechanics. Its goal is to provide modular, 
@@ -31,19 +31,23 @@ Method. To achieve these goals, MEPLS is developed around three pillars:
     and simplicity facilitate the task of extending it according to the user's 
     needs.
 
-##### Background & motivation
 MEPLS provides easy-to-use tools to build simulations that statistically sample mesoscale models of 
-the plastic deformation of material. MEPLS enables the user to study the impact that 
-microstructural properties have on the macroscale elasto-plastic behavior of a material. This 
-question is especially challenging to answer when those properties are spatially heterogeneous 
-and statistically distributed, which is, in turn, the most common situation. The built-in MEPLS 
-tools abstract away unnecessary complexity associated with the model implementation, allowing the 
-user to focus on the physics of the problem. Thus, the user can easily study the influence of: 
-the local elastic properties, yield criteria, plastic deformation, structural evolution, etc.; 
-the driving protocol: strain-controlled tests, creep, cyclic loading, etc.; the loading mode: 
-simple shear, compression, bending, etc. Moreover, suppose a feature is not readily available. In
-that case, chances are that the user can seamlessly implement it thanks to MEPLS extensibility, 
-availability of examples, and thorough documentation.
+the plastic deformation of materials. The built-in MEPLS tools abstract away unnecessary 
+complexity associated with the model implementation, allowing the user to focus on the physics of
+the problem.
+
+MEPLS enables the user to study the impact that microstructural properties have on the macroscale
+elasto-plastic behavior of a material. This question is especially challenging to answer when 
+those properties are spatially heterogeneous and statistically distributed, which is, in turn, 
+the most common situation. MEPLS allows to study the influence that many different model features
+ or ingredients may have on a material's mechanical properties. Example of such features are:
+
+* the statistics of local elastic properties, local yield criteria, plastic deformation, structural 
+evolution, etc.
+* the driving protocol: strain-controlled tests, creep, cyclic loading, etc.
+* the loading mode: simple shear, compression, bending, etc.
+
+You can find an extensive list in the features section.
 
 
 MEPLS is developed and maintained by David Fernández Castellanos. You can find more information 
