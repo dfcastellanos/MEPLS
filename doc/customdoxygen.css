@@ -1767,6 +1767,7 @@ th.markdownTableHeadCenter, td.markdownTableBodyCenter {
   text-align: left;
   direction: ltr;
 }
+}
 
 table.DocNodeRTL {
    width: auto;
@@ -1794,7 +1795,7 @@ u {
 #TextBox {
 	width: 60%;
 	margin: 0 auto;
-	background: #f3f6ff;
+	background: #f6f9fd;
 	display: table;
   padding-left: 50px;
   padding-right: 50px;

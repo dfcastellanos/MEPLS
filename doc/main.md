@@ -5,7 +5,7 @@
 
 <div id="TextBox">
 
-# MEPLS
+## About 
 
 MEPLS (Mesoscale Elasto-Plasticity Simulator) is an open-source C++ framework 
 for simulating the plastic deformation of materials based on the combination of 
@@ -26,55 +26,73 @@ Method. To achieve these goals, MEPLS is developed around three pillars:
     and simplicity facilitate the task of extending it according to the user's 
     needs.
 
+MEPLS provides easy-to-use tools to build simulations that statistically sample mesoscale models of 
+the plastic deformation of materials. The built-in MEPLS tools abstract away unnecessary 
+complexity associated with the model implementation, allowing the user to focus on the physics of
+the problem.
 
-MEPLS provides easy-to-use tools to build mesoscale models of the plastic 
-deformation of materials and to statistically sample them with Markov chain 
-Monte Carlo methods. MEPLS enables the user to study the impact that 
-microstructural properties have on the macroscale elasto-plastic behavior of a 
-material. This question is especially challenging to answer when those properties
-are spatially heterogeneous and statistically distributed, which is, in turn, the
-most common situation. The built-in MEPLS tools abstract away unnecessary complexity 
-associated with model specification, allowing the user to focus on the physics 
-of the problem. Thus, the user can easily study the influence of: the local 
-statistics of elastic constants, yield criteria, plastic deformation, structural
-evolution, etc.; the driving protocol: strain-controlled tests, creep, cyclic 
-loading, etc.; the loading mode: simple shear, compression, bending, etc. 
-Moreover, suppose a feature is not readily available. In that case, chances are
-that the user can seamlessly implement it thanks to MEPLS extensibility, 
-availability of examples, and thorough documentation.
+<br>
 
-MEPLS allow to study the influcence of many different ingredients such as:
-* local statistics of elastic constants, yield criteria, plastic deformation, structural evolution, etc.
-* driving protocol: strain-controlled tests, creep, cyclic loading, etc.
-* loading mode: simple shear, compression, bending, etc.
+MEPLS enables the user to study the impact that microstructural properties have on the macroscale
+elasto-plastic behavior of a material. This question is especially challenging to answer when 
+those properties are spatially heterogeneous and statistically distributed, which is, in turn, 
+the most common situation (see [Background] (@ref Background)). MEPLS allows to study 
+the influence that many different model features or ingredients may have on a material's mechanical 
+properties. Example of such features are:
 
-You can find an extensive list in the features section.
+* the statistics of local elastic properties, local yield criteria, plastic deformation, structural 
+evolution, etc.
+* the driving protocol: strain-controlled tests, creep, cyclic loading, etc.
+* the loading mode: simple shear, compression, bending, etc.
 
-### Tutorial 
-
-Each tutorial step introduces different tools and illustrates how to use them. After going 
-through the tutorial steps, you will have a good idea of where to start to implement a new model.
+You can find an extensive list in the [features section](@ref Features).
 
 
-### Gallery
+## Tutorial 
+
+Each [tutorial](@ref Tutorial) step introduces different tools and illustrates how to use them. 
+After going through the tutorial steps, you will have a good idea of how to use MEPLS for implementing you 
+ouwn model.
+
+## Gallery
 
 New models can be implemented following the tutorial and the MEPLS documentation. However, 
 sometimes a model might require a use of MEPLS more advanced than illustrated in the tutorial. In
-this case, the @ref Gallery of models shows examples of models built for very specific purposes. 
+this case, the [gallery](@ref Gallery) of models shows more advanced examples of models built for 
+very specific 
+purposes. 
 
 
-### Download
+## Documentation
+This website provides you with an interactive MEPLS [documentation](@ref Documentation). The 
+**search box** on the top right corner allows you to search through the documentation for 
+functions, classes, etc. The source code in this website is also interactive, allowing you to
+click on it and jump to its documentation.
+
+
+## Download
 
 You can download the source files from the [project's repository] on GitHub.
 
+## Contact
+MEPLS is developed and maintained by David Fernández Castellanos. You can report issues and bugs 
+in the [project's repository](https://github.com/kastellane/MEPLS). You can contact the author 
+through the methods provided on the [author's website] for longer discussions regarding, e.g., 
+requests and ideas for the project or if you need some help to use MEPLS.
 
-### Contact
 
-You can report issues and bugs in the [project's repository]. You can contact the author through 
-the methods provided on the [author's website] for longer discussions regarding, e.g., requests 
-and ideas for the project or if you need some help to use MEPLS.
+## License
+MEPLS is open source. You can freely use it, redistribute it, and/or modify it
+under the terms of the Creative Commons Attribution 4.0 International Public 
+License. The full text of the license can be found in the file LICENSE at the 
+top level of the MEPLS distribution.
 
-</div> 
+
+##Last update
+Jun 26 2021
+
+
+<br></div> 
 
 
 [deal.II]: https://www.dealii.org/

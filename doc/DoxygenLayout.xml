@@ -30,7 +30,7 @@
 
    <tab type="user" visible="yes" title="Documentation" url="@ref Documentation">
       <tab type="user" visible="yes" title="Overview" url="@ref Documentation"/>
-      <tab type="user" visible="yes" title="How to build it" url="@ref HowToBuild" />
+      <tab type="user" visible="yes" title="How to build" url="@ref HowToBuild" />
       <tab type="namespaces" visible="yes" title="">
           <tab type="namespacelist" visible="yes" title="" intro=""/>
           <tab type="namespacemembers" visible="yes" title="" intro=""/>

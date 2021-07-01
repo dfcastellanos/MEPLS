@@ -60,7 +60,7 @@ MEPLS models, as explained in @ref HowToBuild.
 less documented, but they are natural extensions of the tutorial steps, illustrating how to 
 implement particular model features. 
 
-</div>
+<br></div>
 
 
 
