@@ -829,32 +829,17 @@ std::vector<int> parse_list_integers(const std::string &str)
 }
 
 
-bool read_from_file(std::vector<double> &x, const std::string &file_name)
-{
-	/*! Read a file containing a column of numerical values and parse it into a
-	 * vector of doubles. */
-
-	// from https://stackoverflow.com/a/40669705/5147363
-
-	std::ifstream read_file(file_name);
-
-	bool file_open = read_file.is_open();
-
-	if(file_open)
-	{
-		std::copy(std::istream_iterator<double>(read_file), std::istream_iterator<double>(),
-				  std::back_inserter(x));
-
-		read_file.close();
-	}
-
-	return file_open;
-}
-
 void read_csv(std::vector<double> &xData, std::vector<double> &yData, std::string filename,
-				unsigned int skip=0, unsigned int col_x=0, unsigned int col_y=1)
+				unsigned int skip=0)
 {
-	/*! Read 2 columns of numerical values and parse it into 2 vectors of doubles. */
+	/*! Read a text file that contains two columns of numerical values. The columns
+	 * are parsed into two vectors of doubles.
+	 *
+	 * @param xData vector to store column #1
+	 * @param yData vector to store column #2
+	 * @param filename path tot the file
+	 * @param skip number of rows to skip
+	 * */
 
 	// adapted from https://stackoverflow.com/a/30181684
 
@@ -876,8 +861,8 @@ void read_csv(std::vector<double> &xData, std::vector<double> &yData, std::strin
 		while (std::getline(iss, token, ','))
 			tokens.push_back(token); // add the token to the vector
 
-		xData.push_back( std::stof(tokens[col_x]) );
-		yData.push_back( std::stof(tokens[col_y]) );
+		xData.push_back( std::stof(tokens[0]) );
+		yData.push_back( std::stof(tokens[1]) );
 	}
 
 }
@@ -978,102 +963,6 @@ inline double mod(double a, double b)
 
 
 
-template<typename ParamType>
-class Launcher
-{
-
-  public:
-
-	int run(const ParamType &p)
-	{
-		try
-		{
-			#if defined(OPENMP)
-				run_parallel(p);
-			#else
-				run_serial(p);
-			#endif
-		}
-		catch(std::exception &exc)
-		{
-			std::cerr << std::endl << std::endl << "----------------------------------------------------" << std::endl;
-			std::cerr << "Exception on processing: " << std::endl << exc.what() << std::endl << "Aborting!" << std::endl
-					  << "----------------------------------------------------" << std::endl;
-			return 1;
-		}
-		catch(...)
-		{
-			std::cerr << std::endl << std::endl << "----------------------------------------------------" << std::endl;
-			std::cerr << "Unknown exception!" << std::endl << "Aborting!" << std::endl
-					  << "----------------------------------------------------" << std::endl;
-			return 1;
-		}
-
-		return 0;
-
-	}
-
-	void run_parallel(const ParamType &p)
-	{
-		#if defined(OPENMP)
-
-		unsigned int n_rep = p.sim.n_rep;
-		if(n_rep < omp_get_max_threads())
-			n_rep = omp_get_max_threads();
-
-		// create a seed to initialize the rnd engine of each thread
-		std::srand(p.sim.seed);
-		std::vector<unsigned int> seed_for_thread;
-		for(unsigned int n = 0; n < omp_get_max_threads(); ++n)
-			seed_for_thread.push_back(std::rand());
-
-		#pragma omp parallel
-		{
-			auto pp = p;
-
-			unsigned int n_threads = omp_get_max_threads();
-			unsigned int id = omp_get_thread_num();
-
-			unsigned int N = int( n_rep / n_threads );
-
-			std::mt19937 generator_of_seeds( seed_for_thread[id] );
-
-			for(unsigned int n = 0; n < N; ++n)
-			{
-				if(id == 0 and p.out.verbosity)
-					std::cout << double(n) / double(N) * 100 << "%" << std::endl;
-
-				generator_of_seeds.discard(1000);
-				pp.sim.seed = generator_of_seeds();
-
-				run_impl(pp);
-			}
-
-
-		}// parallel region
-
-		#endif // defined(OPENMP)
-	}
-
-	void run_serial(const ParamType &p)
-	{
-		unsigned int N = p.sim.n_rep;
-		std::mt19937 generator_of_seeds( p.sim.seed );
-
-		for(unsigned int n = 0; n < N; ++n)
-		{
-			auto pp = p;
-			pp.sim.seed = generator_of_seeds();
-			run_impl(pp);
-		}
-	}
-
-  private:
-
-	virtual void run_impl(const ParamType &p) = 0;
-};
-
-
 /*! Singleton class to measure execution times. The advantage of using a
  * singleton pattern is that we can measure the execution times of any part of
  * the code without the need to modify function interfaces. Specifically, in
@@ -1161,6 +1050,8 @@ TimerSingleton *TimerSingleton::single = NULL;
 
 
 
+/*! This class provides linear interpolations of a 1D function, defined by the
+ * given x and y data vectors. */
 class Interpolator
 {
   public:
@@ -1169,25 +1060,22 @@ class Interpolator
 		:
 	xData(xData_),
 	yData(yData_)
-	{}
-
-	Interpolator(std::string filename,
-				unsigned int skip=0,
-				unsigned int col_x=0,
-				unsigned int col_y=1)
 	{
-		utils::str::read_csv(xData, yData, filename, skip, col_x, col_y);
+		/*! Constructor. */
 	}
-
 
 	double operator()(double x)
 	{
+		/*! Returns the value of the function, interpolated at the input value x. */
+
 		// adapted from http://www.cplusplus.com/forum/general/216928/
 
 	   int size = xData.size();
 
-	   int i = 0;                                                                  // find left end of interval for interpolation
-	   if ( x >= xData[size - 2] )                                                 // special case: beyond right end
+		// find left end of interval for interpolation
+	   int i = 0;
+	   // special case: beyond right end
+	   if ( x >= xData[size - 2] )
 	   {
 		  i = size - 2;
 	   }
@@ -1195,20 +1083,26 @@ class Interpolator
 	   {
 		  while ( x > xData[i+1] ) i++;
 	   }
-	   double xL = xData[i], yL = yData[i], xR = xData[i+1], yR = yData[i+1];      // points on either side (unless beyond ends)
+	   // points on either side (unless beyond ends)
+	   double xL = xData[i], yL = yData[i], xR = xData[i+1], yR = yData[i+1];
 
  	   if ( x < xL ) yR = yL;
   	   if ( x > xR ) yL = yR;
 
-	   double dydx = ( yR - yL ) / ( xR - xL );                                    // gradient
+		// gradient
+	   double dydx = ( yR - yL ) / ( xR - xL );
 
-	   return yL + dydx * ( x - xL );                                              // linear interpolation
+ 		// linear interpolation
+	   return yL + dydx * ( x - xL );
 	}
 
   private:
 
 	std::vector<double> xData;
+	/*!< Discrete x values of the interpolated function. */
+
 	std::vector<double> yData;
+	/*!< Discrete y values of the interpolated function. */
 };
 
 
