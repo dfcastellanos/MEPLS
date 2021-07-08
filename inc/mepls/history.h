@@ -227,7 +227,7 @@ struct MacroSummaryRow
 	double av_energy_el = 0.;
 	double std_energy_el = 0.;
 	double av_energy_conf = 0.;
-	double std_energy_conf = 0.;	
+	double std_energy_conf = 0.;
 	double time = 0.;
 	double total_strain = 0.;
 	double ext_stress = 0.;
@@ -280,6 +280,8 @@ class History
 
 	void close()
 	{
+		/*! If called, no more data will be recored in the history. */
+
 		closed_ = true;
 	}
 
@@ -377,6 +379,8 @@ class History
 
 	void clear()
 	{
+		/*! Clear the history. */
+
 		driving.clear();
 		plastic.clear();
 		renew.clear();
@@ -385,14 +389,57 @@ class History
 	}
 
 
-   virtual void add_macro(const mepls::system::System<dim> &system)
-   {
-      if(closed_)
-         return;
+	virtual void add_macro(const mepls::system::System<dim> &system)
+	{
+		/*! Record the macroscale properties of the input system. By default, it computes
+		 * the spatial average and standard deviation of stress tensor compoents, the von Mises
+		 * stress, the von Mises plastic strain, the elastic energy, the configurational
+		 * energy, the time, the total strain, and the external stress. */
+
+		if(closed_)
+			return;
 
 		MacroSummaryRow data;
 
-		const auto &elements = system.elements;
+		add_macro_default(system, data);
+
+		macro_evolution.push_back(data);
+	}
+
+
+	std::string name() const
+	{
+		/*! Get the name of the history object. */
+
+		return name_;
+	}
+
+	unsigned int index() const
+	{
+		/*! Get the current history index. */
+
+		return index_;
+	}
+
+	std::vector<DrivingRow> driving;
+	/*!< Vector with the information of the added driving events.  */
+
+	std::vector<PlasticRow> plastic;
+	/*!< Vector with the information of the added plastic events. */
+
+	std::vector<RenewSlipRow> renew;
+	/*!< Vector with the information of the microstructural properties renewal events */
+
+	std::vector<MacroSummaryRow> macro_evolution;
+	/*!< Vector to store the macroscale properties. */
+
+  protected:
+
+
+	void add_macro_default(const mepls::system::System<dim> &system, MacroSummaryRow & data)
+	{
+		/*! Record the default macroscale properties of the input system on the input data struct. */
+
 		const auto &macrostate = system.macrostate;
 
 		double sum_stress_00 = 0.;
@@ -411,18 +458,18 @@ class History
 		double sum2_energy_el = 0.;
 		double sum2_energy_conf = 0.;
 
-		for(auto &element : elements)
+		for(auto &element : system)
 		{
 			auto &stress = element->stress();
 
 			sum_stress_00 += stress[0][0];
-			sum2_stress_00 += stress[0][0]*stress[0][0];
+			sum2_stress_00 += stress[0][0] * stress[0][0];
 
 			sum_stress_11 += stress[1][1];
-			sum2_stress_11 += stress[1][1]*stress[1][1];
+			sum2_stress_11 += stress[1][1] * stress[1][1];
 
 			sum_stress_01 += stress[0][1];
-			sum2_stress_01 += stress[0][1]*stress[0][1];
+			sum2_stress_01 += stress[0][1] * stress[0][1];
 
 			double vm_plastic_strain = element->integrated_vm_eigenstrain();
 			sum_vm_plastic_strain += vm_plastic_strain;
@@ -441,71 +488,38 @@ class History
 			sum2_energy_conf += energy_conf * energy_conf;
 		}
 
-		double N = double(elements.size());
+		double N = double(system.size());
 
-		data.av_stress_00 = sum_stress_00/N;
-		data.av_stress_11 = sum_stress_11/N;
-		data.av_stress_01 = sum_stress_01/N;
-		data.av_vm_stress = sum_vm_stress/N;
-		data.av_vm_plastic_strain = sum_vm_plastic_strain/N;
-		data.av_energy_el = sum_energy_el/N;
-		data.av_energy_conf = sum_energy_conf/N;
+		data.av_stress_00 = sum_stress_00 / N;
+		data.av_stress_11 = sum_stress_11 / N;
+		data.av_stress_01 = sum_stress_01 / N;
+		data.av_vm_stress = sum_vm_stress / N;
+		data.av_vm_plastic_strain = sum_vm_plastic_strain / N;
+		data.av_energy_el = sum_energy_el / N;
+		data.av_energy_conf = sum_energy_conf / N;
 
-		data.std_stress_00 = std::sqrt(
-			sum2_stress_00/N - data.av_stress_00 * data.av_stress_00);
+		data.std_stress_00 = std::sqrt(sum2_stress_00 / N - data.av_stress_00 * data.av_stress_00);
 
-		data.std_stress_11 = std::sqrt(
-			sum2_stress_11/N - data.av_stress_11 * data.av_stress_11);
+		data.std_stress_11 = std::sqrt(sum2_stress_11 / N - data.av_stress_11 * data.av_stress_11);
 
-		data.std_stress_01 = std::sqrt(
-			sum2_stress_01/N - data.av_stress_01 * data.av_stress_01);
+		data.std_stress_01 = std::sqrt(sum2_stress_01 / N - data.av_stress_01 * data.av_stress_01);
 
 		data.std_vm_plastic_strain = std::sqrt(
-			sum2_vm_plastic_strain/N - data.av_vm_plastic_strain * data.av_vm_plastic_strain);
+			sum2_vm_plastic_strain / N - data.av_vm_plastic_strain * data.av_vm_plastic_strain);
 
-		data.std_vm_stress = std::sqrt(sum2_vm_stress/N - data.av_vm_stress * data.av_vm_stress);
+		data.std_vm_stress = std::sqrt(sum2_vm_stress / N - data.av_vm_stress * data.av_vm_stress);
 
-		data.std_energy_el = std::sqrt(
-			sum2_energy_el/N - data.av_energy_el * data.av_energy_el);
+		data.std_energy_el = std::sqrt(sum2_energy_el / N - data.av_energy_el * data.av_energy_el);
 
 		data.std_energy_conf = std::sqrt(
-			sum2_energy_conf/N - data.av_energy_conf * data.av_energy_conf);
+			sum2_energy_conf / N - data.av_energy_conf * data.av_energy_conf);
 
 		data.time = macrostate["time"];
 		data.total_strain = macrostate["total_strain"];
 		data.ext_stress = macrostate["ext_stress"];
 
 		data.index = index_;
-
-      macro_evolution.push_back(data);
-   }
-
-	std::string name() const
-	{
-		return name_;
 	}
-
-	unsigned int index() const
-	{
-		return index_;
-	}
-
-	std::vector<DrivingRow> driving;
-	/*!< Vector to store the information contained in objects of the class
-	 * \ref event::Driving reformated as \ref History.DrivingRow. */
-
-	std::vector<PlasticRow> plastic;
-	/*!< Vector to store the information contained in objects of the class
-	 * \ref event::Plastic reformated as \ref History.PlasticRow. */
-
-	std::vector<RenewSlipRow> renew;
-	/*!< Vector to store the information contained in objects of the class
-	 * \ref event::RenewSlip reformated as \ref History.RenewSlipRow. */
-
-	std::vector<MacroSummaryRow> macro_evolution;
-
-
-  protected:
 
 	unsigned int index_;
 	/*!< This member keeps track of the index to be assigned to the next
@@ -526,6 +540,7 @@ class History
 	/*!< If true, no further events are added. */
 
 	std::string name_;
+	/*!< The name of the history object. */
 };
 
 

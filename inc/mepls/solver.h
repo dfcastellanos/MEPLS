@@ -671,7 +671,8 @@ class LeesEdwards: public Solver<dim>
 	 * reason the assembly is optimized to leverage the homogeneity of the
 	 * properties and does not change the current plastic field and applied load.
 	 * The elastic strain and stress are recomputed according using the new elastic
-	 * properties. */
+	 * properties.
+	 * @warning Use this function only if the elastic properties are homogeneous. */
 
 	void set_control_mode(ControlMode control_mode);
 	/*!< Set the control model (stress or strain-controlled). */

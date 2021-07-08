@@ -264,11 +264,17 @@ class System
 
 	unsigned int size() const
 	{
+		/*! Returns the number of elements in the system. */
+
 		return elements.size();
 	}
 
 	mepls::element::Element<dim> * operator[](unsigned int n) const
 	{
+		/*! Returns the element with the given number. */
+
+		M_Assert(elements[n]->number()==n, "");
+
 		return elements[n];
 	}
 
@@ -329,6 +335,9 @@ class System
 
 	void set_history(history::History<dim> &history_)
 	{
+		/*! Set the history object on which the added events will be recorded. If
+		 * no object is set, a default one will be used. */
+
 		history = &history_;
 	}
 

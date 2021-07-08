@@ -155,7 +155,7 @@ class KMC
 
 
 
-/*! This class implements the Metropolis-Hastings algorithm. */
+/*! This class implements the Metropolis-Hastings algorithm for sampling the configuration. */
 template<int dim>
 class MetropolisHastings
 {
@@ -289,9 +289,11 @@ class MetropolisHastings
 	}
 
 	double T = 1.;
+	/*!< Rescaled temperature. Its value corresponds to \f$ k_{\rm B} T \f$. */
 
   private:
 	std::uniform_real_distribution<double> unif_distribution;
+	/*!< Uniform distribution. */
 
 	std::vector<mepls::slip::Slip<dim> *> slips;
 	/*!< Vector containing all the slip systems within the material. It

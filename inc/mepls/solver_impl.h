@@ -55,6 +55,8 @@ class Solver;
 namespace impl
 {
 
+/*! This class computes diverse quantities such as strain and stress from a displacement field.
+ * See deal.II's dealii::DataPostprocessor<dim> class. */
 template<int dim>
 class Postprocessor: public dealii::DataPostprocessor<dim>
 {
@@ -142,6 +144,10 @@ void fix_node(
 	dealii::ConstraintMatrix &constraints,
 	Solver<dim> &solver)
 {
+
+	/*! Fixed a node of the FEM mesh that matches the given coordinates. It is fixed only along the
+	 * coordinate 0 or 1, defined by dof. */
+
 	dealii::Point<dim> node;
 
 	for(unsigned int i = 0; i < dim; ++i)
@@ -163,14 +169,17 @@ void assemble_boundary_tractions(
 	dealii::Vector<double> &rhs,
 	Solver<dim> &solver)
 {
+
+	/*! For a given boundary id, assemble the RHS traction contribution of the face of the
+	 * reference cell that is at that boundary. It is necessary that the boundary id's are the
+	 * same as the numbering of the faces of the reference cell. */
+
 	const unsigned int dofs_per_cell = solver.fe.dofs_per_cell;
 	std::vector<dealii::types::global_dof_index> local_dof_indices(dofs_per_cell);
 
 	const dealii::FEValuesExtractors::Vector displacements(0);
 	dealii::Vector<double> cell_rhs(dofs_per_cell);
 
-	// For a given boundary id, assemble the rhs traction contribution of the face of the reference cell that is at that boundary.
-	// It is necessary that the boundary id's are the same as the numbering of the faces of the reference cell.
 	unsigned int face_id = boundary_id;
 	const unsigned int n_faces = dealii::GeometryInfo<dim>::faces_per_cell;
 	const dealii::UpdateFlags uf_face(
@@ -210,6 +219,8 @@ void assemble_eigenstrain_rhs(
 	typename dealii::DoFHandler<dim>::active_cell_iterator &cell,
 	Solver<dim> &solver)
 {
+	/*! For a given eigenstrain, assemble its contribution to the RHS vector. */
+
 	const unsigned int dofs_per_cell = solver.fe.dofs_per_cell;
 	const unsigned int n_q_points = solver.quadrature_formula.size();
 	solver.fe_values.reinit(cell);
@@ -232,7 +243,7 @@ void assemble_eigenstrain_rhs(
 template<int dim>
 void assemble_unitary_eigenstrains(Solver<dim> &solver)
 {
-	/* Assemble the "canonical basis" of eigenstrains.
+	/* Assemble the canonical basis of eigenstrains.
 	 * In linear elasticity, any other eigenstrain RHS
 	 * contribution will be a linear combinations of these.
 	 */
@@ -272,6 +283,12 @@ void assemble_unitary_eigenstrains(Solver<dim> &solver)
 template<int dim>
 void assemble_unitary_eigenstrains_unique(Solver<dim> &solver)
 {
+
+	/* The same as @ref assemble_unitary_eigenstrains, but assuming that the
+	 * elastic properties are homogeneous and that the FEM mesh is structured. In this
+	 * case, we can perform the assembly of a single cell and reuse it for the rest.
+	 */
+
 	dealii::Vector<double> cell_rhs;
 	dealii::SymmetricTensor<2, dim> eigenstrain;
 	std::vector<dealii::Vector<double>> eigenstrain_rhs_at_element(solver.n_components);
@@ -309,6 +326,9 @@ void add_eigenstrain(
 	dealii::ConstraintMatrix &constraints,
 	Solver<dim> &solver)
 {
+	/* Update the input RHS vector to account for the addition of the input eigenstrain
+	 * to the input element. */
+
 	const unsigned int dofs_per_cell = solver.fe.dofs_per_cell;
 	std::vector<dealii::types::global_dof_index> local_dof_indices(dofs_per_cell);
 
@@ -331,6 +351,10 @@ void add_eigenstrain(
 template<int dim>
 void make_element_maps(Solver<dim> &solver)
 {
+	/* Create the maps that relates Deal.II's cell objects to MEPLS element number, and element
+	 * number to cell. */
+
+
 	unsigned int n_active_cells = solver.triangulation.n_active_cells();
 	typename dealii::DoFHandler<dim>::active_cell_iterator cell = solver.dof_handler.begin_active();
 	unsigned int faces_per_cell = dealii::GeometryInfo<dim>::faces_per_cell;
@@ -354,6 +378,11 @@ void make_element_maps(Solver<dim> &solver)
 template<int dim>
 void average_shape_function_gradients(Solver<dim> &solver)
 {
+	/* Computes the average of the gradients of the shape functions. This allows computing the
+	 * strain very efficiently. The resulting strain is constant within each FE, which is
+	 * consistant with the use of linear shape function. */
+
+
 	const unsigned int vertices_per_cell = dealii::GeometryInfo<dim>::vertices_per_cell;
 	const unsigned int dofs_per_vertex = 2;
 
@@ -384,6 +413,9 @@ void assemble_cell_system_matrix(
 	dealii::SymmetricTensor<4, dim> &C,
 	Solver<dim> &solver)
 {
+
+	/* Assemble a portion of the FEM stiffness matrix that corresponds to a specific cell. */
+
 	const unsigned int n_q_points = solver.quadrature_formula.size();
 	const unsigned int dofs_per_cell = solver.fe.dofs_per_cell;
 	const dealii::FEValuesExtractors::Vector displacements(0);
@@ -412,6 +444,8 @@ void assemble_system_matrix(
 	dealii::Vector<double> &rhs,
 	Solver<dim> &solver)
 {
+	/* Assemble the FEM stiffness matrix. */
+
 	unsigned int n_active_cells = solver.triangulation.n_active_cells();
 	const unsigned int dofs_per_cell = solver.fe.dofs_per_cell;
 
@@ -453,6 +487,10 @@ void get_av_displacement_gradient(
 	dealii::Vector<double> &solution,
 	typename dealii::DoFHandler<dim>::active_cell_iterator &cell)
 {
+
+	/* Compute the average displacement gradient tensor on the input cell using the average of
+	 * the gradients of the shape functions. */
+
 	const unsigned int vertices_per_cell = dealii::GeometryInfo<dim>::vertices_per_cell;
 	J.clear();
 	for(unsigned int k = 0; k < vertices_per_cell; ++k)
@@ -471,8 +509,11 @@ void get_av_displacement_gradient_dealii_builtin(
 	Solver<dim> &solver,
 	typename dealii::DoFHandler<dim>::active_cell_iterator &cell)
 {
-	// get grandients from dealII (useful if we have higher order shape functions)
-
+	/* Compute the average displacement gradient tensor on the input cell using deal.II's
+	 * built-in tools. This function is less efficient than @ref get_av_displacement_gradient for
+	 * computing element-wise constant gradient, but it has the advantage that it depends
+	 * on less assumptions and optimizations. It can be used as a bench-mark of optimized ones,
+	 *  or to compute the average displacement gradient of e.g. non-structure meshes. */
 
 	// these objects are created for each cell. They could be reused to increase the performance
 	const double n_q_points = solver.quadrature_formula.size();
@@ -491,6 +532,9 @@ void get_av_displacement_gradient_dealii_builtin(
 template<int dim>
 void calculate_strain(dealii::Vector<double> &solution, Solver<dim> &solver)
 {
+
+	/*! Compute the strain. */
+
 	typename dealii::DoFHandler<dim>::active_cell_iterator cell = solver.dof_handler.begin_active(), endc = solver.dof_handler.end();
 	dealii::Tensor<2, dim> J;
 	dealii::Tensor<2, dim> J_sym;
@@ -519,6 +563,8 @@ void calculate_strain(dealii::Vector<double> &solution, Solver<dim> &solver)
 template<int dim>
 void calculate_stress(Solver<dim> &solver)
 {
+	/*! Compute the stress using linear elasticity. */
+
 	for(unsigned int element = 0; element < solver.triangulation.n_active_cells(); ++element)
 	{
 		solver.elastic_strain[element] = solver.strain[element] - solver.local_eigenstrain[element];
@@ -530,6 +576,8 @@ void calculate_stress(Solver<dim> &solver)
 template<int dim>
 void setup_default_elastic_properties(std::vector<dealii::SymmetricTensor<4, dim>> &C)
 {
+	/*! The elatic properties that are set when the solvers are constructed. */
+
 	dealii::SymmetricTensor<2, 3> CC;
 	double nu = 0.3;
 	double G = 1.;
@@ -554,6 +602,10 @@ inline void make_gaussian_filter(
 	double std_blur,
 	bool PBC)
 {
+	/*! Compute, for each elements, Gaussian weights associated to each element of its
+	 * neighborhood. Computing for each element the weighted average of the neighborhood results
+	 * in applying a convolution with a Gaussian. */
+
 	std::vector<int> neighbor(2, 0);
 
 	// outside a certain radius, the gaussian weight has a value smaller than min_weight, so we neglect those elements

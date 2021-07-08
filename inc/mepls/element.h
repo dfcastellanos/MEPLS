@@ -677,8 +677,7 @@ class Element
 	/*!< Elastic energy stored in the element. */
 
 	double energy_conf_ = 0.;
-	/*!< Configurational energy stored in the element. An energy term that must
-	 * be set from outside, since its origin is not elastic. */
+	/*!< Configurational energy stored in the element. */
 
 	double energy_ = 0.;
 	/*!< Total energy stored in the element. */
@@ -702,6 +701,8 @@ class Element
 		 * and linear elasticity. Compute the total energy as the sum of the
 		 * configurational and the elastic energies. */
 
+		// since the element has, by definition, a length of 1.0, the computed
+		// energy density corresponds also to the energy value
 		energy_el_ =  0.5 * J_ * stress_ * stress_;
 
 		energy_ = energy_conf_ + energy_el_;
