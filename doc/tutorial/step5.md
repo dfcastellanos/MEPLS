@@ -59,9 +59,9 @@ In this case, each possible transition corresponds to the activation of a specif
 The energy barrier \f$ \Delta E \f$ for a specific slip activation can be related to its stress 
 distance to threshold (@ref mepls::slip::Slip<dim>::barrier) \f$ \Delta \tau^{\rm c} \f$ as \f$ 
 \Delta E \approx \Delta \tau^{\rm c} V_{\rm a}\f$. The quantity \f$ V_{\rm a} \f$ is the so-called 
-activation volume, which is the product of the typical local strain induced by a plastic event 
-and the region's volume occupied by the event. It is a microscopic quantity characteristic of a
-specific microstructure, and is an input to the model.
+activation volume, which is of the order of the product of the typical local strain induced by a 
+plastic event and the region's volume occupied by the event. It is a microscopic quantity 
+characteristic of a specific microstructure, and is an input to the model.
 
 The KMC method models thermal activation as a Poisson process, where each possible transition (i
 .e., activation of a slip system) is an independent Poisson variable with an activation rate \f$ 
@@ -104,7 +104,7 @@ mepls::dynamics::relaxation.
 ### Setting the temperature{#setting_temperature}
 
 The model's temperature value is the rescaled one, \f$ T^{\prime} = k_{\rm B}T/V_{\rm a} \f$ where
- \f$ V_{\rm a} \f$ is the product of the typical local plastic strain \f$ 
+ \f$ V_{\rm a} \f$ is of the same order as the product of the typical local plastic strain \f$ 
 \Delta\gamma^{*}_{\rm pl} \f$ induced by an event and the volume occupied by the event. 
 In this case, since we are working in 2D, it's an area. Let's denote by \f$ l^{*} \f$ the linear 
 length of the event's region. The length of a mesoscale elements is \f$ l \f$, and at that 
@@ -369,7 +369,7 @@ void write_data(const mepls::history::History<dim> &creep_history,
 The `run` function takes as an argument the parameters struct and a specialized output stream 
 implemented by the `deal.II`, that will be described later. First, we set up the elements, the 
 solver, and the system, as done in the previous tutorials. However, this time, the solver is 
-configured to apply a stress-controlled load (denoted here as traction-controlled). Since we are 
+configured to apply a stress-controlled load. Since we are 
 using the solver @ref mepls::elasticity_solver::LeesEdwards<dim>, the stress-controlled load 
 value refers to the xy-component of the externally applied stress. We start with a 
 stress-controlled load since, before the AQS, we will perform the creep simulation. Later, when 
@@ -400,7 +400,7 @@ void run(const Parameters &p, dealii::ConditionalOStream & cout)
       elements.push_back(element);
    }
 
-   mepls::elasticity_solver::LeesEdwards<dim> solver(p.Nx, p.Ny, mepls::elasticity_solver::ControlMode::traction);
+   mepls::elasticity_solver::LeesEdwards<dim> solver(p.Nx, p.Ny, mepls::elasticity_solver::ControlMode::stress);
    for(auto &element : elements)
       solver.set_elastic_properties(element->number(), element->C());
    solver.setup_and_assembly();
@@ -485,7 +485,7 @@ separated from sample preparation, we clean the current macroscale record. In th
 
 Currently, the solver operates in stress-controlled mode. However, we want to perform the AQS 
 under strain-controlled conditions. We can change that in the existing solver bypassing @ref 
-mepls::elasticity_solver::ControlMode::displacement to @ref
+mepls::elasticity_solver::ControlMode::strain to @ref
 mepls::elasticity_solver::LeesEdwards<dim>::set_control_mode. Since the driving mode have 
 changed, the local stress change per unit load increment is now different. Thus, we need to 
 call @ref mepls::element::calculate_ext_stress_coefficients to inform the elements about this.
@@ -495,7 +495,7 @@ call @ref mepls::element::calculate_ext_stress_coefficients to inform the elemen
    system.macrostate.clear();       
 
    // we switch the driving mode to strain-controlled during AQS
-    solver.set_control_mode(mepls::elasticity_solver::ControlMode::displacement);
+    solver.set_control_mode(mepls::elasticity_solver::ControlMode::strain);
 
     // since the type of driving conditions have changed, the local stress change induced by a unit
     // load increment is different. We need to re-compute the ext_stress_coefficients
@@ -993,7 +993,7 @@ void run(const Parameters &p, dealii::ConditionalOStream & cout)
       elements.push_back(element);
    }
 
-   mepls::elasticity_solver::LeesEdwards<dim> solver(p.Nx, p.Ny, mepls::elasticity_solver::ControlMode::traction);
+   mepls::elasticity_solver::LeesEdwards<dim> solver(p.Nx, p.Ny, mepls::elasticity_solver::ControlMode::stress);
    for(auto &element : elements)
       solver.set_elastic_properties(element->number(), element->C());
    solver.setup_and_assembly();
@@ -1052,7 +1052,7 @@ void run(const Parameters &p, dealii::ConditionalOStream & cout)
 		element->state_to_prestress();
 
 	// we switch the driving mode to strain-controlled during AQS
-    solver.set_control_mode(mepls::elasticity_solver::ControlMode::displacement);
+    solver.set_control_mode(mepls::elasticity_solver::ControlMode::strain);
 
     // since the type of driving conditions have changed, the local stress change induced by a unit
     // load increment is different. We need to re-compute the ext_stress_coefficients

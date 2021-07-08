@@ -236,7 +236,7 @@ void run(const Parameters &p, dealii::ConditionalOStream & cout)
       elements.push_back(element);
    }
 
-   mepls::elasticity_solver::LeesEdwards<dim> solver(p.Nx, p.Ny, mepls::elasticity_solver::ControlMode::traction);
+   mepls::elasticity_solver::LeesEdwards<dim> solver(p.Nx, p.Ny, mepls::elasticity_solver::ControlMode::stress);
    for(auto &element : elements)
       solver.set_elastic_properties(element->number(), element->C());
    solver.setup_and_assembly();
@@ -295,7 +295,7 @@ void run(const Parameters &p, dealii::ConditionalOStream & cout)
 		element->state_to_prestress();
 
 	// we switch the driving mode to strain-controlled during AQS
-    solver.set_control_mode(mepls::elasticity_solver::ControlMode::displacement);
+    solver.set_control_mode(mepls::elasticity_solver::ControlMode::strain);
 
     // since the type of driving conditions have changed, the local stress change induced by a unit
     // load increment is different. We need to re-compute the ext_stress_coefficients

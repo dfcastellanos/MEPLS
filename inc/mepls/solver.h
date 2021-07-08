@@ -60,12 +60,11 @@ namespace mepls
 namespace elasticity_solver
 {
 
-
 enum ControlMode
 {
-	traction = 0, displacement = 1
+	traction = 0, displacement = 1,
+	stress = 0, strain = 1
 };
-
 
 /*!
  * This abstract class provides a common interface for different specialized
@@ -650,7 +649,7 @@ class LeesEdwards: public Solver<dim>
 
   public:
 
-	LeesEdwards(unsigned int Nx_, unsigned int Ny_, ControlMode control_mode_= ControlMode::displacement);
+	LeesEdwards(unsigned int Nx_, unsigned int Ny_, ControlMode control_mode_= ControlMode::strain);
 	/*!< Constructor.
 	*
 	* @param Nx number of elements in the x-direction
@@ -675,6 +674,8 @@ class LeesEdwards: public Solver<dim>
 	 * properties. */
 
 	void set_control_mode(ControlMode control_mode);
+	/*!< Set the control model (stress or strain-controlled). */
+
 
 
 	void setup_and_assembly() override;
@@ -806,6 +807,8 @@ class LeesEdwards: public Solver<dim>
 	/*<! External strain. */
 
 	ControlMode control_mode;
+	/*<! Defines the controlled mode (stress or strain). */
+
 };
 
 
@@ -877,12 +880,12 @@ void LeesEdwards<dim>::set_control_mode(ControlMode control_mode_)
 	{
 		return;
 	}
-	else if(control_mode == ControlMode::displacement)
+	else if(control_mode == ControlMode::strain)
 	{
 		// displacement is changed by traction
 		load = external_stress[i][j];
 	}
-	else if(control_mode == ControlMode::traction)
+	else if(control_mode == ControlMode::stress)
 	{
 		// traction is changed by displacement
 		load = external_strain[i][j];
@@ -1140,7 +1143,7 @@ void LeesEdwards<dim>::add_load_increment(double load_increment)
 	dealii::SymmetricTensor<2,dim> external_strain_incr;
 	dealii::SymmetricTensor<2,dim> external_stress_incr;
 
-	if(control_mode == ControlMode::displacement)
+	if(control_mode == ControlMode::strain)
 	{
 		external_strain_incr[i][j] = load_increment;
 		external_stress_incr = global_C_eff * external_strain_incr;
@@ -1197,7 +1200,7 @@ void LeesEdwards<dim>::solve_for_case(
 
 	impl::calculate_strain<dim>(solution, *this);
 
-	if(control_mode == ControlMode::traction)
+	if(control_mode == ControlMode::stress)
 		for(unsigned int element=0; element < triangulation.n_active_cells(); ++element)
 			strain[element] += total_eigenstrain / double(triangulation.n_active_cells());
 
