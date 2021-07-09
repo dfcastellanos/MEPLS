@@ -53,13 +53,12 @@ struct Material
 	double alpha_tau = 0.;
 
 	// modulus distribution
-	double average_G = 1.;
-	double average_G_quench = 1.;
-	double average_K = 1.;
-	double average_K_quench = 1.;
-	double weibull_shape_G = 1.;
-	double weibull_shape_K = 1.;
+	double G = 1.;
+	double G_quench = 1.;
+	double K = 1.;
+	double K_quench = 1.;
 	double gamma_pl_trans = 0.1;
+	double beta = 0;
 
 	// others
 	double coupling_constant = 0.1;
@@ -86,19 +85,17 @@ struct Material
 						  mepls::utils::str::to_string(init_eigenstrain_std_av_vol),
 						  dealii::Patterns::Double(), "");
 
-		prm.declare_entry("average_G", mepls::utils::str::to_string(average_G),
+		prm.declare_entry("G", mepls::utils::str::to_string(G),
 						  dealii::Patterns::Double(), "");
-		prm.declare_entry("average_G_quench", mepls::utils::str::to_string(average_G_quench),
+		prm.declare_entry("G_quench", mepls::utils::str::to_string(G_quench),
 						  dealii::Patterns::Double(), "");
-		prm.declare_entry("average_K", mepls::utils::str::to_string(average_K),
+		prm.declare_entry("K", mepls::utils::str::to_string(K),
 						  dealii::Patterns::Double(), "");
-		prm.declare_entry("average_K_quench", mepls::utils::str::to_string(average_K_quench),
-						  dealii::Patterns::Double(), "");
-		prm.declare_entry("weibull_shape_G", mepls::utils::str::to_string(weibull_shape_G),
-						  dealii::Patterns::Double(), "");
-		prm.declare_entry("weibull_shape_K", mepls::utils::str::to_string(weibull_shape_K),
+		prm.declare_entry("K_quench", mepls::utils::str::to_string(K_quench),
 						  dealii::Patterns::Double(), "");
 		prm.declare_entry("gamma_pl_trans", mepls::utils::str::to_string(gamma_pl_trans),
+						  dealii::Patterns::Double(), "");
+		prm.declare_entry("beta", mepls::utils::str::to_string(beta),
 						  dealii::Patterns::Double(), "");
 
 		prm.declare_entry("lambda", mepls::utils::str::to_string(lambda),
@@ -140,13 +137,12 @@ struct Material
 		init_eigenstrain_av_vol = prm.get_double("init_eigenstrain_av_vol");
 		init_eigenstrain_std_av_vol = prm.get_double("init_eigenstrain_std_av_vol");
 
-		average_G = prm.get_double("average_G");
-		average_G_quench = prm.get_double("average_G_quench");
-		average_K = prm.get_double("average_K");
-		average_K_quench = prm.get_double("average_K_quench");
-		weibull_shape_G = prm.get_double("weibull_shape_G");
-		weibull_shape_K = prm.get_double("weibull_shape_K");
+		G = prm.get_double("G");
+		G_quench = prm.get_double("G_quench");
+		K = prm.get_double("K");
+		K_quench = prm.get_double("K_quench");
 		gamma_pl_trans = prm.get_double("gamma_pl_trans");
+		beta = prm.get_double("beta");
 
 		lambda = prm.get_double("lambda");
 		lambda_quench = prm.get_double("lambda_quench");
@@ -165,6 +161,7 @@ struct Material
 	}
 
 };
+
 
 
 /*! Struct with parameters related to the simulation setup. */
@@ -458,20 +455,27 @@ public:
 
 	dealii::SymmetricTensor<2, dim> get_eigenstrain_increment() override
 	{
+		bool thermal = conf.temperature > 0;
+		double eff_shear_stress_variation = 0.;
+
 		std::gamma_distribution<double> g_a(1, 1);
-		std::gamma_distribution<double> g_b(1 - conf.coupling_constant, 1);
+		std::gamma_distribution<double> g_b(1-conf.coupling_constant, 1);
 		double za = g_a(generator);
 		double zb = g_b(generator);
-		bool thermal = conf.temperature > 0;
-		double eff_shear_stress_variation = -(eff_shear_stress + thermal * (barrier + conf.temperature)) * za / (za + zb);
-//		double eff_shear_stress_variation = - (eff_shear_stress + thermal*barrier ) * za/(za+zb);
 
-		M_Assert(eff_shear_stress *eff_shear_stress_variation<1,
+		if(thermal)
+		{
+			eff_shear_stress_variation = -(eff_shear_stress + thermal * (barrier + conf.temperature)) * za / (za + zb);
+		}else{
+			eff_shear_stress_variation = - eff_shear_stress * za/(za+zb); // c=-1.254 for stat fit
+//			double eff_shear_stress_variation = - threshold * za/(za+zb); // c=-0.812 for stat fit
+
+			M_Assert(eff_shear_stress *eff_shear_stress_variation<1,
 					 "Eff. shear stress variation does not reduce local stress. Is the orientation of plastic event according to local stress?");
+		}
 
 		double A = M * parent->S() * M;
 		double gamma = 2 * eff_shear_stress_variation / A;
-		//			double gamma = conf.coupling_constant;
 		dealii::SymmetricTensor<2, dim> eigenstrain_dev = gamma * M;
 
 		return eigenstrain_dev;
@@ -515,20 +519,21 @@ public:
 
 	struct Config
 	{
-		double average_G = 1.;
-		double average_K = 1.;
-		double weibull_shape_G = 1.;
-		double weibull_shape_K = 1.;
+		double G = 1.;
+		double K = 1.;
+		double G_quench = 1.;
+		double K_quench = 1.;
 
 		double alpha_tau = 0.;
 		double coupling_constant = 0.2;
-		double temperature = 0.2;
+		double temperature = 0.;
 		double activation_rate_0 = 1.;
 		double k = 2;
 		double k_quench = 2;
 		double lambda = 1.;
 		double lambda_quench = 1.;
-		double gamma_pl_trans = 1.;
+		double gamma_pl_trans = 1e-5;
+		double beta = 0;
 
 		unsigned int n_slip_systems = 1;
 		unsigned int number = 0;
@@ -545,37 +550,70 @@ public:
 	{
 		this->number(conf.number);
 
-		renew_elastic_properties();
-		renew_thresholds();
+		mepls::event::Plastic<dim> plastic_event;
+		renew_thresholds(plastic_event);
 	}
 
 	void renew_structural_properties_impl(mepls::event::Plastic<dim> &plastic_event) override
 	{
-		if(plastic_event.renew_elastic_properties)
-			renew_elastic_properties();
-
 		if(plastic_event.renew_slip_properties)
-			renew_thresholds();
+			renew_thresholds(plastic_event);
 	}
 
-
-	void renew_elastic_properties()
-	{
-		double G = mepls::utils::rand::get_weibull_rand_av(conf.weibull_shape_G, conf.average_G,
-														   unif_distribution(generator));
-		auto C = mepls::utils::tensor::make_mandel_anisotropic_stiffness<dim>(conf.average_K, G, G,
-																			  0.);
-		this->C(mepls::utils::tensor::mandel_to_standard_rank4<dim>(C));
-	}
-
-
-	void renew_thresholds()
+	void renew_thresholds(mepls::event::Plastic<dim> &plastic_event)
 	{
 		this->remove_slip_systems();
 
-		double x = std::exp(-this->integrated_vm_eigenstrain()/conf.gamma_pl_trans);
-		double k = (conf.k_quench - conf.k)*x + conf.k;
-		double lambda = (conf.lambda_quench - conf.lambda)*x + conf.lambda;
+		bool thermal = false;//conf.temperature > 0;
+//
+		double k, lambda, G, K;
+
+//		if(thermal)
+//		{
+//			double U = normal_distribution(generator)*conf.std_U + conf.av_U;
+//			this->energy_conf( U );
+//
+//			k = conf.k_quench;
+//			double av = conf.A*std::exp(-U/conf.B);
+//			lambda =  av / std::tgamma(1. + 1. / k);
+//
+//		}else{
+//
+//			if(this->integrated_vm_eigenstrain()==0.)
+//			{
+//				lambda = conf.lambda_quench;
+//				k = conf.k_quench;
+//			}
+//			else
+//			{
+//				assert(plastic_event.dplastic_strain > 0.);
+//				double x = std::exp(-(plastic_event.dplastic_strain/(conf.gamma_pl_trans*std::pow
+//				(lambda_old/2.,conf.B))));
+//				lambda = (lambda_old - conf.lambda)*x + conf.lambda;
+//				k = (k_old - conf.k)*x + conf.k;
+//			}
+//		}
+
+
+		if(this->integrated_vm_eigenstrain()==0.)
+		{
+			lambda = conf.lambda_quench;
+			k = conf.k_quench;
+			G = conf.G_quench;
+			K = conf.K_quench;
+		}
+		else
+		{
+			assert(plastic_event.dplastic_strain > 0.);
+			double x = std::exp(-(plastic_event.dplastic_strain/(conf.gamma_pl_trans*std::pow(lambda_old/conf.lambda,conf.beta))));
+			lambda = (lambda_old - conf.lambda)*x + conf.lambda;
+			k = (k_old - conf.k)*x + conf.k;
+			G = (G_old - conf.G)*x + conf.G;
+			K = (K_old - conf.K)*x + conf.K;
+		}
+
+		auto C = mepls::utils::tensor::make_mandel_anisotropic_stiffness<dim>(K, G, G, 0.);
+		this->C(mepls::utils::tensor::mandel_to_standard_rank4<dim>(C));
 
 		typename slip::Oriented<dim>::Config slip_conf;
 		slip_conf.alpha_tau = conf.alpha_tau;
@@ -610,6 +648,11 @@ public:
 			slip_conf.threshold = mepls::utils::rand::get_weibull_rand(k, lambda, unif_distribution(generator));
 			this->add_slip_system(new slip::Oriented<dim>(generator, unif_distribution, slip_conf));
 		}
+
+		lambda_old = lambda;
+		k_old = k;
+		G_old = G;
+		K_old = K;
 	}
 
 	Anisotropic<dim> *make_copy_impl() override
@@ -663,8 +706,9 @@ public:
 
 protected:
 	std::mt19937 &generator;
-	mutable std::uniform_real_distribution<double> unif_distribution;
+	std::uniform_real_distribution<double> unif_distribution;
 	Config conf;
+	double lambda_old, k_old, G_old, K_old;
 };
 
 } // namespace element
@@ -852,16 +896,24 @@ inline void file_attrs(H5::H5File &file, const parameters::Parameters &p)
 		H5::PredType::NATIVE_DOUBLE, &p.mat.lambda);
 	file.createAttribute("k", H5::PredType::NATIVE_DOUBLE, att_space).write(
 		H5::PredType::NATIVE_DOUBLE, &p.mat.k);
+	file.createAttribute("lambda_quench", H5::PredType::NATIVE_DOUBLE, att_space).write(
+		H5::PredType::NATIVE_DOUBLE, &p.mat.lambda_quench);
+	file.createAttribute("k_quench", H5::PredType::NATIVE_DOUBLE, att_space).write(
+		H5::PredType::NATIVE_DOUBLE, &p.mat.k_quench);
+	file.createAttribute("gamma_pl_trans", H5::PredType::NATIVE_DOUBLE, att_space).write(
+		H5::PredType::NATIVE_DOUBLE, &p.mat.gamma_pl_trans);
+	file.createAttribute("beta", H5::PredType::NATIVE_DOUBLE, att_space).write(
+		H5::PredType::NATIVE_DOUBLE, &p.mat.beta);
 	file.createAttribute("alpha_tau", H5::PredType::NATIVE_DOUBLE, att_space).write(
 		H5::PredType::NATIVE_DOUBLE, &p.mat.alpha_tau);
-	file.createAttribute("average_G", H5::PredType::NATIVE_DOUBLE, att_space).write(
-		H5::PredType::NATIVE_DOUBLE, &p.mat.average_G);
-	file.createAttribute("weibull_shape_G", H5::PredType::NATIVE_DOUBLE, att_space).write(
-		H5::PredType::NATIVE_DOUBLE, &p.mat.weibull_shape_G);
-	file.createAttribute("average_K", H5::PredType::NATIVE_DOUBLE, att_space).write(
-		H5::PredType::NATIVE_DOUBLE, &p.mat.average_K);
-	file.createAttribute("weibull_shape_K", H5::PredType::NATIVE_DOUBLE, att_space).write(
-		H5::PredType::NATIVE_DOUBLE, &p.mat.weibull_shape_K);
+	file.createAttribute("G", H5::PredType::NATIVE_DOUBLE, att_space).write(
+		H5::PredType::NATIVE_DOUBLE, &p.mat.G);
+	file.createAttribute("K", H5::PredType::NATIVE_DOUBLE, att_space).write(
+		H5::PredType::NATIVE_DOUBLE, &p.mat.K);
+	file.createAttribute("G_quench", H5::PredType::NATIVE_DOUBLE, att_space).write(
+		H5::PredType::NATIVE_DOUBLE, &p.mat.G_quench);
+	file.createAttribute("K_quench", H5::PredType::NATIVE_DOUBLE, att_space).write(
+		H5::PredType::NATIVE_DOUBLE, &p.mat.K_quench);
 	file.createAttribute("Nx", H5::PredType::NATIVE_UINT, att_space).write(
 		H5::PredType::NATIVE_UINT, &p.sim.Nx);
 	file.createAttribute("Ny", H5::PredType::NATIVE_UINT, att_space).write(
@@ -1365,18 +1417,22 @@ inline std::string make_filename(const parameters::Parameters &p)
 	std::ostringstream nslip;
 	std::ostringstream lambda;
 	std::ostringstream temperature;
+	std::ostringstream beta;
+	std::ostringstream gamma;
 	std::ostringstream seed;
 
 	L << "L_" << p.sim.Nx << "x" << p.sim.Ny;
-	coupling_constant << "-c_" << std::fixed << std::setprecision(6) << p.mat.coupling_constant;
-	nslip << "-nslip_" << p.mat.n_slip_systems;
-	elastic_properties << "-avG_" << std::fixed << std::setprecision(3) << p.mat.average_G;
-	lambda << "-lambda_" << std::fixed << std::setprecision(4) << p.mat.lambda;
-	k << "-k_" << std::fixed << std::setprecision(4) << p.mat.k;
-	temperature << "-Tl_" << std::fixed << std::setprecision(2) << p.mat.temperature_liquid;
-	seed << "-seed_" << p.sim.seed;
+	coupling_constant << "+c_" << std::fixed << std::setprecision(6) << p.mat.coupling_constant;
+	nslip << "+nslip_" << p.mat.n_slip_systems;
+	gamma << "+gamma_" << p.mat.gamma_pl_trans;
+	beta << "+beta_" << p.mat.beta;
+	elastic_properties << "+G_" << std::fixed << std::setprecision(3) << p.mat.G_quench;
+	lambda << "+lambda_" << std::fixed << std::setprecision(4) << p.mat.lambda_quench;
+	k << "+k_" << std::fixed << std::setprecision(4) << p.mat.k_quench;
+	temperature << "+Tl_" << std::fixed << std::setprecision(2) << p.mat.temperature_liquid;
+	seed << "+seed_" << p.sim.seed;
 
-	file_descriptor_ostrg << L.str() << lambda.str() << k.str() << nslip.str()
+	file_descriptor_ostrg << L.str() << lambda.str() << k.str() << beta.str() << gamma.str()
 						  << elastic_properties.str() << coupling_constant.str()
 						  << temperature.str() << seed.str();
 
@@ -1591,10 +1647,10 @@ std::vector<element::Anisotropic<dim> *> create_elements(const parameters::Param
 	{
 		typename element::Anisotropic<dim>::Config conf;
 
-		conf.average_G = p.mat.average_G_quench;
-		conf.average_K = p.mat.average_K_quench;
-		conf.weibull_shape_G = p.mat.weibull_shape_G;
-		conf.weibull_shape_K = p.mat.weibull_shape_K;
+		conf.G = p.mat.G;
+		conf.K = p.mat.K;
+		conf.G_quench = p.mat.G_quench;
+		conf.K_quench = p.mat.K_quench;
 		conf.alpha_tau = p.mat.alpha_tau;
 		conf.k_quench = p.mat.k_quench;
 		conf.k = p.mat.k;
@@ -1605,6 +1661,8 @@ std::vector<element::Anisotropic<dim> *> create_elements(const parameters::Param
 		conf.activation_rate_0 = p.mat.activation_rate;
 		conf.number = n;
 		conf.gamma_pl_trans = p.mat.gamma_pl_trans;
+		conf.beta = p.mat.beta;
+		conf.temperature = p.mat.temperature_liquid;
 
 		elements.push_back(
 			new element::Anisotropic<dim>(generator, conf));

@@ -48,6 +48,7 @@ void run(const parameters::Parameters &p, dealii::ConditionalOStream & cout)
 
 	std::vector<espci::element::Anisotropic<dim> *> elements_espci = create_elements<dim>(p,
 																						  generator);
+
 	mepls::element::Vector<dim> elements;
 	for(auto &element : elements_espci)
 		elements.push_back(element);
@@ -88,18 +89,6 @@ void run(const parameters::Parameters &p, dealii::ConditionalOStream & cout)
 			theta_list.push_back(z);
 	}
 
-	if(not het_elasticity)
-	{
-		// If the properties are homogeneous, set them here since the elements,
-		// by default, get their properties from a pdf upon their construction.
-		// (even if the disorder is very small, this procedure ensures a perfect
-		// homogeneity)
-		auto CC = utils::tensor::make_mandel_anisotropic_stiffness<dim>(p.mat.average_K_quench, p.mat.average_G_quench,
-																		p.mat.average_G_quench, 0.);
-		for(auto &element : elements)
-			element->C(utils::tensor::mandel_to_standard_rank4<dim>(CC));
-	}
-
 	elasticity_solver::LeesEdwards<dim> solver(p.sim.Nx, p.sim.Ny);
 	M_Assert(elements.size() == solver.get_n_elements(), "Numbers of mesoscale and finite "
 													  "elements do not match");
@@ -124,7 +113,6 @@ void run(const parameters::Parameters &p, dealii::ConditionalOStream & cout)
 
 	timer->leave_subsection("Setting up");
 
-
 	///////////////////////////////////////////
 	///////  simulate parent liquid //////////
 	/////////////////////////////////////////
@@ -135,6 +123,7 @@ void run(const parameters::Parameters &p, dealii::ConditionalOStream & cout)
 	system.set_history(liquid_history);
 	if(parent_liquid)
 	{
+
 		for(auto &element : elements_espci)
 		{
 			auto conf = element->config();
@@ -144,23 +133,28 @@ void run(const parameters::Parameters &p, dealii::ConditionalOStream & cout)
 
 		simulate_parent_liquid_KMC(system, liquid_history, p, continue_simulation);
 //		simulate_parent_liquid_MH(system, liquid_history, p, continue_simulation);
-
-		// apply instantaneous quench
-		for(auto &element : elements_espci)
-		{
-			auto conf = element->config();
-			conf.temperature = 0;
-			element->config(conf);
-		}
-		dynamics::relaxation(system, continue_simulation);
-
-		liquid_history.add_macro(system);
-		system.macrostate.clear();
-
 	}
 
-	timer->leave_subsection("Simulate parent liquid");
+	// apply instantaneous quench
+	for(auto &element : elements_espci)
+	{
+		auto conf = element->config();
+		conf.temperature = 0;
+		element->config(conf);
+	}
 
+	dynamics::relaxation(system, continue_simulation, 1e10);
+	if(not continue_simulation())
+	{
+		cout << continue_simulation << std::endl;
+		abort();
+	}
+
+	liquid_history.add_macro(system);
+	system.macrostate.clear();
+
+
+	timer->leave_subsection("Simulate parent liquid");
 
 	////////////////////////////
 	//////      AQS     ///////
@@ -168,6 +162,7 @@ void run(const parameters::Parameters &p, dealii::ConditionalOStream & cout)
 
 	history::History<dim> aqs_history("AQS");
 	system.set_history(aqs_history);
+
 
 	/* ----- snapshots ----- */
 	timer->enter_subsection("Taking snapshots");
@@ -203,7 +198,6 @@ void run(const parameters::Parameters &p, dealii::ConditionalOStream & cout)
 										  0., macrostate[p.sim.monitor_name]));
 	timer->leave_subsection("Taking snapshots");
 
-
 	/* ----- save struct. properties ----- */
 	std::vector<event::RenewSlip<dim>> renewal_vector;
 	for(auto &element : elements)
@@ -227,35 +221,30 @@ void run(const parameters::Parameters &p, dealii::ConditionalOStream & cout)
 
 	aqs_history.add_macro(system);
 
+	assert( macrostate["av_vm_plastic_strain"]==0. );
+
 	double G_old = 0.;
+	double G_stat = p.mat.G;
 	while(continue_simulation())
 	{
-		// reassemble the elastic properties if the change if the shear
-		// modulus is big enough, if it's different enough from the stationary
-		// value and only if we are using homogeneous elastic properties
-		double x_global = std::exp(-macrostate["av_vm_plastic_strain"]/p.mat.gamma_pl_trans);
-		double G_stat = p.mat.average_G;
-		double G_quench = p.mat.average_G_quench;
-		double G_new = (G_quench-G_stat)*x_global + G_stat;
-		if( not het_elasticity and std::abs(G_new/G_old-1)>0.001 and std::abs(G_old/G_stat-1)>0.005 )
+		// reassemble the elastic properties if the change in the shear
+		// modulus is big enough and if it's different enough from the stationary
+		// value
+		dealii::SymmetricTensor<4,dim> av_C;
+		for(auto &element : elements)
+			av_C += element->C();
+		av_C /= double(elements.size());
+
+		double G_new = av_C[0][1][0][1];
+
+		if(std::abs(G_new/G_old-1)>0.001 and std::abs(G_old/G_stat-1)>0.005)
 		{
 			timer->leave_subsection("Running AQS");
 			timer->enter_subsection("Reassembling with new stiffness");
 
 			G_old = G_new;
 
-			double K_stat = p.mat.average_K;
-			double K_quench = p.mat.average_K_quench;
-			double K_new = (K_quench-K_stat)*x_global + K_stat;
-
-			auto CC = utils::tensor::make_mandel_anisotropic_stiffness<dim>(K_new, G_new,
-																			G_new, 0.);
-			auto C = utils::tensor::mandel_to_standard_rank4<dim>(CC);
-
-			for(auto &element : elements)
-				element->C(C);
-
-			solver.reassemble_with_new_stiffness(C);
+			solver.reassemble_with_new_stiffness(av_C);
 
 			// we call add which will inform the macrostate and the elements
 			// about the change in external stress due to the change in global
