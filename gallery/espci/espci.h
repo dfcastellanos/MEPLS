@@ -670,6 +670,56 @@ protected:
 } // namespace element
 
 
+namespace history
+{
+
+struct MacroSummaryRow : public mepls::history::MacroSummaryRow
+{
+	/*! Struct to store system-scale properties */
+	double G = 0.;
+	double K = 0.;
+};
+
+template<int dim>
+class History : public mepls::history::History<dim>
+{
+  public:
+
+	History(const std::string &inputname_ = "history")
+		:
+	mepls::history::History<dim>(inputname_)
+	{
+		/*! Constructor. */
+	}
+
+
+	void add_macro(const mepls::system::System<dim> &system) override
+	{
+		if(mepls::history::History<dim>::closed_)
+			return;
+
+		MacroSummaryRow data;
+
+		dealii::SymmetricTensor<4,dim> av_C;
+		for(auto &element : system)
+			av_C += element->C();
+		av_C /= double(system.size());
+
+		data.G = av_C[0][1][0][1];
+		data.K = (av_C[0][0][0][0]+av_C[0][0][1][1])/2.;
+
+
+		mepls::history::History<dim>::add_macro_default(system, data);
+
+		macro_evolution_espci.push_back(data);
+	}
+
+	std::vector<MacroSummaryRow> macro_evolution_espci;
+};
+
+
+} // history
+
 template<int dim>
 class GlobalPropertiesSnapshot
 {
@@ -849,7 +899,7 @@ inline void file_attrs(H5::H5File &file, const parameters::Parameters &p)
 
 template<int dim>
 inline void evolution_history(H5::H5File &file,
-						  const typename mepls::history::History<dim> &history)
+						  const typename history::History<dim> &history)
 {
 	std::string path = "/"+history.name();
 	if(not H5Lexists(file.getId(), path.c_str(), H5P_DEFAULT))
@@ -857,7 +907,7 @@ inline void evolution_history(H5::H5File &file,
 
 	{   /* --------- write macro evolution ----------- */
 
-		using DataRow = mepls::history::MacroSummaryRow;
+		using DataRow = history::MacroSummaryRow;
 
 		H5::CompType mtype(sizeof(DataRow));
 		mtype.insertMember("time", HOFFSET(DataRow, time), H5::PredType::NATIVE_DOUBLE);
@@ -891,12 +941,14 @@ inline void evolution_history(H5::H5File &file,
 		mtype.insertMember("std_stress_01", HOFFSET(DataRow, std_stress_01),
 						   H5::PredType::NATIVE_DOUBLE);
 		mtype.insertMember("index", HOFFSET(DataRow, index), H5::PredType::NATIVE_UINT);
+		mtype.insertMember("shear_modulus", HOFFSET(DataRow, G), H5::PredType::NATIVE_DOUBLE);
+		mtype.insertMember("bulk_modulus", HOFFSET(DataRow, K), H5::PredType::NATIVE_DOUBLE);
 
-		hsize_t d[] = {history.macro_evolution.size()};
+		hsize_t d[] = {history.macro_evolution_espci.size()};
 		H5::DataSpace space(1, d);
 		H5::DataSet dataset = file.createDataSet(path + "/macro_evolution", mtype, space);
 
-		dataset.write(history.macro_evolution.data(), mtype);
+		dataset.write(history.macro_evolution_espci.data(), mtype);
 	}
 
 	{   /* --------- write driving event history ----------- */
