@@ -28,19 +28,16 @@ namespace espci
 
 using namespace mepls;
 
-template<int dim>
-class Simulation : public mepls::utils::Launcher<parameters::Parameters>
+
+void run(const parameters::Parameters &p, dealii::ConditionalOStream & cout)
 {
-
-void run_impl(const parameters::Parameters &p) override
-{
-
-
 	// TODO here, dim=2 at least for how we set the average pressure
 
 	/////////////////////////////
 	//////  setup system ///////
 	///////////////////////////
+
+	constexpr unsigned int dim = 2;
 
 	utils::ContinueSimulation continue_simulation;
 
@@ -191,8 +188,7 @@ void run_impl(const parameters::Parameters &p) override
 	if(p.out.snapshots.find("patches") != std::string::npos)
 		for(auto n_patch : p.sim.N_patch_list)
 		{
-			if(p.out.verbosity and omp_get_thread_num() == 0)
-				std::cout << ">>> " << n_patch << std::endl;
+			cout << ">>> " << n_patch << std::endl;
 			patch_prop_snapshots.push_back(
 				patches::PatchPropertiesSnapshot<dim>(system,
 													  p.sim.monitor_name, 0.,
@@ -283,10 +279,8 @@ void run_impl(const parameters::Parameters &p) override
 			timer->enter_subsection("Running AQS");
 		}
 
-		if(p.out.verbosity and omp_get_thread_num() == 0)
-			std::cout << aqs_history.index() << " | " << std::fixed << macrostate["total_strain"]
-					  << " " << macrostate["ext_stress"] << " " << macrostate["pressure"]
-					  << std::endl;
+		cout << aqs_history.index() << " | " << std::fixed << macrostate["total_strain"]
+				  << " " << macrostate["ext_stress"] << std::endl;
 
 		if(snapshot_check(macrostate[p.sim.monitor_name]))
 		{
@@ -310,8 +304,7 @@ void run_impl(const parameters::Parameters &p) override
 			if(p.out.snapshots.find("patches") != std::string::npos)
 				for(auto n_patch : p.sim.N_patch_list)
 				{
-					if(p.out.verbosity and omp_get_thread_num() == 0)
-						std::cout << ">>> " << n_patch << std::endl;
+					cout << ">>> " << n_patch << std::endl;
 					patch_prop_snapshots.push_back(
 						patches::PatchPropertiesSnapshot<dim>(system,
 															  p.sim.monitor_name,
@@ -341,8 +334,7 @@ void run_impl(const parameters::Parameters &p) override
 	auto solver_state_end_AQS = solver.get_state();
 	auto macrostate_end_AQS = system.macrostate;
 
-	if(p.out.verbosity and omp_get_thread_num() == 0)
-		std::cout << continue_simulation << std::endl;
+	cout << continue_simulation << std::endl;
 
 	timer->leave_subsection("Running AQS");
 
@@ -388,13 +380,12 @@ void run_impl(const parameters::Parameters &p) override
 		while(continue_relaxing())
 		{
 
-			if(p.out.verbosity and omp_get_thread_num() == 0)
-				std::cout << thermal_relaxation_hist.index() << " | " << std::fixed
-						  << macrostate["total_strain"]
-						  << " " << macrostate["ext_stress"]
-						  << " " << macrostate["pressure"]
-						  << " " << macrostate["time"]
-						  << std::endl;
+			cout << thermal_relaxation_hist.index() << " | " << std::fixed
+					  << macrostate["total_strain"]
+					  << " " << macrostate["ext_stress"]
+					  << " " << macrostate["pressure"]
+					  << " " << macrostate["time"]
+					  << std::endl;
 
 			kmc(*system_replica);
 			thermal_relaxation_hist.add_macro( *system_replica );
@@ -407,11 +398,8 @@ void run_impl(const parameters::Parameters &p) override
 
 		delete system_replica;
 
-		if(p.out.verbosity and omp_get_thread_num() == 0)
-		{
-			std::cout << continue_relaxing << std::endl;
-			std::cout << "Relaxing finished" << std::endl;
-		}
+		cout << continue_relaxing << std::endl;
+		cout << "Relaxing finished" << std::endl;
 	}
 
 	timer->leave_subsection("Thermal relaxation");
@@ -443,10 +431,9 @@ void run_impl(const parameters::Parameters &p) override
 
 		while(continue_unloading())
 		{
-			if(p.out.verbosity and omp_get_thread_num() == 0)
-				std::cout << aqs_unloading.index() << " | " << std::fixed
-						  << macrostate["total_strain"] << " " << macrostate["ext_stress"] << " "
-						  << macrostate["pressure"] << std::endl;
+			cout << aqs_unloading.index() << " | " << std::fixed
+					  << macrostate["total_strain"] << " " << macrostate["ext_stress"] << " "
+					  << macrostate["pressure"] << std::endl;
 
 			dynamics::finite_extremal_dynamics_step(1e-4 * 0.5, system, false);
 			aqs_unloading.add_macro(system);
@@ -457,8 +444,7 @@ void run_impl(const parameters::Parameters &p) override
 			continue_unloading(macrostate["ext_stress"] > 0, "System unloaded");
 		}
 
-		if(p.out.verbosity and omp_get_thread_num() == 0)
-			std::cout << continue_unloading << std::endl;
+		cout << continue_unloading << std::endl;
 
 		perform_reloading(system, aqs_reload_forward, true, p);
 		perform_reloading(system, aqs_reload_backward, false, p);
@@ -502,8 +488,6 @@ void run_impl(const parameters::Parameters &p) override
 		timer->print_summary();
 } // run
 
-}; // simulation launcher
-
 
 } // espci
 
@@ -530,8 +514,34 @@ int main(int argc, char *argv[])
 		std::cout << "Configuration file " << parser.get<std::string>("f") << " created" << std::endl;
 	}
 
-	espci::Simulation<2> sim;
-	int result = sim.run(p);
 
-	return result;
+	unsigned int n_rep = p.sim.n_rep;
+	if(n_rep < omp_get_max_threads())
+		n_rep = omp_get_max_threads();
+
+	// initialize the master engine with the master seed
+	std::srand(p.sim.seed);
+
+	#pragma omp parallel
+	{
+		unsigned int n_threads = omp_get_max_threads();
+		unsigned int id = omp_get_thread_num();
+		unsigned int rep_per_thread = int( n_rep / n_threads );
+
+		dealii::ConditionalOStream cout(std::cout, id==0 and p.out.verbosity);
+
+		for(unsigned int n = 0; n < rep_per_thread; ++n)
+		{
+			espci::parameters::Parameters p_thread = p;
+			#pragma critical
+			{
+				// generate a seed for a simulation run
+				p_thread.sim.seed = std::rand();
+			};
+
+			espci::run(p_thread, cout);
+		}
+
+	}
+
 }
