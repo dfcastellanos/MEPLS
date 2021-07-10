@@ -1444,18 +1444,22 @@ inline std::string make_filename(const parameters::Parameters &p)
 
 
 template<int dim>
-void equilibrate_structure_by_rejection(mepls::system::System<dim> &system,
-											 const parameters::Parameters &p)
+bool equilibrate_structure_by_rejection(mepls::system::System<dim> &system,
+											 const parameters::Parameters &p,
+											 unsigned int n_max = 10000)
 {
 	// this ensures that initially all the thresholds are above the local stress
 
 	if(p.out.verbosity and omp_get_thread_num() == 0)
 		std::cout << ">> Equilibrating initial structure... " << std::endl;
 
+	bool relaxed = true;
+
 	for(auto &element : system)
 	{
 		bool unstable = true;
-		while(unstable)
+		unsigned int n = 0;
+		while(unstable and n < n_max)
 		{
 			element->renew_structural_properties();
 
@@ -1466,16 +1470,25 @@ void equilibrate_structure_by_rejection(mepls::system::System<dim> &system,
 					unstable = true;
 					break;
 				}
+
+			++n;
+		}
+
+		if(n>=n_max)
+		{
+			relaxed = false;
+			break;
 		}
 	}
 
-	for(auto &element : system)
-		for(auto &slip : *element)
-			assert(slip->barrier > 0);
-
 
 	if(p.out.verbosity and omp_get_thread_num() == 0)
-		std::cout << ">>>> Done " << std::endl;
+		if(relaxed)
+			std::cout << ">>>> Relax. by rejection SUCCESSFUL" << std::endl;
+		else
+			std::cout << ">>>> Relax. by rejection FAILED" << std::endl;
+
+	return relaxed;
 }
 
 
@@ -1538,7 +1551,18 @@ void apply_initial_eigenstrain(mepls::system::System<dim> &system,
 	// stress field to be altered anymore. Note: depending on the stress
 	// field and the threshold distribution, this method might never find
 	// a stable configuration. In that case, relaxation is mandatory.
-	equilibrate_structure_by_rejection(system, p);
+	bool relaxed = equilibrate_structure_by_rejection(system, p, 1000000);
+
+	if(not relaxed)
+	{
+		mepls::utils::ContinueSimulation continue_simulation;
+		mepls::dynamics::relaxation(system, continue_simulation);
+		if(not continue_simulation())
+		{
+			std::cout << continue_simulation << std::endl;
+			abort();
+		}
+	}
 }
 
 
@@ -1598,41 +1622,51 @@ void simulate_parent_liquid_MH(mepls::system::System<dim> &system,
 
 	auto &macro_evolution = history.macro_evolution;
 
-	std::vector<double> rolling_av_stress;
-	double rolling_av_stress_old = 0.;
-	double rolling_av_stress_new = 0.;
+	std::vector<double> rolling_av_energy;
+	double rolling_av_energy_old = 0.;
+	double rolling_av_energy_new = 0.;
 	mepls::utils::ContinueSimulation continue_mh;
-	unsigned int i = 0;
+	unsigned int i_accepted = 0;
+	unsigned int i_total = 0;
 	unsigned int n = 200;
 
-	while(continue_mh())
+	while(i_accepted < 2000)//continue_mh())
 	{
-
-		bool accepted = mh(system);
+		bool accepted = mh(system, true);
 
 		if(accepted)
 		{
-			++i;
+			++i_accepted;
 
 			history.add_macro(system);
 
 			if(p.out.verbosity and omp_get_thread_num() == 0)
-				std::cout << i << std::endl;
+				std::cout << i_accepted << " " << system.macrostate["ext_stress"] << std::endl;
+
+			if(i_accepted % n == 0 and i_accepted > 1000)
+			{
+
+				rolling_av_energy_new = 0.;
+				for(unsigned int j = macro_evolution.size() - n; j < macro_evolution.size();
+					++j)
+					rolling_av_energy_new += macro_evolution[j].av_energy_conf +
+											 macro_evolution[j].av_energy_el;
+				rolling_av_energy_new /= double(n);
+
+				if(rolling_av_energy_old!=0.)
+				{
+					continue_mh( std::abs(rolling_av_energy_new/rolling_av_energy_old-1.) > 5e-3, "MH reached the stationary state" );
+
+					rolling_av_energy_old = rolling_av_energy_new;
+				}else{
+					// initialization of rolling_av_energy_old
+					rolling_av_energy_old = rolling_av_energy_new;
+				}
+
+			}
 		}
 
-		if(i % n == 0 and i > 1000)
-		{
-			rolling_av_stress_new = 0.;
-			for(unsigned int j = macro_evolution.size() - n; j < macro_evolution.size();
-				++j)
-				rolling_av_stress_new += macro_evolution[j].av_vm_stress;
-			rolling_av_stress_new /= double(n);
-
-			continue_mh( std::abs(rolling_av_stress_new-rolling_av_stress_old)
-			/rolling_av_stress_old > 0.005, "MH reached the stationary state" );
-
-			rolling_av_stress_old = rolling_av_stress_new;
-		}
+		++i_total;
 	}
 }
 
