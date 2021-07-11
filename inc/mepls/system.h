@@ -32,6 +32,14 @@ class Element;
 }
 
 
+/*! This namespace contains the abstract class system::System, which
+ * serves as a common interface for the system classes. A system object represents a
+ * solid material capable of undergoing plastic deformation, which occurs in
+ * a discrete manner both in time and in space. */
+namespace system
+{
+
+
 /*! This class represents the macroscopic state of the system. Its state is
  * updated by registering the occurence of external load variation events
  * (event::Driving) and plastic activity in the form of slip events
@@ -186,14 +194,6 @@ struct MacroState
 
 };
 
-
-
-/*! This namespace contains the abstract class system::System, which
- * serves as the interface for the system objects. A system object represents a
- * solid material capable of undergoing plastic deformation, which occurs in
- * a discrete manner both in time and in space. */
-namespace system
-{
 
 
 /*! The System class represents a solid material capable of undergoing plastic

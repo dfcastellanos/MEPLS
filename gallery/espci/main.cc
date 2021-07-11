@@ -106,7 +106,7 @@ void run(const parameters::Parameters &p, dealii::ConditionalOStream & cout)
 	mepls::element::calculate_ext_stress_coefficients(elements, solver);
 
 	system::Standard<dim> system(elements, solver, generator);
-	MacroState<dim> &macrostate = system.macrostate;
+	system::MacroState<dim> &macrostate = system.macrostate;
 
 	if(p.mat.init_eigenstrain)
 		apply_initial_eigenstrain<dim>(system, p);
