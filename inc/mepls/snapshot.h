@@ -27,7 +27,7 @@ namespace mepls
 namespace snapshot
 {
 
-/*! Snapshot of \ref element::Element.stress. */
+/*! Snapshot of @ref element::Element.stress. */
 template<int dim>
 class Stress
 {
@@ -61,9 +61,9 @@ class Stress
 		 * @param system system from where the snapshot is taken
 		 * @param monitor_mag name of the magnitude used to check whether the
 		 * snapshot should be taken or not
-		 * @param desired_target value of the \ref monitor_name at which we
+		 * @param desired_target value of the @ref monitor_name at which we
 		 * desired to take the snapshot
-		 * @param recorded_target value of the \ref monitor_name at which the
+		 * @param recorded_target value of the @ref monitor_name at which the
 		 * snapshot is actually taken */
 
 		for(auto &element : system)
@@ -81,23 +81,23 @@ class Stress
 	/*!< Container to store the copied field. */
 
 	std::string recorded_mag;
-	/*!< Name of the field storaged in \ref data. */
+	/*!< Name of the field storaged in @ref data. */
 
 	std::string monitor_name;
 	/*!< Name of the magnitude used to check whether the snapshot should be taken
 	 * or not. */
 
 	double desired_target;
-	/*!< Value of the \ref monitor_name at which we desired to take the
+	/*!< Value of the @ref monitor_name at which we desired to take the
 	 * snapshot. */
 
 	double recorded_target;
-	/*!< Value of the \ref monitor_name at which the snapshot is actually
+	/*!< Value of the @ref monitor_name at which the snapshot is actually
 	 * taken. */
 
 	unsigned int output_index;
 
-	/*!< Global event index from the \ref event::History at which the snapshot is
+	/*!< Global event index from the @ref event::History at which the snapshot is
 	 * taken. */
 
 	typename std::vector<DataRow>::iterator begin()
@@ -112,7 +112,7 @@ class Stress
 };
 
 
-/*! Snapshot of \ref element::Element.def_grad. */
+/*! Snapshot of @ref element::Element.def_grad. */
 template<int dim>
 class DefGrad
 {
@@ -146,9 +146,9 @@ class DefGrad
 		 * @param system system from where the snapshot is taken
 		 * @param monitor_mag name of the magnitude used to check whether the
 		 * snapshot should be taken or not
-		 * @param desired_target value of the \ref monitor_name at which we
+		 * @param desired_target value of the @ref monitor_name at which we
 		 * desired to take the snapshot
-		 * @param recorded_target value of the \ref monitor_name at which the
+		 * @param recorded_target value of the @ref monitor_name at which the
 		 * snapshot is actually taken */
 
 		for(auto &element : system)
@@ -167,23 +167,23 @@ class DefGrad
 	/*!< Container to store the copied field. */
 
 	std::string recorded_mag;
-	/*!< Name of the field storaged in \ref data. */
+	/*!< Name of the field storaged in @ref data. */
 
 	std::string monitor_name;
 	/*!< Name of the magnitude used to check whether the snapshot should be taken
 	 * or not. */
 
 	double desired_target;
-	/*!< Value of the \ref monitor_name at which we desire to take the
+	/*!< Value of the @ref monitor_name at which we desire to take the
 	 * snapshot. */
 
 	double recorded_target;
-	/*!< Value of the \ref monitor_name at which the snapshot is actually
+	/*!< Value of the @ref monitor_name at which the snapshot is actually
 	 * taken. */
 
 	unsigned int output_index;
 
-	/*!< Global event index from the \ref event::History at which the snapshot is
+	/*!< Global event index from the @ref event::History at which the snapshot is
 	 * taken. */
 
 	typename std::vector<DataRow>::iterator begin()
@@ -198,14 +198,14 @@ class DefGrad
 };
 
 
-/*! Snapshot of all the \ref base::Slip.threshold in the \ref System. */
+/*! Snapshot of all the @ref base::Slip.threshold in the @ref System. */
 template<int dim>
 class Threshold
 {
 
   public:
 
-	/*! This struct is used for output purposes only. It converts a complex \ref
+	/*! This struct is used for output purposes only. It converts a complex @ref
 	 * base::Slip object into a simple struct of scalar values. In this way, it
 	 * can be easily written into, e.g., hdf5 datasets. */
 	struct DataRow
@@ -232,9 +232,9 @@ class Threshold
 		 * @param system system from where the snapshot is taken
 		 * @param monitor_mag name of the magnitude used to check whether the
 		 * snapshot should be taken or not
-		 * @param desired_target value of the \ref monitor_name at which we
+		 * @param desired_target value of the @ref monitor_name at which we
 		 * desired to take the snapshot
-		 * @param recorded_target value of the \ref monitor_name at which the
+		 * @param recorded_target value of the @ref monitor_name at which the
 		 * snapshot is actually taken */
 
 		for(auto &element : system)
@@ -252,23 +252,23 @@ class Threshold
 	/*!< Container to store the slip thresholds followed and slip angles.*/
 
 	std::string recorded_mag;
-	/*!< Name of the field storaged in \ref data. */
+	/*!< Name of the field storaged in @ref data. */
 
 	std::string monitor_name;
 	/*!< Name of the magnitude used to check whether the snapshot should be taken
 	 * or not. */
 
 	double desired_target;
-	/*!< Value of the \ref monitor_name at which we desired to take the
+	/*!< Value of the @ref monitor_name at which we desired to take the
 	 * snapshot. */
 
 	double recorded_target;
-	/*!< Value of the \ref monitor_name at which the snapshot is actually
+	/*!< Value of the @ref monitor_name at which the snapshot is actually
 	 * taken. */
 
 	unsigned int output_index;
 
-	/*!< Global event index from the \ref event::History at which the snapshot is
+	/*!< Global event index from the @ref event::History at which the snapshot is
 	 * taken. */
 
 	typename std::vector<DataRow>::iterator begin()
@@ -294,8 +294,8 @@ class Check
   public:
 	Check(double min, double max, double interval, double sensitivity)
 	{
-		/*! Create a list of value from \ref min to \ref max, in intervals of
-		 * lenght \ref interval. Set the value of \ref sensitivity. */
+		/*! Create a list of value from @ref min to @ref max, in intervals of
+		 * lenght @ref interval. Set the value of @ref sensitivity. */
 
 		double v = min;
 		while(v < max)
@@ -312,11 +312,11 @@ class Check
 	{
 		/*! Return true if a snapshot must be taken, false otherwise. A snapshot
 		 * must be taken if the input value matches, within a tolerance given by
-		 * \ref sensitivity, one of the values in \ref target_values. When there
+		 * @ref sensitivity, one of the values in @ref target_values. When there
 		 * is a match true is returned, and true is set in the corresponding index
-		 * of \ref already_recorded, so no future snapshots will be taken again
+		 * of @ref already_recorded, so no future snapshots will be taken again
 		 * with the same value (this can happen if future input values still
-		 * match the same \ref target_value with the given \ref sensitivity).
+		 * match the same @ref target_value with the given @ref sensitivity).
 		 *
 		 * @note to which magnitude (e.g., plastic strain, time, etc.) the input
 		 * value corresponds does not matter to this class. */
@@ -334,7 +334,7 @@ class Check
 
 	double sensitivity;
 	/*!< Numerical tolerance to decide whether a double matches one of the double
-	 * values in \ref target_values. */
+	 * values in @ref target_values. */
 
 	std::vector<double> target_values;
 	/*!< List of values were at which snapshots should be taken. */
@@ -344,7 +344,7 @@ class Check
 	 * taking snapshot again at the same value. */
 
 	double desired_value;
-	/*!< Value at which we desire to take the snapshot (thus it is one in \ref
+	/*!< Value at which we desire to take the snapshot (thus it is one in @ref
 	 * target_values). */
 };
 

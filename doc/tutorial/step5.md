@@ -37,30 +37,31 @@ curve.
 Here, we want to reproduce the same kind of behavior in a more physically grounded manner. To this 
 end, instead of explicitly considering different thresholds scale parameters, we will have only 
 one parameter. However, before the AQS simulation, we will simulate a sample deforming under 
-creep conditions, i.e., at non-zero temperature and constant external stress. During 
-the creep process, the slip thresholds will undergo a survival bias, by which lower thresholds 
-tend to be renewed by higher ones (see the results section of @ref Step 3 for a short discussion 
-about this). Due to such bias, after some time, the existing thresholds will be on average higher
-than as-renewed from their Weibull pdf. Consequently, when using such a state as the initial one
-in the AQS simulation, the AQS stress-strain curve will exhibit a behavior similar to @ref Step4.
-However, in contrast with @ref Step4, the magnitude of the stress overshoot and the intensity of 
-the strain localization will be a direct result of a well-defined sample's thermal and mechanical
- history. 
+creep conditions, i.e., at non-zero temperature and constant external stress @cite 
+Castellanos2018 Castellanos2019. During the creep process, the slip thresholds will undergo a 
+survival bias, by which lower thresholds tend to be renewed by higher ones (see the results 
+section of @ref Step 3 for a short discussion about this). Due to such bias, after some time, the
+existing thresholds will be on average higher than as-renewed from their Weibull pdf. 
+Consequently, when using such a state as the initial one in the AQS simulation, the AQS 
+stress-strain curve will exhibit a behavior similar to @ref Step4. However, in contrast with @ref
+ Step4, the magnitude of the stress overshoot and the intensity of the strain localization will 
+ be a direct result of a well-defined sample's thermal and mechanical history. 
 
 
 ### The Kinetic Monte Carlo method for thermal slip activation{#kmc}
 
 To simulate thermal activation of plastic activity during the creep simulation, we use the Kinetic 
-Monte Carlo (KMC) method. This method requires the knowledge of all the possible transitions that
-the system can make from the current state towards a new one, and the energy barrier associated 
-with each transition.
+Monte Carlo (KMC) method @cite DFCastellanos_CRP @cite Castellanos2019 @cite Castellanos2018 @cite
+ FernandezCastellanos2019. This method requires the knowledge of all the possible transitions 
+ that the system can make from the current state towards a new one, and the energy barrier 
+ associated with each transition.
 
 In this case, each possible transition corresponds to the activation of a specific slip system. 
 The energy barrier \f$ \Delta E \f$ for a specific slip activation can be related to its stress 
 distance to threshold (@ref mepls::slip::Slip<dim>::barrier) \f$ \Delta \tau^{\rm c} \f$ as \f$ 
 \Delta E \approx \Delta \tau^{\rm c} V_{\rm a}\f$. The quantity \f$ V_{\rm a} \f$ is the so-called 
 activation volume, which is of the order of the product of the typical local strain induced by a 
-plastic event and the region's volume occupied by the event. It is a microscopic quantity 
+plastic event and the the volume occupied by the event. It is a microscopic quantity 
 characteristic of a specific microstructure, and is an input to the model.
 
 The KMC method models thermal activation as a Poisson process, where each possible transition (i
@@ -82,20 +83,16 @@ temperature.
 In summary, we assign to each slip system \f$ n \f$ an activation rate \f$ \nu(n) \f$ based on 
 its distance to threshold \f$ \Delta \tau^{\rm c}(n) \f$. Then we simulate the sequence of 
 activation of slip events and the waiting times in between consecutive events as a superposition 
-of Poisson processes. There are several possibilities to implement the KMC. The method described 
-in [] is more efficient when computing the rates is a more expensive operation than performing 
-the transition, while the method of [] is more efficient when the transition is the 
-computationally demanding part. In our case, computing the rates is very fast, while the 
-transition involves solving a Finite Element Method iteration, which is much more expensive. 
-Therefore, the MEPLS implementation (see @ref mepls::dynamics::KMC<dim>) uses the second method. 
+of Poisson processes. There are several possibilities to implement the KMC. The class @ref 
+mepls::dynamics::KMC implements the method described in @cite DFCastellanos_CRP @cite Castellanos2019
+ @cite Castellanos2018 @cite FernandezCastellanos2019.
 
 We consider an extra ingredient in the model of thermal deformation. As we saw in previous 
-tutorials, after a thermally activated 
-slip event occurs, other slip systems might become unstable. We consider that mechanically 
-unstable slip systems become active much faster than the time necessary for a new thermal 
-activation somewhere in the whole system (this approximation breaks down if the 
-temperature is too high, specifically if the material approaches a point such as the 
-glass transition in glasses). Therefore, before triggering a new thermal event 
+tutorials, after a thermally activated slip event occurs, other slip systems might become 
+unstable. We consider that mechanically unstable slip systems become active much faster than the 
+time necessary for a new thermal activation somewhere in the whole system (this approximation 
+breaks down if the temperature is too high, specifically if the material approaches a point such 
+as the glass transition in glasses). Therefore, before triggering a new thermal event 
 with the KMC, we apply an athermal relaxation as in the AQS simulations by calling @ref 
 mepls::dynamics::relaxation. 
 

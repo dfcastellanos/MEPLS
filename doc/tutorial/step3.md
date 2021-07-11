@@ -30,9 +30,10 @@ file and plot the results using a Python script.
 ### The model{#the_model}
 
 The model we consider represents a material being driven at a very low strain rate and
-temperature, the so-called athermal quasistatic limit. In this limit, the stress fields can rise
- continuously until a plastic event is triggered, but during the event, the stress does not 
-rise further because the event is considered a much faster process. To understand this, we must 
+temperature, the so-called athermal quasistatic limit (see, e.g. @cite DFCastellanos_CRP @cite 
+Sandfeld2015 @cite BudrikisNatCom @cite Talamali2012 @cite Budrikis2013 @cite nicolas_deformation_2018). In this 
+limit, the stress fields can rise continuously until a plastic event is triggered, but during the
+ event, the stress does not rise further because the event is considered a much faster process. To understand this, we must 
 take into account the characteristic duration of a plastic event, \f$ \Delta t_{\rm pl} \f$. If 
 we apply an external shear strain rate \f$ \dot{\gamma}_{\rm ext} \f$, the shear stress rise 
 during a plastic event is \f$ \Delta \tau = G \dot{\gamma}_{\rm ext} \Delta t_{\rm pl} \f$. 
@@ -259,6 +260,10 @@ loop. If we added at least one new event, the stress fields have been updated. T
 check again everywhere for instabilities. In this case, we repeat the relaxation loop. This 
 process gives rise to a cascade of slip events. The external load increment triggers the first
 generation events. The second-generation events are triggered by the first generation ones, and so on.
+
+This athermal relaxation rocess has been described in @cite DFCastellanos_CRP @cite Castellanos2019 
+@cite Castellanos2018 @cite Sandfeld2015 @cite BudrikisNatCom @cite Budrikis2013 @cite 
+FernandezCastellanos2019.
      
     
 ```cpp   
@@ -407,7 +412,7 @@ The resulting plot is:
 We see how the stress-strain response adopts the traditional shape observed for most 
 materials. Namely, an initial linear regime with a slope defined by the shear modulus, followed 
 plastic deformation reflected in the stress drops. The characteristics of this curve depend on the simulation parameters used, and their impact has
-been widely studied, see, e.g.,
+been studied in the literature, see, e.g. @cite Talamali2012.
 
 @note it is common in the literature of elasto-plastic mesoscale models to rescale the stress units 
 and work in units of `lambda` or of average slip threshold. The value of the `shear_modulus` is then

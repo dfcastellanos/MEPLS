@@ -19,36 +19,40 @@
 namespace mepls
 {
 
-/*! This namespace contains the algorithms to control the time-evolution of the
- * external load and the activation of slip systems within the material. */
+/*! This namespace contains the algorithms to control the low-level dynamics of the system,
+ * that is, the time-evolution of the external load and the activation of slip systems within the
+ * material. These algorithms can be used individually or combined in specific ways to implement
+ * more complex driving protocols.*/
 namespace dynamics
 {
 
-/*! This namespace contains the values that indicate how an event
- * (see \ref event) was created (see \ref event::Plastic.activation_protocol
- * and \ref event::Driving.activation_protocol). */
+/*! This namespace contains the enum of values that are used to set @ref event::Plastic
+ * .activation_protocol and @ref event::Driving.activation_protocol. These values are meant to
+ * indicate the origin of each @ref event added to the system. */
 namespace Protocol
 {
 
 enum Values
 {
-	variation_plasticity = 0, /*!< A driving event signaling an external stress or a total strain variation
+	variation_plasticity = 0, /*!< A driving event that corresponds to an external stress or a
+ * total strain variation
     * induced by plastic activity. */
 
 	ad_hoc = 1, /*!< An event explicitly created by the user. */
 
-	extremal_dynamics = 2, /*!< A event created by \ref dynamics::extremal_dynamics_step. */
+	extremal_dynamics = 2, /*!< A event created by @ref dynamics::extremal_dynamics_step. */
 
-	kinetic_monte_carlo = 3, /*!< An event created by \ref dynamics::KMC. */
+	kinetic_monte_carlo = 3, /*!< An event created by @ref dynamics::KMC. */
 
-	relaxation_step = 4, /*!< An event created by \ref dynamics::relaxation. */
+	relaxation_step = 4, /*!< An event created by @ref dynamics::relaxation. */
 
 	prestress = 5,
-	/*!< An driving event explicitly created by the user to represent the prestress. */
+	/*!< An driving event explicitly created by the user to represent the addition of a prestress
+	 *  field. */
 
 	variation_stiffness = 6, /*!< A driving event signaling a global stiffness variation. */
 
-	metropolis_hastings = 7  /*!< An event created by \ref dynamics::MetropolisHastings. */
+	metropolis_hastings = 7  /*!< An event created by @ref dynamics::MetropolisHastings. */
 };
 
 } // protocol
@@ -61,7 +65,34 @@ std::vector<event::Plastic<dim>> relaxation(
 								double fracture_limit = 10);
 
 /*! This class implements the Kinetic Monte Carlo method, used for simulating
- * the thermal activation of slip systems. */
+ * the thermal activation of slip systems. This method requires the knowledge of all the possible
+ * transitions that the system can make from the current state towards a new one, and the energy
+ * barrier associated with each transition. In this case, each possible transition corresponds to
+ *  the activation of a specific slip system. The energy barrier \f$ \Delta E \f$ for a specific
+ *  slip activation can be related to its stress distance to threshold (@ref
+ *  mepls::slip::Slip<dim>::barrier) \f$ \Delta \tau^{\rm c} \f$ as \f$
+ * \Delta E \approx \Delta \tau^{\rm c} V_{\rm a}\f$. The quantity \f$ V_{\rm a} \f$ is the so-called
+ * activation volume, which is of the order of the product of the typical local strain induced by a
+ * plastic event and the the volume occupied by the event. It is a microscopic quantity
+ * characteristic of a specific microstructure, and is an input to the model.
+ *
+ * The KMC method models thermal activation as a Poisson process, where each possible transition (i
+ * .e., activation of a slip system) is an independent Poisson variable with an activation rate \f$
+ * \nu \f$. Here, we consider an Arrenius dependency on temperature and energy,
+ *
+ * \f[ \nu(n) = \nu_0 e^{-\frac{\Delta E(n)}{k_{\rm B}T}}\f]
+ *
+ * where \f$ n \f$ denotes a specific slip sytem and the parameter \f$ \nu_0 \f$ is a microscopic slip
+ * activation rate characteristic of the microstructure. In terms of stress, we can approximate
+ * the expression above as,
+ *
+ * \f[ \nu(n) = \nu_0 e^{-\frac{\Delta\tau^{\rm c}(n) V_{\rm a}}{k_{\rm B}T}} = \nu_0 e^{-\frac{\Delta\tau^{\rm c}(n)}{T^{\prime}}} \f]
+ *
+ * where \f$ T^{\prime} = k_{\rm B}T/V_{\rm a} \f$. Note that this rescaled temperature has units of
+ * stress, and it characterizes the typical amplitude of the local stress fluctuations induced by
+ * temperature. This class provides an implementation of the KMC method as described in @cite
+ * DFCastellanos_CRP @cite Castellanos2019 @cite Castellanos2018 @cite FernandezCastellanos2019.
+ */
 template<int dim>
 class KMC
 {
@@ -76,10 +107,10 @@ class KMC
 
 	void operator()(system::System<dim> &system)
 	{
-		/*! Select a thermally activated slip system using the Kinetic Monte Carlo
-		 * method and perform its associated plastic event. The selection is made
-		 * using the activation rates of each slip system,
-		 * \ref slip::Slip<dim>::activation_rate_. */
+		/*! Select a slip system using the Kinetic Monte Carlo
+		 * method and perform its associated slip event. The selection is made
+		 * using the activation rates,
+		 * @ref mepls::slip::Slip<dim>::activation_rate	. */
 
 		/* -------- make a vector of rates and slips systems -------- */
 
@@ -139,12 +170,12 @@ class KMC
 
   private:
 	std::uniform_real_distribution<double> unif_distribution;
+	/*!< A uniform distribution. */
 
 	std::vector<mepls::slip::Slip<dim> *> slips;
-	/*!< Vector containing all the slip systems within the material. It
-	 * conatenates pointers to all the slip systems
-	 * \ref element::Element<dim>::slip_systems_ in all the elements in \ref
-	 * system.elements. */
+	/*!< This vector stores in a sequential manner all the pointers to slip objects that are
+	 * contained within all the elements of the system.
+	 *  */
 
 	std::vector<double> rates;
 	/*!< Vector containing the activation rates all the slip systems within the
@@ -155,7 +186,11 @@ class KMC
 
 
 
-/*! This class implements the Metropolis-Hastings algorithm for sampling the configuration. */
+/*! This class implements the Metropolis-Hastings algorithm for sampling the model's configuration
+ * space. The transition from one configuration to another is done by activating a randomly selected
+ * slip system, and triggering a subsequent avalanche with @ref mepls::dynamics::relaxation. The
+ * changes introduced in the system by these actions are accepted or rejected based on the
+ * Metropolis-Hastings rule. */
 template<int dim>
 class MetropolisHastings
 {
@@ -170,16 +205,17 @@ class MetropolisHastings
 
 	bool operator()(system::System<dim> &system, bool stress_redist = true)
 	{
-		/*! Perform as Metropolis-Hastings step: a random slip event is
-		 * performed, and the global energy change computed. The event will be
-		 * accepted if it energy change is negative. If it is positive, it will
-		 * be accepted with probability exp(-energy_change/T). If stress_redist
-		 * is false, the yielding element structural properties will be renewed
-		 * but the elastic fields will not be updated.
+		/*! Perform a Metropolis-Hastings step: a random slip event is
+		 * performed and an avalanche triggered. he global energy change is computed.
+		 * All the changes induced by these actions are accepted if the energy
+		 * change is negative. If it is positive, they are accepted with probability exp
+		 * (-energy_change/T).
 		 *
-		 * @return whether the event has been accepted or rejected. If it has
-		 * been rejected, the state of the system is exactly the same as
-		 * before calling this function. */
+		 * @param stress_redist if false, the elastic fields will not be updated after
+		 * slip events take place. This allows to easily simulate non-interacting systems.
+		 *
+		 * @return whether the changes have been accepted or rejected. If rejected, the
+		 * system's state is exactly the same as before calling this function.  */
 
 		auto & generator = system.generator;
 
@@ -278,7 +314,7 @@ class MetropolisHastings
 
 	double get_sum_energy(element::Vector<dim> &elements)
 	{
-		/*! Compute the average elastic energy over the input elements. */
+		/*! Compute the total energy of the system. */
 
 		double sum_energy = 0.;
 
@@ -289,17 +325,24 @@ class MetropolisHastings
 	}
 
 	double T = 1.;
-	/*!< Rescaled temperature. Its value corresponds to \f$ k_{\rm B} T \f$. */
+	/*!< Rescaled temperature. Its value corresponds to \f$ k_{\rm B} T \f$.
+	 *
+	 * @note this tempearature sets a characterisic scale for the energy changes. The
+	 * energy is the sum of the elastic and the configurational energy (the configurational
+	 * remains zero unless the user explicitly modifies it). By default, the elastic energy is
+	 * computed over the volume of a mesoscale element, which is 1.0 by definition. Thus,
+	 * if the user works with a different units of length,
+	 * a rescaling factor in the energy values must be taken into account. This factor can be
+	 * included in the value of this temperature. */
 
   private:
 	std::uniform_real_distribution<double> unif_distribution;
-	/*!< Uniform distribution. */
+	/*!< A uniform distribution. */
 
 	std::vector<mepls::slip::Slip<dim> *> slips;
-	/*!< Vector containing all the slip systems within the material. It
-	 * conatenates pointers to all the slip systems
-	 * \ref element::Element<dim>::slip_systems_ in all the elements in \ref
-	 * system.elements. */
+	/*!< This vector stores in a sequential manner all the pointers to slip objects that are
+	 * contained within all the elements of the system.
+	 */
 };
 
 
@@ -307,15 +350,14 @@ template<int dim>
 std::pair<event::Driving<dim>, event::Plastic<dim>> find_weakest_slip(
 	const element::Vector<dim> &elements, bool is_forward)
 {
-	/*! Find the slip system whose activation (i.e., making
-	 * slip::Slip<dim>::barrier < 0) requires the minimum increment of the load.
-	 * This slip system is the least mechanically stable one in the material.
-	 * If is_forward=True, the load increment is positive, otherwise it is
+	/*! Find the critical load increment necessary to activate one and only one slip system.
+	 *
+	 * @param is_forward if true, the load increment is positive, otherwise it is
 	 * negative.
 	 *
-	 * @return Returns a pair of events containing the change in the driving
-	 * conditions (with the calculated minimum load increment) and the plastic
-	 * event resulting from the activation of the slip system. */
+	 * @return Returns a pair of events. One contains the critical load increment.
+	 * The other, the slip that becomes active after the application of that increment.
+	 * */
 
 	// sign of the load variation that we apply in order to unstabilize the slip
 	// system
@@ -363,12 +405,16 @@ template<int dim>
 void extremal_dynamics_step(system::System<dim> &system, bool is_forward = true)
 {
 	/*! Perform the minimum external load increment necessary to activate one and
-	 * only one slip system among all the existing ones in \ref system.elements.
-	 * If is_forward=True, the load increment is positive; otherwise, it is
+	 * only one slip system among all the existing ones in @ref mepls::system::System<dim>::elements.
+	 *
+	 * @param is_forward if true, the load increment is positive; otherwise, it is
 	 * negative.
 	 *
-	 * @note This function only performs the critical load increment but does not
-	 * perform any plastic event. */
+	 * @note This function only performs the load increment that makes exactly one
+	 * slip system active, but does not perform the slip event. Normally, it is used
+	 * in association with @ref mepls::dynamics::relaxation.
+	 *
+	 * See @cite Sandfeld2015 @cite BudrikisNatCom @cite Talamali2012 @cite Budrikis2013 */
 
 	auto ext_dyn_pair = find_weakest_slip(system.elements, is_forward);
 
@@ -414,16 +460,18 @@ template<int dim>
 void finite_extremal_dynamics_step(
 	double dicrete_increment, system::System<dim> &system, bool is_forward = true)
 {
-	/*! Perform external load increments in discrete steps of magnitude equal to
-	 * the input dicrete_increment. Load increments are repeated until the first
-	 * slip system among all the existing ones in \ref system.elements become
-	 * active. Since the increments have a predetermined fixed value, at the
+	/*! Perform discrete external load increments of a fixed amplitude until the first
+	 * slip system becomes active. Since the increments have a predetermined fixed value, at the
 	 * moment of the first slip activation, more than one slip system might
-	 * become simultaneously active, If is_forward=True, the load increment is
-	 * positive; otherwise, it is negative.
+	 * become simultaneously active
 	 *
-	 * @note This function only performs the critical load increment but does not
-	 * perform any plastic event. */
+	 * @param dicrete_increment value of the load increments
+	 * @param is_forward if true, the load increment is positive; otherwise, it is negative.
+	 *
+	 * @note This function performs the load increments but does not perform any plastic event.
+	 *
+	 * See @cite DFCastellanos_CRP.
+	 * */
 
 
 	auto ext_dyn_pair = dynamics::find_weakest_slip(system.elements, is_forward);
@@ -443,10 +491,9 @@ void finite_extremal_dynamics_step(
 template<int dim>
 void fixed_load_increment(double increment, system::System<dim> &system)
 {
-	/*! Perform an external load increment with value equal to the input
-	 * dicrete_increment.
+	/*! Perform an external load increment with value equal `increment`.
 	 *
-	 * @note This function only performs the critical load increment but does not
+	 * @note This function only performs the load increment but does not
 	 * perform any plastic event. */
 
 	event::Driving<dim> load_increment_event;
@@ -463,12 +510,24 @@ std::vector<event::Plastic<dim>> relaxation(
 								utils::ContinueSimulation &continue_simulation,
 								double fracture_limit)
 {
-	/*! Perform plastic events associated with each active slip system. The
-	 * events are performed and the state of the system are updated. After that,
-	 * new slip systems might become active as a consequence of changes in the
-	 * elastic fields. If there is at least an active slip, the process is
-	 * repeated. If not, the system is mechanically stable, and the function
-	 * returns. */
+	/*! Performs an avalanche of slip events. To this end, slip events are simultaneously
+	 * performed for each active slip system, and the stress fields are updated. Due to the changes
+	 * in the stress field , new slip systems might become active. If this is the case, slip
+	 * events are performed in the new active systems. This process is repeated until no slip
+	 * system is active, at which point the function returns.
+	 *
+	 * @param fracture_limit defines the maximum number of slip events that are allowed to
+	 * occur in the function call before considering that the material has undergone
+	 * mechancial failure. This limit is defined by a fraction of the system size. Thus, if e.g.
+	 * `fracture_limit = 2`, when the number of slip systems is twice the value of @ref
+	 * mepls::system::System<dim>::size, the state of `continue_simulation` is set to false and the
+	 * functon returns.
+	 *
+	 * @return a vector with all the slips events added to the system during the avalanche.
+	 *
+	 * See @cite DFCastellanos_CRP @cite Castellanos2019 @cite Castellanos2018
+	 * @cite Sandfeld2015 @cite BudrikisNatCom @cite Budrikis2013
+	 * */
 
 	bool continue_relaxation = true;
 	double ongoing_size = 0.;

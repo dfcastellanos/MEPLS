@@ -67,6 +67,11 @@ struct Material
 	double activation_rate = 1.;
 	unsigned int n_slip_systems = 1;
 
+	double av_U = 0;
+	double std_U = 1;
+	double A = 1;
+	double B = 1;
+
 	void declare_entries(dealii::ParameterHandler &prm)
 	{
 		/*! Declare the variables of this struct into the input parser object. */
@@ -109,6 +114,7 @@ struct Material
 						  dealii::Patterns::Double(0.0), "");
 		prm.declare_entry("coupling_constant", mepls::utils::str::to_string(coupling_constant),
 						  dealii::Patterns::Double(), "");
+
 		prm.declare_entry("temperature_liquid", mepls::utils::str::to_string(temperature_liquid),
 						  dealii::Patterns::Double(0.0), "");
 		prm.declare_entry("temperature_relaxation", mepls::utils::str::to_string
@@ -121,6 +127,15 @@ struct Material
 						  dealii::Patterns::Integer(0), "");
 		prm.declare_entry("init_eigenstrain", mepls::utils::str::to_string(init_eigenstrain),
 						  dealii::Patterns::Bool(), "");
+
+		prm.declare_entry("av_U", mepls::utils::str::to_string(av_U),
+						  dealii::Patterns::Double(), "");
+		prm.declare_entry("std_U", mepls::utils::str::to_string(std_U),
+						  dealii::Patterns::Double(), "");
+		prm.declare_entry("A", mepls::utils::str::to_string(A),
+						  dealii::Patterns::Double(), "");
+		prm.declare_entry("B", mepls::utils::str::to_string(B),
+						  dealii::Patterns::Double(), "");
 
 		prm.leave_subsection();
 
@@ -157,6 +172,11 @@ struct Material
 		n_slip_systems = prm.get_integer("n_slip_systems");
 		init_eigenstrain = prm.get_bool("init_eigenstrain");
 
+		av_U = prm.get_double("av_U");
+		std_U = prm.get_double("std_U");
+		A = prm.get_double("A");
+		B = prm.get_double("B");
+
 		prm.leave_subsection();
 	}
 
@@ -182,11 +202,11 @@ struct Simulation
 
 	std::string monitor_name = "total_strain";
 	/*!< Magnitude used to check whether the simulation should stop and whether a snapshot should be
-	 *  taken (see \ref snapshot). The posibilities correspond to the keys in
-	 *  \ref MacroState.monitor_map. */
+	 *  taken (see @ref snapshot). The posibilities correspond to the keys in
+	 *  @ref MacroState.monitor_map. */
 
 	double monitor_limit = 3.0;
-	/*!<  Value of the magnitude defined by \ref monitor_name at which the simulation must stop. */
+	/*!<  Value of the magnitude defined by @ref monitor_name at which the simulation must stop. */
 
 	bool parent_liquid = true;
 	bool thermal_relaxation = true;
@@ -268,21 +288,21 @@ struct Output
 	 *  threshold, stress, def_grad, patches. */
 
 	double snapshots_min = 0.;
-	/*!< Minimum value of the magnitude \ref Simulation.monitor_name from which snapshots should
-	 * start to be taken (see \ref snapshot).  */
+	/*!< Minimum value of the magnitude @ref Simulation.monitor_name from which snapshots should
+	 * start to be taken (see @ref snapshot).  */
 
 	double snapshots_max = 1.;
-	/*!<  Maximum value of the magnitude \ref Simulation.monitor_name until which snapshots should
-	 * be taken (see \ref snapshot). */
+	/*!<  Maximum value of the magnitude @ref Simulation.monitor_name until which snapshots should
+	 * be taken (see @ref snapshot). */
 
 	double snapshots_interval = 0.05;
-	/*!< Interval to create a list of value from \ref snapshots_min to \ref snapshots_max at which
-	 *  snapshots should be taken (see \ref snapshot).   */
+	/*!< Interval to create a list of value from @ref snapshots_min to @ref snapshots_max at which
+	 *  snapshots should be taken (see @ref snapshot).   */
 
 	double snapshots_sensitivity = 0.01;
 
-	/*!< Numerical tolerance to decide whether the value of \ref Simulation.monitor_name is that at
-	 * which a snapshot must be taken (see \ref snapshot). */
+	/*!< Numerical tolerance to decide whether the value of @ref Simulation.monitor_name is that at
+	 * which a snapshot must be taken (see @ref snapshot). */
 
 	void declare_entries(dealii::ParameterHandler &prm)
 	{
@@ -537,6 +557,11 @@ public:
 
 		unsigned int n_slip_systems = 1;
 		unsigned int number = 0;
+
+		double av_U = 0;
+		double std_U = 0;
+		double A = 0;
+		double B = 0;
 	};
 
 
@@ -546,6 +571,7 @@ public:
 		mepls::element::Element<dim>(),
 		generator(generator_),
 		unif_distribution(0, 1),
+		normal_distribution(0,1),
 		conf(conf_)
 	{
 		this->number(conf.number);
@@ -578,21 +604,7 @@ public:
 //			lambda =  av / std::tgamma(1. + 1. / k);
 //
 //		}else{
-//
-//			if(this->integrated_vm_eigenstrain()==0.)
-//			{
-//				lambda = conf.lambda_quench;
-//				k = conf.k_quench;
-//			}
-//			else
-//			{
-//				assert(plastic_event.dplastic_strain > 0.);
-//				double x = std::exp(-(plastic_event.dplastic_strain/(conf.gamma_pl_trans*std::pow
-//				(lambda_old/2.,conf.B))));
-//				lambda = (lambda_old - conf.lambda)*x + conf.lambda;
-//				k = (k_old - conf.k)*x + conf.k;
-//			}
-//		}
+
 
 
 		if(this->integrated_vm_eigenstrain()==0.)
@@ -707,6 +719,7 @@ public:
 protected:
 	std::mt19937 &generator;
 	std::uniform_real_distribution<double> unif_distribution;
+	std::normal_distribution<double> normal_distribution;
 	Config conf;
 	double lambda_old, k_old, G_old, K_old;
 };
@@ -870,19 +883,19 @@ public:
 	/*!< Container to store the recorde data. */
 
 	std::string recorded_mag;
-	/*!< Name of the field storaged in \ref data. */
+	/*!< Name of the field storaged in @ref data. */
 
 	std::string monitor_name;
 	/*!< Name of the magnitude used to check whether the snapshot should be taken or not. */
 
 	double desired_target;
-	/*!< Value of the \ref monitor_name at which we desired to take the snapshot. */
+	/*!< Value of the @ref monitor_name at which we desired to take the snapshot. */
 
 	double recorded_target;
-	/*!< Value of the \ref monitor_name at which the snapshot is actually taken. */
+	/*!< Value of the @ref monitor_name at which the snapshot is actually taken. */
 
 	unsigned int output_index;
-	/*!< Global event index from the \ref mepls::event::History at which the snapshot is taken. */
+	/*!< Global event index from the @ref mepls::event::History at which the snapshot is taken. */
 };
 
 
@@ -962,36 +975,36 @@ inline void evolution_history(H5::H5File &file,
 		using DataRow = history::MacroSummaryRow;
 
 		H5::CompType mtype(sizeof(DataRow));
-		mtype.insertMember("time", HOFFSET(DataRow, time), H5::PredType::NATIVE_DOUBLE);
+//		mtype.insertMember("time", HOFFSET(DataRow, time), H5::PredType::NATIVE_DOUBLE);
 		mtype.insertMember("total_strain", HOFFSET(DataRow, total_strain), H5::PredType::NATIVE_DOUBLE);
 		mtype.insertMember("ext_stress", HOFFSET(DataRow, ext_stress), H5::PredType::NATIVE_DOUBLE);
-		mtype.insertMember("av_vm_plastic_strain", HOFFSET(DataRow, av_vm_plastic_strain),
-						   H5::PredType::NATIVE_DOUBLE);
-		mtype.insertMember("std_vm_plastic_strain", HOFFSET(DataRow, std_vm_plastic_strain),
-						   H5::PredType::NATIVE_DOUBLE);
-		mtype.insertMember("av_vm_stress", HOFFSET(DataRow, av_vm_stress), H5::PredType::NATIVE_DOUBLE);
-		mtype.insertMember("std_vm_stress", HOFFSET(DataRow, std_vm_stress),
-						   H5::PredType::NATIVE_DOUBLE);
-		mtype.insertMember("av_energy_el", HOFFSET(DataRow, av_energy_el),
-						   H5::PredType::NATIVE_DOUBLE);
-		mtype.insertMember("std_energy_el", HOFFSET(DataRow, std_energy_el),
-						   H5::PredType::NATIVE_DOUBLE);
-		mtype.insertMember("av_energy_conf", HOFFSET(DataRow, av_energy_conf),
-						   H5::PredType::NATIVE_DOUBLE);
-		mtype.insertMember("std_energy_conf", HOFFSET(DataRow, std_energy_conf),
-						   H5::PredType::NATIVE_DOUBLE);
+//		mtype.insertMember("av_vm_plastic_strain", HOFFSET(DataRow, av_vm_plastic_strain),
+//						   H5::PredType::NATIVE_DOUBLE);
+//		mtype.insertMember("std_vm_plastic_strain", HOFFSET(DataRow, std_vm_plastic_strain),
+//						   H5::PredType::NATIVE_DOUBLE);
+//		mtype.insertMember("av_vm_stress", HOFFSET(DataRow, av_vm_stress), H5::PredType::NATIVE_DOUBLE);
+//		mtype.insertMember("std_vm_stress", HOFFSET(DataRow, std_vm_stress),
+//						   H5::PredType::NATIVE_DOUBLE);
+//		mtype.insertMember("av_energy_el", HOFFSET(DataRow, av_energy_el),
+//						   H5::PredType::NATIVE_DOUBLE);
+//		mtype.insertMember("std_energy_el", HOFFSET(DataRow, std_energy_el),
+//						   H5::PredType::NATIVE_DOUBLE);
+//		mtype.insertMember("av_energy_conf", HOFFSET(DataRow, av_energy_conf),
+//						   H5::PredType::NATIVE_DOUBLE);
+//		mtype.insertMember("std_energy_conf", HOFFSET(DataRow, std_energy_conf),
+//						   H5::PredType::NATIVE_DOUBLE);
 		mtype.insertMember("av_stress_00", HOFFSET(DataRow, av_stress_00),
 						   H5::PredType::NATIVE_DOUBLE);
-		mtype.insertMember("std_stress_00", HOFFSET(DataRow, std_stress_00),
-						   H5::PredType::NATIVE_DOUBLE);
+//		mtype.insertMember("std_stress_00", HOFFSET(DataRow, std_stress_00),
+//						   H5::PredType::NATIVE_DOUBLE);
 		mtype.insertMember("av_stress_11", HOFFSET(DataRow, av_stress_11),
 						   H5::PredType::NATIVE_DOUBLE);
-		mtype.insertMember("std_stress_11", HOFFSET(DataRow, std_stress_11),
-						   H5::PredType::NATIVE_DOUBLE);
+//		mtype.insertMember("std_stress_11", HOFFSET(DataRow, std_stress_11),
+//						   H5::PredType::NATIVE_DOUBLE);
 		mtype.insertMember("av_stress_01", HOFFSET(DataRow, av_stress_01),
 						   H5::PredType::NATIVE_DOUBLE);
-		mtype.insertMember("std_stress_01", HOFFSET(DataRow, std_stress_01),
-						   H5::PredType::NATIVE_DOUBLE);
+//		mtype.insertMember("std_stress_01", HOFFSET(DataRow, std_stress_01),
+//						   H5::PredType::NATIVE_DOUBLE);
 		mtype.insertMember("index", HOFFSET(DataRow, index), H5::PredType::NATIVE_UINT);
 		mtype.insertMember("shear_modulus", HOFFSET(DataRow, G), H5::PredType::NATIVE_DOUBLE);
 		mtype.insertMember("bulk_modulus", HOFFSET(DataRow, K), H5::PredType::NATIVE_DOUBLE);
@@ -1003,55 +1016,55 @@ inline void evolution_history(H5::H5File &file,
 		dataset.write(history.macro_evolution_espci.data(), mtype);
 	}
 
-	{   /* --------- write driving event history ----------- */
-
-		using DataRow = typename mepls::history::DrivingRow;
-		H5::CompType mtype(sizeof(DataRow));
-		mtype.insertMember("index", HOFFSET(DataRow, index), H5::PredType::NATIVE_UINT);
-		mtype.insertMember("dload", HOFFSET(DataRow, dload), H5::PredType::NATIVE_DOUBLE);
-		mtype.insertMember("dext_stress", HOFFSET(DataRow, dext_stress),
-						   H5::PredType::NATIVE_DOUBLE);
-		mtype.insertMember("dpressure", HOFFSET(DataRow, dpressure), H5::PredType::NATIVE_DOUBLE);
-		mtype.insertMember("dtotal_strain", HOFFSET(DataRow, dtotal_strain),
-						   H5::PredType::NATIVE_DOUBLE);
-		mtype.insertMember("dtime", HOFFSET(DataRow, dtime), H5::PredType::NATIVE_DOUBLE);
-		mtype.insertMember("activation_protocol", HOFFSET(DataRow, activation_protocol),
-						   H5::PredType::NATIVE_UINT);
-
-		hsize_t d[] = {history.driving.size()};
-		H5::DataSpace space(1, d);
-		H5::DataSet dataset = file.createDataSet(path + "/driving_events", mtype, space);
-
-		dataset.write(history.driving.data(), mtype);
-	}
-
-	{   /* --------- write plastic event history ----------- */
-
-		using DataRow = typename mepls::history::PlasticRow;
-		H5::CompType mtype(sizeof(DataRow));
-		mtype.insertMember("index", HOFFSET(DataRow, index), H5::PredType::NATIVE_UINT);
-		mtype.insertMember("element", HOFFSET(DataRow, element), H5::PredType::NATIVE_UINT);
-		mtype.insertMember("eigenstrain_00", HOFFSET(DataRow, eigenstrain_00),
-						   H5::PredType::NATIVE_FLOAT);
-		mtype.insertMember("eigenstrain_11", HOFFSET(DataRow, eigenstrain_11),
-						   H5::PredType::NATIVE_FLOAT);
-		mtype.insertMember("eigenstrain_01", HOFFSET(DataRow, eigenstrain_01),
-						   H5::PredType::NATIVE_FLOAT);
-		mtype.insertMember("acting_stress_00", HOFFSET(DataRow, acting_stress_00),
-						   H5::PredType::NATIVE_FLOAT);
-		mtype.insertMember("acting_stress_11", HOFFSET(DataRow, acting_stress_11),
-						   H5::PredType::NATIVE_FLOAT);
-		mtype.insertMember("acting_stress_01", HOFFSET(DataRow, acting_stress_01),
-						   H5::PredType::NATIVE_FLOAT);
-		mtype.insertMember("activation_protocol", HOFFSET(DataRow, activation_protocol),
-						   H5::PredType::NATIVE_UINT);
-
-		hsize_t d[] = {history.plastic.size()};
-		H5::DataSpace space(1, d);
-		H5::DataSet dataset = file.createDataSet(path + "/plastic_events", mtype, space);
-
-		dataset.write(history.plastic.data(), mtype);
-	}
+//	{   /* --------- write driving event history ----------- */
+//
+//		using DataRow = typename mepls::history::DrivingRow;
+//		H5::CompType mtype(sizeof(DataRow));
+//		mtype.insertMember("index", HOFFSET(DataRow, index), H5::PredType::NATIVE_UINT);
+//		mtype.insertMember("dload", HOFFSET(DataRow, dload), H5::PredType::NATIVE_DOUBLE);
+//		mtype.insertMember("dext_stress", HOFFSET(DataRow, dext_stress),
+//						   H5::PredType::NATIVE_DOUBLE);
+//		mtype.insertMember("dpressure", HOFFSET(DataRow, dpressure), H5::PredType::NATIVE_DOUBLE);
+//		mtype.insertMember("dtotal_strain", HOFFSET(DataRow, dtotal_strain),
+//						   H5::PredType::NATIVE_DOUBLE);
+//		mtype.insertMember("dtime", HOFFSET(DataRow, dtime), H5::PredType::NATIVE_DOUBLE);
+//		mtype.insertMember("activation_protocol", HOFFSET(DataRow, activation_protocol),
+//						   H5::PredType::NATIVE_UINT);
+//
+//		hsize_t d[] = {history.driving.size()};
+//		H5::DataSpace space(1, d);
+//		H5::DataSet dataset = file.createDataSet(path + "/driving_events", mtype, space);
+//
+//		dataset.write(history.driving.data(), mtype);
+//	}
+//
+//	{   /* --------- write plastic event history ----------- */
+//
+//		using DataRow = typename mepls::history::PlasticRow;
+//		H5::CompType mtype(sizeof(DataRow));
+//		mtype.insertMember("index", HOFFSET(DataRow, index), H5::PredType::NATIVE_UINT);
+//		mtype.insertMember("element", HOFFSET(DataRow, element), H5::PredType::NATIVE_UINT);
+//		mtype.insertMember("eigenstrain_00", HOFFSET(DataRow, eigenstrain_00),
+//						   H5::PredType::NATIVE_FLOAT);
+//		mtype.insertMember("eigenstrain_11", HOFFSET(DataRow, eigenstrain_11),
+//						   H5::PredType::NATIVE_FLOAT);
+//		mtype.insertMember("eigenstrain_01", HOFFSET(DataRow, eigenstrain_01),
+//						   H5::PredType::NATIVE_FLOAT);
+//		mtype.insertMember("acting_stress_00", HOFFSET(DataRow, acting_stress_00),
+//						   H5::PredType::NATIVE_FLOAT);
+//		mtype.insertMember("acting_stress_11", HOFFSET(DataRow, acting_stress_11),
+//						   H5::PredType::NATIVE_FLOAT);
+//		mtype.insertMember("acting_stress_01", HOFFSET(DataRow, acting_stress_01),
+//						   H5::PredType::NATIVE_FLOAT);
+//		mtype.insertMember("activation_protocol", HOFFSET(DataRow, activation_protocol),
+//						   H5::PredType::NATIVE_UINT);
+//
+//		hsize_t d[] = {history.plastic.size()};
+//		H5::DataSpace space(1, d);
+//		H5::DataSet dataset = file.createDataSet(path + "/plastic_events", mtype, space);
+//
+//		dataset.write(history.plastic.data(), mtype);
+//	}
 
 	//	   {   /* --------- write renewal event history ----------- */
 	//		  using DataRow = typename mepls::history::History<dim>::RenewSlipRow;
@@ -1696,6 +1709,10 @@ std::vector<element::Anisotropic<dim> *> create_elements(const parameters::Param
 		conf.number = n;
 		conf.gamma_pl_trans = p.mat.gamma_pl_trans;
 		conf.beta = p.mat.beta;
+		conf.A = p.mat.A;
+		conf.B = p.mat.B;
+		conf.av_U = p.mat.av_U;
+		conf.std_U = p.mat.std_U;
 		conf.temperature = p.mat.temperature_liquid;
 
 		elements.push_back(

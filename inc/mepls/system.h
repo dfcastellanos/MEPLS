@@ -33,9 +33,10 @@ class Element;
 
 
 /*! This namespace contains the abstract class system::System, which
- * serves as a common interface for the system classes. A system object represents a
- * solid material capable of undergoing plastic deformation, which occurs in
- * a discrete manner both in time and in space. */
+ * serves as a common interface for the derived system classes. A system represents a
+ * solid material that can undergo plastic deformation by discrete localized
+ * slip events (see @ref Background, and e.g., @cite DFCastellanos_CRP @cite
+ * FernandezCastellanos2019 @cite nicolas_deformation_2018). */
 namespace system
 {
 
@@ -45,7 +46,7 @@ namespace system
  * (event::Driving) and plastic activity in the form of slip events
  * (event::Plastic). The values of the macroscopic magnitudes (with keys
  * "av_vm_plastic_strain", "load", "ext_stress", "pressure", "time" and
- * "total_strain") are then retrieved using the \ref operator[] with the key of
+ * "total_strain") can be queried using the @ref operator[] with the key of
  * the magnitude. */
 template<int dim>
 struct MacroState
@@ -108,7 +109,7 @@ struct MacroState
 		/*! Return the current value of the macroscopic magnitude with the given
 		 * name. */
 
-		// The input key-name is used as key for \ref monitor_map. Since \ref
+		// The input key-name is used as key for @ref monitor_map. Since @ref
 		// monitor_map stores pointers, the returned value is the current
 		// up-to-date value.
 		M_Assert(monitor_map.find(name) != monitor_map.end(), "Monitor magnitude does not exist");
@@ -119,7 +120,7 @@ struct MacroState
 	void update(event::Driving<dim> &event)
 	{
 		/*! Update the macroscopic quantities using the information contained in
-		 * the input \ref event::Driving object. */
+		 * the input @ref event::Driving object. */
 
 		load += event.dload;
 		ext_stress += event.dext_stress;
@@ -131,7 +132,7 @@ struct MacroState
 	void update(event::Plastic<dim> &event)
 	{
 		/*! Update the macroscopic quantities using the information contained in
-		 * the input \ref event::Plastic object. */
+		 * the input @ref event::Plastic object. */
 
 		av_vm_plastic_strain += event.dplastic_strain / double(n_elements);
 		time += event.dtime;
@@ -159,25 +160,17 @@ struct MacroState
 	 * +2. */
 
 	double total_strain;
-	/*!< Total strain (i.e. the sum of elastic and plasic strain) undergone by
-	 * the system. Its relation with \ref load depends on the specific loading
-	 * conditions (see \ref
-	 * elasticity_solver::ElasticitySolver.get_total_strain()). */
+	/*!< Total strain. */
 
 	double load;
-	/*!< Value of the applied load. It refers to the amount of imposed
-	 * displacement (if displacement-controlled) or the modulus of the applied
-	 * traction (if traction-controlled). The control mode is defined by \ref
-	 * base_param::Simulation.control_mode. */
+	/*!< Value of the applied load. See @ref mepls::elasticity_solver::Solver<dim>::load and
+	 * @ref mepls::elasticity_solver::ControlMode. */
 
 	double pressure;
 	/*!< Average pressure in the system. */
 
 	double ext_stress;
-	/*!< Average of the relevant component of the external stress tensor along
-	 * the loaded surface or surfaces. Its relation with \ref load and its
-	 * computations depends on the loading mode (see \ref
-	 * elasticity_solver::ElasticitySolver.get_loading_stress()). */
+	/*!< Exthernal stress. */
 
 	double time;
 	/*!< Elapsed time. */
@@ -196,16 +189,19 @@ struct MacroState
 
 
 
-/*! The System class represents a solid material capable of undergoing plastic
- * deformation, which occurs in a discrete manner both in time and in space.
+/*! The System class serves as a common interface for the derived system classes.
+ * A system represents a solid material that can undergo plastic deformation by discrete localized
+ * slip events (see @ref Background, and e.g., @cite DFCastellanos_CRP @cite
+ * FernandezCastellanos2019 @cite nicolas_deformation_2018).
+ *
  * The class is composed of different members that represent different aspects
- * of the material: a vector \ref elements of element objects which represent
+ * of the material: a vector @ref System<dim>::elements of element objects which represent
  * discrete non-overlapping mesoscale material regions; an elasticity solver
- * (\ref solver) to compute the elastic fields; the member \ref history to
- * register the details of each event occurring in the system. Normally,
- * system objects are operated by the algorithms in \ref dynamics controlling
- * its evolution using the events defined in \ref event. The operation is done
- * by calling the \ref add() functions. */
+ * (@ref System<dim>::solver) to compute the elastic fields; the member @ref System<dim>::history to
+ * register the evolution of the macroscale properties and the occurence of discrete events
+ *
+ * System objects are meant to be operated by the algorithms in @ref mepls::dynamics, which
+ * control their evolution by adding events of the types defined in @ref mepls::event. */
 template<int dim>
 class System
 {
@@ -305,12 +301,12 @@ class System
 
 	void add(event::Plastic<dim> &plastic_event)
 	{
-		/*! This function wraps \ref add(std::vector<event::Plastic<dim>> &) to
+		/*! This function wraps @ref add(std::vector<event::Plastic<dim>> &) to
 		 * allow the user to add a single plastic event without the need of
 		 * creating a vector.
 		 *
 		 * @note a vector with the input event is creted during the function call.
-		 * If many events are to be added at once, \ref
+		 * If many events are to be added at once, @ref
 		 * add(std::vector<event::Plastic<dim>> &) is the preferred way. */
 
 		std::vector<event::Plastic<dim>> added_yielding = {plastic_event};
@@ -335,8 +331,7 @@ class System
 
 	void set_history(history::History<dim> &history_)
 	{
-		/*! Set the history object on which the added events will be recorded. If
-		 * no object is set, a default one will be used. */
+		/*! Set the history object to be used. */
 
 		history = &history_;
 	}
@@ -348,6 +343,8 @@ class System
 	/*!< Macrosopic state of the system. */
 
 	history::History<dim> default_history;
+	/*!< History object that is used by default, i.e., when no history object has been set by
+	 * calling @ref System<dim>::set_history. */
 
 	history::History<dim> *history;
 	/*!< History of added plastic and driving events. */
@@ -361,7 +358,7 @@ class System
 
 
 /*! This class implements the most basic and widely-applicable functionality for
- * the system. See \ref solve_elastic_problem() and \ref add() functions for
+ * the system. See @ref solve_elastic_problem() and @ref add() functions for
  * details. */
 template<int dim>
 class Standard: public System<dim>
@@ -392,11 +389,11 @@ class Standard: public System<dim>
 		const std::vector<event::Plastic<dim>> &added_yielding,
 		event::Driving<dim> &driving_event) override
 	{
-		/*! This function uses the \ref solver to compute the elastic equilibrium
+		/*! This function uses the @ref solver to compute the elastic equilibrium
 		 * state using for the eigenstrain field stored in the elements under the
 		 * action of the current external load value. The stress field of each
 		 * element is updated accordingly. The macroscale properties stored in
-		 * \ref macrostate are also updated.
+		 * @ref macrostate are also updated.
 		 *
 		 * While the value of the external load is established outside the system,
 		 * other external conditions can suffer changes by getting feedback from
@@ -444,9 +441,9 @@ class Standard: public System<dim>
 	{
 		/*! Update the external load by adding the load increment defined in the
 		 * input driving event (see event::Driving<dim>::dload). The elastic
-		 * fields are computed with \ref solver, and the \ref elements are informed
-		 * about their values. The \ref macrostate is updated. The input driving
-		 * event is registered in the \ref history. */
+		 * fields are computed with @ref solver, and the @ref elements are informed
+		 * about their values. The @ref macrostate is updated. The input driving
+		 * event is registered in the @ref history. */
 
 		solver.add_load_increment(driving_event.dload);
 
@@ -462,26 +459,26 @@ class Standard: public System<dim>
 
 	void add(std::vector<event::Plastic<dim>> &added_yielding) override
 	{
-		/*! Update the plastic (eigenstrain) field of the \ref elements using the
+		/*! Update the plastic (eigenstrain) field of the @ref elements using the
 		 * input vector of plastic events. Each plastic event defines the
-		 * activation of a specific slip system (see \ref slip). For all the
-		 * active slip systems, an eigenstrain increment is computed with \ref
+		 * activation of a specific slip system (see @ref slip). For all the
+		 * active slip systems, an eigenstrain increment is computed with @ref
 		 * slip::Slip<dim>::get_eigenstrain_increment(), which is then added to
-		 * their respective parent elements (see \ref slip::Slip<dim>::parent).
-		 * The elastic fields are computed with \ref solver and the \ref elements
-		 * are informed about their values. The \ref macrostate is updated. The
-		 * input plastic events are registered in the \ref history. All the
+		 * their respective parent elements (see @ref slip::Slip<dim>::parent).
+		 * The elastic fields are computed with @ref solver and the @ref elements
+		 * are informed about their values. The @ref macrostate is updated. The
+		 * input plastic events are registered in the @ref history. All the
 		 * elements in which a slip event took place get their structural
-		 * properties renewed, as defined by \ref
+		 * properties renewed, as defined by @ref
 		 * element::Element<dim>::renew_structural_properties(). The new structural
-		 * properties are resgitered as events of type \ref
-		 * event::RenewSlip<dim> in \ref history.
+		 * properties are resgitered as events of type @ref
+		 * event::RenewSlip<dim> in @ref history.
 		 *
 		 * @note since plastic deformation changes the external stress (if the
 		 * system is displacement-controlled) or the total strain (if the system
 		 * is traction-controlled), such changes in the external conditions are
-		 * registered in the \ref history as driving events
-		 * (\ref event::Driving).*/
+		 * registered in the @ref history as driving events
+		 * (@ref event::Driving).*/
 
 		if(added_yielding.size() == 0)
 			return;
@@ -553,9 +550,9 @@ class Standard: public System<dim>
 };
 
 
-/*! This class implements the same functionality as \ref Standard<dim> but
- * considers randomized elastic interactions between the \ref elements. This is
- * achieved by random-shuffling the stress variations of the \ref elements when
+/*! This class implements the same functionality as @ref Standard<dim> but
+ * considers randomized elastic interactions between the @ref elements. This is
+ * achieved by random-shuffling the stress variations of the @ref elements when
  * their elastic fields are updated. In this way, we remove spatial
  * correlations in the variations but retain other statistical properties. */
 template<int dim>
@@ -588,13 +585,13 @@ class ShuffledKernel: public Standard<dim>
 		event::Driving<dim> &driving_event) override
 	{
 		/*! Perform the same operations as Standard<dim>::solve_elastic_problem.
-		 * However, the \ref elements interact via randomized elastic fields. To
+		 * However, the @ref elements interact via randomized elastic fields. To
 		 * this end, the changes in the elastic fields are computed and then
 		 * element-wise random-shuffled. In this way, the changes retain all their
 		 * statistical properties except for spatial correlations.
 		 *
 		 * @note The changes in the elastic fields are the consequence of slip
-		 * events that occur within certain \ref elements. Elements undergoing slip
+		 * events that occur within certain @ref elements. Elements undergoing slip
 		 * events are not considered in the random-shuffling of elastic fields to
 		 * ensure that slip events do reduce local stress fields in the mesoscale
 		 * elements in which they occur.
@@ -607,8 +604,8 @@ class ShuffledKernel: public Standard<dim>
 
 		solver.solve();
 
-		// since we call \ref solver.clear() at the end of this function, the call
-		// to \ref solver.get_stress() returns the stress change instead of the
+		// since we call @ref solver.clear() at the end of this function, the call
+		// to @ref solver.get_stress() returns the stress change instead of the
 		// total stress
 		auto &stress_change = solver.get_stress();
 
@@ -661,7 +658,7 @@ class ShuffledKernel: public Standard<dim>
 		}
 
 
-		// update macroscate properties in the same way as in \ref
+		// update macroscate properties in the same way as in @ref
 		// system::System<dim>::solve_elastic_problem()
 		double external_stress = solver.get_external_stress();
 
@@ -674,19 +671,19 @@ class ShuffledKernel: public Standard<dim>
 		driving_event.dpressure = pressure - macrostate["pressure"];
 		driving_event.dext_stress = external_stress - macrostate["ext_stress"];
 
-		// since we call \ref solver.clear() at the end of this function, we
-		// cannot ask the \ref solver for the total strain. Under
+		// since we call @ref solver.clear() at the end of this function, we
+		// cannot ask the @ref solver for the total strain. Under
 		// displacement-controlled conditions, the external strain increment is
 		// defined in the input driving_event.dload.
 
 		// TODO the traction-controlled case should be considered. In that case,
 		// is driving_event.dext_stress what is given by driving_event.dload.
 		// A way to achieve this would be to let system::System<dim> know the
-		// loading control mode, or to as \ref solver about it.
+		// loading control mode, or to as @ref solver about it.
 		driving_event.dtotal_strain = driving_event.dload;
 
 
-		// clear the state of \ref solver.clear() so that when we call \ref
+		// clear the state of @ref solver.clear() so that when we call @ref
 		// solver.get_stress() at the beginning of this function we obtain the
 		// stress change isntead of the total stress
 		solver.clear();
@@ -700,10 +697,10 @@ class ShuffledKernel: public Standard<dim>
 };
 
 
-/*! This class implements the same functionality as \ref Standard<dim> but
- * considers homgeneous elastic interactions between the \ref elements
+/*! This class implements the same functionality as @ref Standard<dim> but
+ * considers homgeneous elastic interactions between the @ref elements
  * (mean-field interaction). This is achived by computing the average stress
- * variations over the \ref elements when their elastic fields are updated. */
+ * variations over the @ref elements when their elastic fields are updated. */
 template<int dim>
 class HomogeneousKernel: public Standard<dim>
 {
@@ -734,12 +731,12 @@ class HomogeneousKernel: public Standard<dim>
 		event::Driving<dim> &driving_event) override
 	{
 		/*! Perform the same operations as Standard<dim>::solve_elastic_problem.
-		 * However, the \ref elements interact via homogeneous elastic fields. To
+		 * However, the @ref elements interact via homogeneous elastic fields. To
 		 * this end, the changes in the elastic fields are computed and then
 		 * averaged.
 		 *
 		 * @note The changes in the elastic fields are the consequence of slip
-		 * events that occur within certain \ref elements. Elements undergoing slip
+		 * events that occur within certain @ref elements. Elements undergoing slip
 		 * events are not considered in the random-shuffling of elastic fields to
 		 * ensure that slip events do reduce local stress fields in the mesoscale
 		 * elements in which they occur.
@@ -753,8 +750,8 @@ class HomogeneousKernel: public Standard<dim>
 
 		solver.solve();
 
-		// since we call \ref solver.clear() at the end of this function, the call
-		// to \ref solver.get_stress() returns the stress change instead of the
+		// since we call @ref solver.clear() at the end of this function, the call
+		// to @ref solver.get_stress() returns the stress change instead of the
 		// total stress
 		auto &elastic_stress_increment = solver.get_stress();
 
@@ -806,7 +803,7 @@ class HomogeneousKernel: public Standard<dim>
 			solver.set_stress(n, element->stress());
 		}
 
-		// update macroscate properties in the same way as in \ref
+		// update macroscate properties in the same way as in @ref
 		// system::System<dim>::solve_elastic_problem()
 		double external_stress = solver.get_external_stress();
 
@@ -819,18 +816,18 @@ class HomogeneousKernel: public Standard<dim>
 		driving_event.dpressure = pressure - macrostate["pressure"];
 		driving_event.dext_stress = external_stress - macrostate["ext_stress"];
 
-		// since we call \ref solver.clear() at the end of this function, we
-		// cannot ask the \ref solver for the total strain. Under
+		// since we call @ref solver.clear() at the end of this function, we
+		// cannot ask the @ref solver for the total strain. Under
 		// displacement-controlled conditions, the external strain increment is
 		// defined in the input driving_event.dload.
 
 		// TODO the traction-controlled case should be considered. In that case,
 		// is driving_event.dext_stress what is given by driving_event.dload. A
 		// way to achieve this would be to let system::System<dim> know the
-		// loading control mode, or to as \ref solver about it.
+		// loading control mode, or to as @ref solver about it.
 		driving_event.dtotal_strain = driving_event.dload;
 
-		// clear the state of \ref solver.clear() so that when we call \ref
+		// clear the state of @ref solver.clear() so that when we call @ref
 		// solver.get_stress() at the beginning of this function we obtain the
 		// stress change instead of the total stress
 		solver.clear();

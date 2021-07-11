@@ -52,10 +52,10 @@ namespace mepls
 
 /*! This namespace contains tools for creating and testing patches. Patches are
  * connected sub-domains of the full system, which are cut-out and mechanically
- * shear-tested in isolation. Within this framework, patches are
- * composed by mesoscale elements and represented as a \ref system::System
- * object, with the same properties and evolution laws as the full-size system
- * from where they are cut-out. Performing shear tests on individual patches
+ * shear-tested in isolation (see @cite DFCastellanos_CRP @cite Patinet2016 @cite Barbot2018).
+ *  In elasto-plastic models, patches are composed by mesoscale elements and
+ *  represented as a @ref system::System object, with the same properties and evolution laws as
+ *  the full-size system from where they are cut-out. Performing shear tests on individual patches
  * provides statistical information about the spatially-fluctuating local
  * mechanical response of the system. While full systems can be periodic or
  * non-periodic patches are, by definition, non-periodic. Therefore, computing
@@ -87,7 +87,7 @@ struct PatchPropertiesTensorial
 
 	double theta = 0.;
 	/*!< Orientation of the shear test performed on the patch. This angle is
-	 * the same used in \ref utils::tensor::schmid. */
+	 * the same used in @ref utils::tensor::schmid. */
 
 	dealii::SymmetricTensor<2, dim> stress_ss;
 	/*!< Stress tensor averaged over the elements composing the patch. The
@@ -103,7 +103,7 @@ struct PatchPropertiesTensorial
 
 	double resolved_elastic_shear_strain_oi;
 	/*!< Elastic shear strain applied to the patch, with shear orientation
-	 * \ref theta, to reach the oi-state from the initial ss-state. */
+	 * @ref theta, to reach the oi-state from the initial ss-state. */
 
 	double energy_el_ss = 0.;
 	/*!< Elastic energy averaged over the elements composing the patch. The
@@ -245,7 +245,7 @@ inline void select_patch_elements(
 	  --------------
 	 * @endcode
 	 *
-	 * Thus, the vector of elements \ref system::System<dim>.elements in the
+	 * Thus, the vector of elements @ref system::System<dim>.elements in the
 	 * patch system has the elements ordered as [18,19,15,23,24,20,3,4,0]
 	 */
 
@@ -454,7 +454,7 @@ void analyze_patch_ensemble(
 	bool do_ee)
 {
 	/*! Apply shear tests to an ensemble of patches of size N. A patch of
-	 * size N is created for each reference element (see \ref
+	 * size N is created for each reference element (see @ref
 	 * select_patch_elements for the interpretation) considered. Reference
 	 * elements are defined by iterating over all the elements in the system and
 	 * selecting a reference element for every N/2 elements. In this way, we
@@ -462,7 +462,7 @@ void analyze_patch_ensemble(
 	 *
 	 * @param data_patch vector containing the properties measured for each patch
 	 * @param system from where the patches are created
-	 * @param N patch size (see \ref select_patch_elements)
+	 * @param N patch size (see @ref select_patch_elements)
 	 * @param theta_list vector with the shear orientations along which shear
 	 * tests are to be performed
 	 * @param do_ee if false, compute only the ss- and oi-state. If true, compute
@@ -537,7 +537,7 @@ void analyze_patch_ensemble(
 
 			element::calculate_ext_stress_coefficients(patch_elements_copy, probring_solver);
 
-			// \ref element::Element<dim>.S_ needs to be computed only if plastic
+			// @ref element::Element<dim>.S_ needs to be computed only if plastic
 			// deformation takes place. This is only the case if we change from
 			// oi- to the ee-state
 			if(do_ee)
@@ -599,17 +599,17 @@ void analyze_patch_ensemble_opt(
 	const std::vector<double> &theta_list,
 	bool do_ee)
 {
-	/*! It does the same as \ref analyze_patch_ensemble, but precalculates
-	 * \ref element::Element<dim>.ext_stress_coeff_and \ref element::Element<dim>
+	/*! It does the same as @ref analyze_patch_ensemble, but precalculates
+	 * @ref element::Element<dim>.ext_stress_coeff_and @ref element::Element<dim>
 	 * .S_ once and is reused for all the patches. This optimization is only
-	 * valid under the same conditions discussed for \ref
+	 * valid under the same conditions discussed for @ref
 	 * element::calculate_local_stress_coefficients_central, namely the full
 	 * system has elastic homogeneous properties and periodic boundary
 	 * conditions.
 	 */
 
 
-	// see \ref analyze_patch_ensemble for a more detailed documentation
+	// see @ref analyze_patch_ensemble for a more detailed documentation
 
 	const auto &full_system_solver = system.solver;
 	const unsigned int Nx = full_system_solver.get_Nx();
@@ -670,7 +670,7 @@ void analyze_patch_ensemble_opt(
 
 		}
 
-		/* ------- proceed as in \ref analyze_patch_ensemble ------- */
+		/* ------- proceed as in @ref analyze_patch_ensemble ------- */
 
 		// we select random non-repeated reference elements. We build a patch using the
 		// reference element's neighborhood using select_patch_elements(). The number of
@@ -794,7 +794,7 @@ class PatchPropertiesSnapshot
   public:
 
 	/*! This struct is used for output purposes only. It converts the struct
-	 * \ref PatchPropertiesTensorial<dim>, which contains complex objects, into
+	 * @ref PatchPropertiesTensorial<dim>, which contains complex objects, into
 	 * a plain struct of scalar values. In this way, it can be easily written
 	 * into, e.g., hdf5 datasets. */
 	struct DataRow
@@ -805,7 +805,7 @@ class PatchPropertiesSnapshot
 
 		float theta = 0.;
 		/*!< Orientation of the shear test performed on the patch. This angle is
-		 * the same used in \ref utils::tensor::schmid. */
+		 * the same used in @ref utils::tensor::schmid. */
 
 		float stress_ss_00 = 0.;
 		/*!< Component xx of the stress tensor averaged over the elements composing
@@ -869,7 +869,7 @@ class PatchPropertiesSnapshot
 
 		float shear_strain_oi = 0.;
 		/*!< Elastic shear strain applied to the patch, with shear orientation
-		* \ref theta, to reach the oi-state from the initial ss-state. */
+		* @ref theta, to reach the oi-state from the initial ss-state. */
 
 		float x = 0.;
 		/*!< x-coordinate of the center of the patch. */
@@ -907,7 +907,7 @@ class PatchPropertiesSnapshot
 		 * @param system from where the patches are created and analyzed
 		 * @param data_patch vector containing the properties measured for each
 		 * patch
-		 * @param N patch size (see \ref select_patch_elements)
+		 * @param N patch size (see @ref select_patch_elements)
 		 * @param theta_list vector with the shear orientations along which shear
 		 * tests are to be performed
 		 * @param do_ee if false, compute only the ss- and oi-state. If true,
@@ -954,26 +954,26 @@ class PatchPropertiesSnapshot
 	/*!< Container to store the recorde data. */
 
 	std::string recorded_mag;
-	/*!< Name of the field storaged in \ref data. */
+	/*!< Name of the field storaged in @ref data. */
 
 	std::string monitor_name;
 	/*!< Name of the magnitude used to check whether the snapshot should be taken
 	 * or not. */
 
 	double desired_target;
-	/*!< Value of the \ref monitor_name at which we desired to take the
+	/*!< Value of the @ref monitor_name at which we desired to take the
 	 * snapshot. */
 
 	double recorded_target;
-	/*!< Value of the \ref monitor_name at which the snapshot is actually
+	/*!< Value of the @ref monitor_name at which the snapshot is actually
 	 * taken. */
 
 	unsigned int output_index;
-	/*!< Global event index from the \ref event::History at which the snapshot
+	/*!< Global event index from the @ref event::History at which the snapshot
 	 * is taken. */
 
 	unsigned int N;
-	/*!< Patch size (see \ref select_patch_elements) */
+	/*!< Patch size (see @ref select_patch_elements) */
 
 };
 

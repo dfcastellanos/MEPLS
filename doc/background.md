@@ -33,4 +33,8 @@ Mesomodels divide a material sample into discrete mesoscale subdomains or elemen
 ## Why MEPLS?
 MEPLS is a framework that provides easy-to-use tools to build mesoscale models of the plastic deformation of materials under a broad range of physical scenarios. An alternative description is that MEPLS allows sampling a mesoscale model’s configuration space with Markov chain Monte Carlo methods. MEPLS enables the user to study the impact that microstructural properties have on the macroscale elasto-plastic behavior of a material. This question is especially challenging to answer when those properties are spatially heterogeneous and statistically distributed, which is, in turn, the most common situation. The built-in MEPLS tools abstract away unnecessary complexity associated with the model implementation, allowing the user to focus on the physics of the problem.
 
+## References
+@cite DFCastellanos_CRP @cite BudrikisNatCom @cite Talamali2012 @cite nicolas_deformation_2018 
+@cite karimi_role_2016 @cite bulatov_stochastic_1994-1
+
 <br></div>

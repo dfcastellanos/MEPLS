@@ -52,6 +52,9 @@ template<int dim>
 class Solver;
 
 
+/*! This namespace contains functions that are used for implementing the elasticiy solvers of the
+ *  namespace @ref mepls::elasticity_solver using the Finite Element Method with the deal.II
+ *  library.*/
 namespace impl
 {
 
@@ -243,7 +246,7 @@ void assemble_eigenstrain_rhs(
 template<int dim>
 void assemble_unitary_eigenstrains(Solver<dim> &solver)
 {
-	/* Assemble the canonical basis of eigenstrains.
+	/*! Assemble the canonical basis of eigenstrains.
 	 * In linear elasticity, any other eigenstrain RHS
 	 * contribution will be a linear combinations of these.
 	 */
@@ -284,7 +287,7 @@ template<int dim>
 void assemble_unitary_eigenstrains_unique(Solver<dim> &solver)
 {
 
-	/* The same as @ref assemble_unitary_eigenstrains, but assuming that the
+	/*! The same as @ref assemble_unitary_eigenstrains, but assuming that the
 	 * elastic properties are homogeneous and that the FEM mesh is structured. In this
 	 * case, we can perform the assembly of a single cell and reuse it for the rest.
 	 */
@@ -326,7 +329,7 @@ void add_eigenstrain(
 	dealii::ConstraintMatrix &constraints,
 	Solver<dim> &solver)
 {
-	/* Update the input RHS vector to account for the addition of the input eigenstrain
+	/*! Update the input RHS vector to account for the addition of the input eigenstrain
 	 * to the input element. */
 
 	const unsigned int dofs_per_cell = solver.fe.dofs_per_cell;
@@ -351,7 +354,7 @@ void add_eigenstrain(
 template<int dim>
 void make_element_maps(Solver<dim> &solver)
 {
-	/* Create the maps that relates Deal.II's cell objects to MEPLS element number, and element
+	/*! Create the maps that relates Deal.II's cell objects to MEPLS element number, and element
 	 * number to cell. */
 
 
@@ -378,7 +381,7 @@ void make_element_maps(Solver<dim> &solver)
 template<int dim>
 void average_shape_function_gradients(Solver<dim> &solver)
 {
-	/* Computes the average of the gradients of the shape functions. This allows computing the
+	/*! Computes the average of the gradients of the shape functions. This allows computing the
 	 * strain very efficiently. The resulting strain is constant within each FE, which is
 	 * consistant with the use of linear shape function. */
 
@@ -414,7 +417,7 @@ void assemble_cell_system_matrix(
 	Solver<dim> &solver)
 {
 
-	/* Assemble a portion of the FEM stiffness matrix that corresponds to a specific cell. */
+	/*! Assemble a portion of the FEM stiffness matrix that corresponds to a specific cell. */
 
 	const unsigned int n_q_points = solver.quadrature_formula.size();
 	const unsigned int dofs_per_cell = solver.fe.dofs_per_cell;
@@ -444,7 +447,7 @@ void assemble_system_matrix(
 	dealii::Vector<double> &rhs,
 	Solver<dim> &solver)
 {
-	/* Assemble the FEM stiffness matrix. */
+	/*! Assemble the FEM stiffness matrix. */
 
 	unsigned int n_active_cells = solver.triangulation.n_active_cells();
 	const unsigned int dofs_per_cell = solver.fe.dofs_per_cell;
@@ -488,7 +491,7 @@ void get_av_displacement_gradient(
 	typename dealii::DoFHandler<dim>::active_cell_iterator &cell)
 {
 
-	/* Compute the average displacement gradient tensor on the input cell using the average of
+	/*! Compute the average displacement gradient tensor on the input cell using the average of
 	 * the gradients of the shape functions. */
 
 	const unsigned int vertices_per_cell = dealii::GeometryInfo<dim>::vertices_per_cell;
@@ -509,10 +512,10 @@ void get_av_displacement_gradient_dealii_builtin(
 	Solver<dim> &solver,
 	typename dealii::DoFHandler<dim>::active_cell_iterator &cell)
 {
-	/* Compute the average displacement gradient tensor on the input cell using deal.II's
+	/*! Compute the average displacement gradient tensor on the input cell using deal.II's
 	 * built-in tools. This function is less efficient than @ref get_av_displacement_gradient for
 	 * computing element-wise constant gradient, but it has the advantage that it depends
-	 * on less assumptions and optimizations. It can be used as a bench-mark of optimized ones,
+	 * on less assumptions and optimizations. It can be used as a benchmark of optimized ones,
 	 *  or to compute the average displacement gradient of e.g. non-structure meshes. */
 
 	// these objects are created for each cell. They could be reused to increase the performance
@@ -599,20 +602,27 @@ inline void make_gaussian_filter(
 	std::vector<std::vector<std::pair<size_t, double> > > &gauss_conv_map,
 	unsigned int Nx,
 	unsigned int Ny,
-	double std_blur,
+	double std,
 	bool PBC)
 {
-	/*! Compute, for each elements, Gaussian weights associated to each element of its
-	 * neighborhood. Computing for each element the weighted average of the neighborhood results
-	 * in applying a convolution with a Gaussian. */
+	/*! Compute, for each element, Gaussian weights associated to each element in its
+	 * neighborhood. This weigths can be used for computing the neighborhood weighted
+	 * average of some field. That averaged field correponds to applying to that field a
+	 * convolution with a Gaussian filter.
+	 *
+	 * @param Nx number of elements composing the system in the horizontal direction.
+	 * @param Ny number of elements composing the system in the vertical direction.
+	 * @param std half-width of the filter.
+	 * @param PBC if the convolution is to be done with bi-periodic boundary conditions
+	 *  */
 
 	std::vector<int> neighbor(2, 0);
 
 	// outside a certain radius, the gaussian weight has a value smaller than min_weight, so we neglect those elements
-	double std_blur2 = std_blur * std_blur;
+	double std2 = std * std;
 	double min_weight = 0.001;
-	assert(min_weight * 2 * 3.14159265 * std_blur2 < 1);
-	double radius2 = -std::log(2 * 3.14159265 * std_blur2 * min_weight) * 2. * std_blur2;
+	assert(min_weight * 2 * 3.14159265 * std2 < 1);
+	double radius2 = -std::log(2 * 3.14159265 * std2 * min_weight) * 2. * std2;
 	double radius = int(std::sqrt(radius2));
 
 	// get the coordiantes that are in the circle of radius r
@@ -652,7 +662,7 @@ inline void make_gaussian_filter(
 					continue;
 			}
 
-			double weight = std::exp(-double(dx * dx + dy * dy) / (2. * std_blur2));
+			double weight = std::exp(-double(dx * dx + dy * dy) / (2. * std2));
 			unsigned int element_neighbor = neighbor[0] + Nx * neighbor[1];
 			gauss_conv_map[element].push_back(std::make_pair(element_neighbor, weight));
 		}

@@ -44,14 +44,13 @@ plastic event takes place, the local atomistic configuration changes, which will
 local slip thresholds and, typically in a structure softer than the initial, highly stable one. 
 There are many posibilities to model this kind of behavior, but we will use a fairly simple one. 
 To this end, we consider two different slip threshold scale parameters, \f$ \lambda_{\rm init} \f$ 
-for 
-the intiaal state, and  \f$ \lambda_{\rm renew} \f$ for renewing the thresholds after plastic slip
-events occur. Thus, if \f$ \lambda_{\rm init} = \lambda_{\rm renew}\f$ the model reduces entirely
-to the previous tutorial step model. However, if \f$ \lambda_{\rm init} > \lambda_{\rm renew}\f$,
- we model a material with an initial structure which is more stable than after plastic 
- deformation. We can 
-think of it as a kind of softening, and as we will see in the results section, it leads to a 
-stress overshoot in the stress-strain curve and to strain localization in the form of a permanent shear 
+for the intial state, and \f$ \lambda_{\rm renew} \f$ for renewing the thresholds after plastic slip
+events occur @cite PhysRevE.98.040901. Thus, if \f$ \lambda_{\rm init} = \lambda_{\rm renew}\f$ 
+the model reduces entirely to the previous tutorial step model. However, if \f$ \lambda_{\rm init} > \lambda_{\rm 
+renew}\f$, we model a material with an initial structure which is more stable than after plastic 
+ deformation. We can think of this process as a kind of abrupt strain softening @cite Tuszes2017
+ @cite Castellanos2018, and as we will see in the results section, it leads to a stress overshoot in the 
+ stress-strain curve and to strain localization in the form of a permanent shear 
 band.
 
 
@@ -590,7 +589,8 @@ stress overshoot and how abrupt the stress drop is will depend on the difference
 between of `lambda_init` and `lambda_renew`. The other simulation parameters also have an 
 impact on it as, e.g., the parameter `k` controlling the disorder in the slip thresholds. The 
 effects of the different parameters on the stress overshoot and the formation of the shear band 
-have been widely studied in the scientific literature, see e.g., .
+have been widely studied in the scientific literature, see e.g., @cite PhysRevE.98.040901 @cite 
+Tuszes2017 @cite Castellanos2018 @cite Vandembroucq2011.
 
 In this tutorial, we implemented the system dynamics using MEPLS built-in tools. Also, we saw how
 to control the simulation parameters using input files and how to create and load output files 

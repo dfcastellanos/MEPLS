@@ -72,6 +72,9 @@ namespace mepls
 {
 
 
+/*!
+ * This namespce contains tools for testing.
+ */
 namespace test
 {
 
@@ -97,7 +100,7 @@ void assert_result(
 	/*! Evaluate if the input "actual" equals the input "expected", up to the
 	 * given tolerance (in percentage). A message showing the input name is
 	 * printed to output_stream summarizing the result
-	 * (see \ref test_is_passed). */
+	 * (see @ref test_is_passed). */
 
 	double z = 100 * (actual - expected).norm() / expected.norm();
 	output_stream << " * " << name << " ---- " << z << "% -> " << test_is_passed(z < tol_percent)
@@ -115,7 +118,7 @@ void assert_result(
 	/*! Evaluate if the input "actual" equals the input "expected", up to the
 	 * given tolerance (in percentage). A message showing the input name is
 	 * printed to output_stream summarizing the result
-	 * (see \ref test_is_passed). */
+	 * (see @ref test_is_passed). */
 
 	double z = 100 * (actual - expected).norm() / expected.norm();
 	output_stream << " * " << name << ": val = " << actual << "  |  expected = " << expected << "  |  "
@@ -134,7 +137,7 @@ void assert_result(
 	/*! Evaluate if the input "actual" equals the input "expected", up to the
 	 * given tolerance (in percentage). A message showing the input name is
 	 * printed to output_stream summarizing the result
-	 * (see \ref test_is_passed). */
+	 * (see @ref test_is_passed). */
 
 	double z = 100 * std::abs((actual - expected) / expected);
 	output_stream << " * " << name << ": val = " << actual << "  |  expected = " << expected <<
@@ -146,6 +149,9 @@ void assert_result(
 } // namespace test
 
 
+/*!
+ * This namespce contains utilities that come in handy in different situations.
+ */
 namespace utils
 {
 
@@ -162,7 +168,7 @@ inline double get_von_mises_equivalent_strain(const dealii::SymmetricTensor<2, d
 template<>
 inline double get_von_mises_equivalent_stress(const dealii::SymmetricTensor<2, 2> &stress)
 {
-	/*! Specialization for 2D of the template function \ref
+	/*! Specialization for 2D of the template function @ref
 	 * get_von_mises_equivalent_stress(const dealii::SymmetricTensor<2,dim> &)
 	 *
 	 * @note the von Mises strain \f$ \Sigma_{\rm VM} \f$ is defined here as
@@ -179,7 +185,7 @@ inline double get_von_mises_equivalent_stress(const dealii::SymmetricTensor<2, 2
 template<>
 inline double get_von_mises_equivalent_strain(const dealii::SymmetricTensor<2, 2> &strain)
 {
-	/*! Specialization for 2D of the template function \ref
+	/*! Specialization for 2D of the template function @ref
 	 * get_von_mises_equivalent_strain(const dealii::SymmetricTensor<2,dim> &)
 	 *
 	 * @note the von Mises strain \f$ \epsilon_{\rm VM} \f$ is defined here as
@@ -215,7 +221,7 @@ inline dealii::SymmetricTensor<4, dim> voigt_to_standard_rank4(
 template<>
 inline dealii::SymmetricTensor<4, 2> voigt_to_standard_rank4(dealii::SymmetricTensor<2, 3> const &C)
 {
-	/*! Template specialization of \ref
+	/*! Template specialization of @ref
 	 * voigt_to_standard_rank4(dealii::SymmetricTensor<2,3*(dim-1)> const &)
 	 * for dim=2. */
 
@@ -244,7 +250,7 @@ template<>
 inline dealii::SymmetricTensor<4, 2> mandel_to_standard_rank4(
 	dealii::SymmetricTensor<2, 3> const &C)
 {
-	/*! Template specialization of \ref
+	/*! Template specialization of @ref
 	 * mandel_to_standard_rank4(dealii::SymmetricTensor<2,3*(dim-1)> const &)
 	 * for dim=2. */
 
@@ -273,7 +279,7 @@ template<>
 inline dealii::SymmetricTensor<2, 3> standard_rank4_to_voigt(
 	dealii::SymmetricTensor<4, 2> const &CC)
 {
-	/*! Template specialization of \ref
+	/*! Template specialization of @ref
 	 * standard_rank4_to_voigt(dealii::SymmetricTensor<4,2> const &) for dim=2.*/
 
 	dealii::SymmetricTensor<2, 3> C;
@@ -301,7 +307,7 @@ inline void rotate_matrix(dealii::SymmetricTensor<2, dim> &A, double theta);
 template<>
 inline void rotate_matrix(dealii::SymmetricTensor<2, 2> &A, double theta)
 {
-	/*! Template specialization of \ref
+	/*! Template specialization of @ref
 	 * rotate_matrix(dealii::SymmetricTensor<2,dim> &, double) for dim=2. */
 
 	dealii::Tensor<2, 2> R;
@@ -332,7 +338,7 @@ inline dealii::SymmetricTensor<2, dim> make_schmid(double theta);
 template<>
 inline dealii::SymmetricTensor<2, 2> make_schmid<2>(double angle)
 {
-	/*! Template specialization of \ref make_schmid<dim>(double theta) for dim=2.
+	/*! Template specialization of @ref make_schmid<dim>(double theta) for dim=2.
 	 * Specifically, this function creates a Schmid tensor for a slip plane
 	 * forming an angle theta with the horizontal axis. */
 
@@ -358,7 +364,7 @@ inline dealii::SymmetricTensor<4, dim> make_isotropic_stiffness(double G, double
 template<>
 inline dealii::SymmetricTensor<4, 2> make_isotropic_stiffness<2>(double G, double nu)
 {
-	/*! Template specialization of \ref make_isotropic_stiffness(double G,
+	/*! Template specialization of @ref make_isotropic_stiffness(double G,
 	 * double nu) for dim=2. */
 
 	dealii::SymmetricTensor<2, 3> CC;
@@ -393,7 +399,7 @@ template<>
 inline dealii::SymmetricTensor<2, 3> make_mandel_anisotropic_stiffness<2>(
 	double K, double G1, double G2, double theta)
 {
-	/*! Template specialization of \ref make_mandel_anisotropic_stiffness(double,
+	/*! Template specialization of @ref make_mandel_anisotropic_stiffness(double,
 	 * double, double, double) for dim=2. */
 
 	// see in Nicholas et al., Journal of the Mechanics and Physics of Solids 78
@@ -467,7 +473,7 @@ inline dealii::SymmetricTensor<2, 3> compute_voigts_stiffness(
 	dealii::Vector<double> &u,
 	dealii::FullMatrix<double> &M)
 {
-	/*! Template specialization of \ref compute_voigts_stiffness<dim>(...) for
+	/*! Template specialization of @ref compute_voigts_stiffness<dim>(...) for
 	 * dim=2. */
 
 	// Compute the stiffness tensor CC in Voigt's notation from the input elastic
@@ -646,7 +652,7 @@ inline std::vector<std::vector<double>> draw_multivariate_gaussian_sample<2>(
 	unsigned int N,
 	std::mt19937 &generator)
 {
-	/*! Template specialization of \ref
+	/*! Template specialization of @ref
 	 * draw_multivariate_gaussian_sample<dim>(...) for dim=2. */
 
 	int d = mu.size();

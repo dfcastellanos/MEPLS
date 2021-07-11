@@ -38,6 +38,7 @@ namespaces grouping classes and functions with similar responsibilities:
 | `dynamics` | algorithms for the dynamical evolution of the system |
 | `snapshot` | take snapshots of the elements' state at certain discrete time steps |
 | `patches` | sample the local elasto-plastic response of the system at different length scales |
+| `utils` | contains utilities that come in handy in different situations |
 
 </center>
 

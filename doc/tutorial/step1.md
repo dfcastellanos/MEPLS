@@ -17,8 +17,11 @@
 In this tutorial step, we will introduce the @ref mepls::element::Element<dim>  and @ref 
 mepls::slip::Slip<dim> classes, the most fundamental building blocks of any model 
 implemented with MEPLS. The element class represents the mesocale subdomains in which we 
-discretize the simulated material. The slip class represents the internal mechanisms present 
-within the elements by which slip events occur. First, you will learn the basics and explore the 
+discretize the simulated material. You can find a motivation for the approach in the section @ref 
+Background and in the references therein.
+
+The slip class represents the internal mechanisms present within the elements by which slip 
+events occur. First, you will learn the basics and explore the 
 essential parts of their interfaces. Next, you can find the example program commented step by 
 step. After that, you can find the results of running the program. (in this case, the results 
 correspond just to the information printed on the screen). Finally, you can find the entire program.

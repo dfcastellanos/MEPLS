@@ -30,15 +30,14 @@ template<int dim>
 class System;
 }
 
-/*! This namespace contains Event classes, which are meant to represent
- * the occurrence of different kinds of discrete events within the system.
- * It contains as well as the History class which is used to register the
- * occurrence of the events. */
+/*! This namespace contains event classes, which represent
+ * the occurrence of different kinds of discrete events within the system. */
 namespace event
 {
 
-/*! This class represents a local plastic deformation, which is the consequence 
- * of a slip system activation event */
+/*! This class represents a local plastic deformation event. This plastic event is the
+ * continuum-mechanics representation of a local slip event, which is the consequence
+ * of the activation of a slip system. */
 template<int dim>
 struct Plastic
 {
@@ -50,7 +49,7 @@ struct Plastic
 	{
 		/*! Constructor.
 		 * @warning the input pointer can be invalidated if the slip's parent
-		 * element \ref slip::Slip::parent gets its structural properties renewed
+		 * element @ref slip::Slip::parent gets its structural properties renewed
 		 * by calling to element::Element::renew_structural_properties, and the
 		 * implementation of such function by derived element classes involves
 		 * removing the existing slips. */
@@ -60,31 +59,31 @@ struct Plastic
 	{
 		/*! Constructor.
 		 *
-		 * @warning after constructing this object, the member \ref slip remains
+		 * @warning after constructing this object, the member slip remains
 		 * uninitialized. */
 	};
 
 	slip::Slip<dim> *slip;
-	/*!<  Pointer to the Slip object which has been activated. */
+	/*!<  Pointer to the slip object which has been activated. */
 
 	double dplastic_strain = 0.;
-	/*!< Scalar effective plastic shear strain (see \ref
-	 * element::Element.vm_eigenstrain). */
+	/*!< Scalar effective plastic shear strain (see @ref
+	 * element::Element<dim>::integrated_vm_eigenstrain). */
 
 	double dtime = 0.;
 	/*!< Duration of the event. */
 
 	dealii::SymmetricTensor<2, dim> eigenstrain;
-	/*!< Eigenstrain added to the parent element (see \ref base::Slip.parent) of
-	 * the activated slip object due to the plastic event. See \ref
+	/*!< Eigenstrain added to the parent element (see @ref slip::Slip<dim>::parent) of
+	 * the activated slip object due to the plastic event. See @ref
 	 * element::Element.eigenstrain. */
 
 	dealii::SymmetricTensor<2, dim> acting_stress;
-	/*!< Stress tensor acting on the parent element (see \ref base::Slip.parent)
+	/*!< Stress tensor acting on the parent element (see @ref slip::Slip<dim>::parent)
 	 * at the moment of the platic event. */
 
 	unsigned int activation_protocol = 0;
-	/*!< Dynamics protocol (see \ref dynamics::Protocol) by which the plastic
+	/*!< Dynamics protocol (see @ref dynamics::Protocol) by which the plastic
 	 * event has been triggered. */
 
 	unsigned int element = 0;
@@ -117,14 +116,10 @@ struct Driving
 	double dpressure;
 
 	double dext_stress;
-	/*!< Change of the applied external stress. It is computed in \ref
-	 * System.update_stress_field(). A change of external stress occurs when the
-	 * external load varies or when plastic deformation occurs in
-	 * strain-controlled conditions. */
+	/*!< Change of the applied external stress. */
 
 	double dtotal_strain;
-	/*!< Change of the total strain (i.e., the sum of plastic strain and
-	 * elastic strain). It is computed in \ref System.update_stress_field(). */
+	/*!< Change of the total strain. */
 
 	double dload;
 	/*!< Change of the external load. */
@@ -133,7 +128,7 @@ struct Driving
 	/*!< Time interval over which the change of driving conditions occurs. */
 
 	unsigned int activation_protocol;
-	/*!< Dynamics protocol (see \ref dynamics::Protocol) responsible of
+	/*!< Dynamics protocol (see @ref dynamics::Protocol) responsible of
 	 * varying the external driving conditions.*/
 };
 
@@ -152,13 +147,13 @@ struct RenewSlip
 	};
 
 	unsigned int element_number;
-	/*!< Number of the parent element of the Slip object. */
+	/*!< Number of the parent element of the slip object. */
 
 	double threshold;
-	/*!< Copy of \ref Slip.threshold. */
+	/*!< Copy of @ref mepls::slip::Slip<dim>::threshold. */
 
 	double slip_angle;
-	/*!< Copy of \ref Slip.angle. */
+	/*!< Copy of @ref mepls::slip::Slip<dim>::angle. */
 };
 
 } // namespace event
@@ -169,9 +164,9 @@ struct RenewSlip
 namespace history
 {
 
-/*! This structs is used by \ref History.add_row() to reformat
-* objects of the class \ref event::Plastic as rows of an output dataset.
-* The member \ref index is set by \ref History when the event is added. */
+/*! This structs is used by @ref History<dim>::add_row to reformat
+* objects of the class @ref event::Plastic as rows of an output dataset.
+* The member @ref index is set by @ref History when the event is added. */
 struct PlasticRow
 {
 	unsigned int index;
@@ -186,9 +181,9 @@ struct PlasticRow
 	unsigned int activation_protocol;
 };
 
-/*! This structs is used by \ref History.add_row() to reformat
-* objects of the class \ref event::Driving as rows of an output dataset.
-* The member \ref index is set by \ref History when the event is added. */
+/*! This structs is used by @ref History<dim>::add_row to reformat
+* objects of the class @ref event::Driving as rows of an output dataset.
+* The member @ref index is set by @ref History when the event is added. */
 struct DrivingRow
 {
 	unsigned int index;
@@ -200,9 +195,9 @@ struct DrivingRow
 	unsigned int activation_protocol;
 };
 
-/*! This structs is used by \ref History.add_row() to reformat
-* objects of the class \ref event::RenewSlip as rows of an output dataset.
-* The member \ref index is set by \ref History when the event is added. */
+/*! This structs is used by @ref History<dim>::add_row to reformat
+* objects of the class @ref event::RenewSlip as rows of an output dataset.
+* The member @ref index is set by @ref History when the event is added. */
 struct RenewSlipRow
 {
 	unsigned int index;
@@ -211,6 +206,12 @@ struct RenewSlipRow
 	float slip_angle;
 };
 
+
+/*! This structs is used by @ref History<dim>::add_macro to store the system's
+ * macroscale propreties. It contains the spatial average and standard deviation of stress tensor
+ * compoents, the von Mises stress, the von Mises plastic strain, the elastic energy, the
+ * configurational energy, the time, the total strain, and the external stress
+ * */
 struct MacroSummaryRow
 {
 	/*! Struct to store system-scale properties */
@@ -235,31 +236,28 @@ struct MacroSummaryRow
 };
 
 
-/*! This class registers the occurrence of events. The data contained in
- * the event objects are reformated into structs in a way that makes easier
- * the simulation output. Each event is indexed by a global index simply
- * referred to as “index”, which denotes the number of events that occurred in
- * history object, irrespective of the type of event.
+/*! This class registers the evolution of the system's macroscale properties and the occurrence
+ *  of events. The events are recorded in different datasets, depending on whether the event is a
+ *  platic or driving one.
  *
  * <hr>
  *
- * Let see an example that results from a dynamics consisting in the iterative
- * application of protocol 2 called (see \ref dynamics::Protocol::extremal_dynamics
- * and \ref dynamics::extremal_dynamics_step), followed by protocol 4
- * (see \ref dynamics::Protocol::relaxation_step and \ref dynamics::relaxation):
+ * Let see an example of how the event datasets are created from a dynamics consisting
+ *  in the iterative application of @ref dynamics::extremal_dynamics_step followed by @ref
+ *  dynamics::relaxation :
  * - Index=1, driving event: by extremal dynamics, a rise of the external stress
- * - Index=2, plastic event: by relaxation, a mesoscale element yields after the
- * previous stress rise
- * - Index=3, driving event: external stress drop due to plastic deformation under
- * strain-controlled conditions
- * - Index=4, renew event: modify the structural properties of the yielded element
- * - Index=5, plastic event + plastic event + plastic event: by relaxation, 3
- * different elements simultaneously yield due to the stress variations induced
- * by the previous plastic event. These three events share the same index=5.
- * - Index=6, driving event: external stress drop due to plastic deformation under
- * strain-controlled conditions
- * - Index=7, renew event +  renew event + renew event: modify the structural
- * properties of the yielded elements. These three events share the same index=7
+ * - Index=2, plastic event: by relaxation, a mesoscale element undergoes a single slip event after
+ *  the previous stress rise
+ * - Index=3, driving event: external stress drop due to plastic deformation (under
+ * strain-controlled conditions)
+ * - Index=4, renew event: modify the structural properties of the deformed element
+ * - Index=5, plastic event + plastic event + plastic event +...: by relaxation, several
+ * slip eventes due to the stress variations induced by the previous slip event. These
+ * events share the same index=5.
+ * - Index=6, driving event: external stress drop due to plastic deformation (under
+ * strain-controlled conditions)
+ * - Index=7, renew event +  renew event + renew event + ...: modify the structural
+ * properties of the deformed elements. These events share the same index=7
  * - Index=8, driving event: by extremal dynamics, a rise of the external stress
  * - ...
  *
@@ -287,7 +285,7 @@ class History
 
 	void add_row(const event::Driving<dim> &event)
 	{
-		/*! Dump an object of the class \ref event::Driving into a simple struct
+		/*! Dump an object of the class @ref event::Driving into a simple struct
 		 * representing a row of an output dataset. */
 
 		DrivingRow row;
@@ -303,7 +301,7 @@ class History
 
 	void add_row(const event::Plastic<dim> &event)
 	{
-		/*! Dump an object of the class \ref event::Plastic into a simple struct
+		/*! Dump an object of the class @ref event::Plastic into a simple struct
 		 * representing a row of an output dataset. */
 
 		PlasticRow row;
@@ -322,7 +320,7 @@ class History
 
 	void add_row(const event::RenewSlip<dim> &event)
 	{
-		/*! Dump an object of the class \ref event::RenewSlip into a simple struct
+		/*! Dump an object of the class @ref event::RenewSlip into a simple struct
 		 * representing a row of an output dataset. */
 
 		RenewSlipRow row;
@@ -337,8 +335,8 @@ class History
 	void add(const EventType &event)
 	{
 		/*! This function is a (template) wrapper around the different
-		 * overloaded functions \ref History.add_row(). It calls
-		 * \ref History.add_row() and updates by one unit \ref History.index. */
+		 * overloaded functions @ref History.add_row(). It calls
+		 * @ref History.add_row() and updates by one unit @ref History.index. */
 
 		if(closed_)
 			return;
@@ -350,9 +348,9 @@ class History
 	template<typename EventType>
 	void add(const std::vector<EventType> &event_vector)
 	{
-		/*! The same as \ref History.add(const EventType &event) but
+		/*! The same as @ref History.add(const EventType &event) but
 		 * takes a vector of events instead. Those events are added with
-		 * the same \ref History.index. */
+		 * the same @ref History.index. */
 
 		if(closed_)
 			return;
@@ -365,9 +363,9 @@ class History
 	template<typename EventType>
 	void add(const std::vector<EventType *> &event_vector)
 	{
-		/*! The same as \ref History.add(const std::vector<EventType>
+		/*! The same as @ref History.add(const std::vector<EventType>
 		 * &event_vector) but takes a vector of pointers to events. Those events
-		 * are added with the same \ref History.index. */
+		 * are added with the same @ref History.index. */
 
 		if(closed_)
 			return;
@@ -526,15 +524,15 @@ class History
 	 * registered event. It acts as a global identifier of each
 	 * event, independent of its type. Hence, it corresponds to the order
 	 * in which each change in the system occurs. The index is updated
-	 * one unit in \ref History.add() each time an event is added to
-	 * \ref History. Sometimes, it can have the same value for different
+	 * one unit in @ref History.add() each time an event is added to
+	 * @ref History. Sometimes, it can have the same value for different
 	 * events if those events are assumed to occur simultaneously.
 	 * For example, if different thresholds within the same element are
 	 * simultaneously renewed after plastic deformation occurs in that element.
 	 *
-	 * \note In the output datasets, it corresponds to the column "index".
-	 * It allows reconstructing the simulation history by merging different
-	 * datasets in the right way. */
+	 * @note in the output datasets, it corresponds to the column "index".
+	 * It acts as a surrgate key in a relational database that allows
+	 * reconstructing the simulation history by merging the datasets. */
 
 	bool closed_;
 	/*!< If true, no further events are added. */
