@@ -633,7 +633,7 @@ class LeesEdwards: public Solver<dim>
 
   public:
 
-	LeesEdwards(unsigned int Nx_, unsigned int Ny_, ControlMode control_mode_= ControlMode::strain);
+	LeesEdwards(unsigned int Nx, unsigned int Ny, ControlMode control_mode = ControlMode::strain);
 	/*!< Constructor.
 	*
 	* @param Nx number of elements in the x-direction
@@ -1397,16 +1397,16 @@ class ShearBoundary: public Solver<dim>
 	class ShearBoundaryFunc: public dealii::Function<dim>
 	{
 	  public:
-		ShearBoundaryFunc(double load_ = 1., double theta_ = 0.)
+		ShearBoundaryFunc(double load = 1., double theta = 0.)
 			:
 			dealii::Function<dim>(2)
 		{
 			/*! Constructor.
 			 *
-			 * @params load_ set the amplitude of the shear strain.
-			 * @params theta_ set the orientation of the shear strain.  */
+			 * @param load set the amplitude of the shear strain.
+			 * @param theta set the orientation of the shear strain.  */
 
-			set_shear(load_, theta_);
+			set_shear(load, theta);
 		}
 
 		void vector_value(const dealii::Point<dim> &p, dealii::Vector<double> &value) const

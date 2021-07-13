@@ -11,10 +11,9 @@ MEPLS (Mesoscale Elasto-Plasticity Simulator) is an open-source C++ framework
 for simulating the plastic deformation of materials based on the combination of 
 stochastic processes and solid mechanics. Its goal is to provide modular, 
 efficient, and easy-to-use tools to build simulations for a broad range of
-physical scenarios. MEPLS abstracts away unnecessary complexity, allowing the 
-user to focus on the physics of the model. Whenever possible, it uses existing 
-well-established software, such as the [deal.II] library for the Finite Element 
-Method. To achieve these goals, MEPLS is developed around three pillars:
+physical scenarios. MEPLS abstracts away unnecessary complexity associated with the model 
+implementation, allowing the user to focus on the physics of the problem. To achieve these goals,
+MEPLS is developed around three pillars:
 
   * **Efficient** — it is fully implemented in C++, with a back-end based on 
     well-established efficient libraries such as deal.II and UMFPACK.
@@ -25,13 +24,6 @@ Method. To achieve these goals, MEPLS is developed around three pillars:
   * **Extensible** — it is object-oriented and template-based. Its modularity 
     and simplicity facilitate the task of extending it according to the user's 
     needs.
-
-MEPLS provides easy-to-use tools to build simulations that statistically sample mesoscale models of 
-the plastic deformation of materials. The built-in MEPLS tools abstract away unnecessary 
-complexity associated with the model implementation, allowing the user to focus on the physics of
-the problem.
-
-<br>
 
 MEPLS enables the user to study the impact that microstructural properties have on the macroscale
 elasto-plastic behavior of a material. This question is especially challenging to answer when 
@@ -83,13 +75,12 @@ requests and ideas for the project or if you need some help to use MEPLS.
 
 ## License
 MEPLS is open source. You can freely use it, redistribute it, and/or modify it
-under the terms of the Creative Commons Attribution 4.0 International Public 
-License. The full text of the license can be found in the file LICENSE at the 
-top level of the MEPLS distribution.
+under the terms of the [Creative Commons Attribution 4.0 International Public 
+License](https://creativecommons.org/licenses/by/4.0/)
 
 
 ##Last update
-Jun 26 2021
+Jul 10 2021
 
 
 <br></div> 

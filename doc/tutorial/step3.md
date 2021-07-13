@@ -6,20 +6,20 @@
 
 ### Table of contents
 
-- [Introducion](#introducion) 
-    - [The model](#the_model)
-- [The commented program](#comented_program)
+- [Introducion](#introducion_3) 
+    - [The model](#the_model_3)
+- [The commented program](#comented_program_3)
     - [Setting up the system](#setting_up)
     - [The history class](#history)
     - [The stopping condition](#stopping)
     - [Rising the external load](#rising_load)
-    - [Relaxing the unstable slip systems](#relaxin_slips)
+    - [Relaxing the unstable slip systems](#relaxing_slips)
     - [Writing output data](#writing_data)
-- [Results](#results)
-- [The complete program](#full)
+- [Results](#results_3)
+- [The complete program](#full_3)
 
 
-# Introduction{#introducion}
+# Introduction{#introducion_3}
 
 This tutorial step will use the tools introduced in the previous tutorial steps to create a 
 simple model. We will control the system by automatically creating events according to dynamical
@@ -27,11 +27,12 @@ rules representing the driving conditions. In the end, we will save the simulati
 file and plot the results using a Python script.
 
 
-### The model{#the_model}
+## The model{#the_model_3}
 
 The model we consider represents a material being driven at a very low strain rate and
-temperature, the so-called athermal quasistatic limit (see, e.g. @cite DFCastellanos_CRP @cite 
-Sandfeld2015 @cite BudrikisNatCom @cite Talamali2012 @cite Budrikis2013 @cite nicolas_deformation_2018). In this 
+temperature, the so-called athermal quasistatic limit (see, e.g. @cite DFCastellanos_CRP 
+@cite Sandfeld2015 @cite BudrikisNatCom @cite Talamali2012 @cite Budrikis2013 
+@cite nicolas_deformation_2018). In this 
 limit, the stress fields can rise continuously until a plastic event is triggered, but during the
  event, the stress does not rise further because the event is considered a much faster process. To understand this, we must 
 take into account the characteristic duration of a plastic event, \f$ \Delta t_{\rm pl} \f$. If 
@@ -94,7 +95,7 @@ external strain limit.
 
 
 
-# The commented program{#comented_program}
+# The commented program{#comented_program_3}
    
 First, we include the headers that are necessary for this tutorial. We will include the same
 headers of the previous tutorial (see @ref Step2) plus the standard library header `fstream` to 
@@ -113,7 +114,7 @@ the final data to an output file.
 #include <fstream>
 ```
 
-### Setting up the system{#setting_up}
+## Setting up the system{#setting_up}
 
 Now, we set up the elements, the solver, and the system as we saw in the previous tutorial (see @ref 
 Step2). However, now we will mind the values of the simulation parameters since they will affect 
@@ -167,7 +168,7 @@ int main()
    mepls::system::Standard<dim> system(elements, solver, generator);
 ```
 
-### The history class {#history}
+## The history class {#history}
 
 To have access to the history of driving and slip events, as well as to the evolution of
 different macroscale properties, we create an object of class @ref 
@@ -186,7 +187,7 @@ inform the history about the added events. The history object will store the dat
    system.set_history(sim_history);
 ```
 
-### The stopping condition {#stopping}
+## The stopping condition {#stopping}
 
 Now, we start the main simulation loop, in which the evolution of the system takes place. We will 
 simulate until the externally applied strain reaches a target value of 5%. In each iteration, we 
@@ -202,7 +203,7 @@ using the `macrostate` member of the system:
       std::cout << system.macrostate["total_strain"] << " " <<  system.macrostate["ext_stress"] << std::endl;
 ```
 
-### Rising the external load {#rising_load}
+## Rising the external load {#rising_load}
 
 In every main-loop iteration, we perform an increment of the applied load. 
 As seen in @ref Step2, for the solver @ref mepls::elasticity_solver::LeesEdwards<dim> that we are using,
@@ -219,7 +220,7 @@ use \f$  \Delta \gamma_{\rm ext} = 10^{-4} \f$.
         system.add(driving_event);
 ```
 
-### Relaxing the unstable slip systems {#relaxin_slips}
+## Relaxing the unstable slip systems {#relaxing_slips}
       
 After adding the load increment event, the shear stress field has increased everywhere, and some 
 slip systems might have become active. Since the increment was very small and respected the 
@@ -262,8 +263,8 @@ process gives rise to a cascade of slip events. The external load increment trig
 generation events. The second-generation events are triggered by the first generation ones, and so on.
 
 This athermal relaxation rocess has been described in @cite DFCastellanos_CRP @cite Castellanos2019 
-@cite Castellanos2018 @cite Sandfeld2015 @cite BudrikisNatCom @cite Budrikis2013 @cite 
-FernandezCastellanos2019.
+@cite Castellanos2018 @cite Sandfeld2015 @cite BudrikisNatCom @cite Budrikis2013
+@cite FernandezCastellanos2019.
      
     
 ```cpp   
@@ -302,7 +303,7 @@ FernandezCastellanos2019.
       } // relaxation loop
 ```
 
-### Writing output data {#writing_data}
+## Writing output data {#writing_data}
 
 Now, the system is relaxed, i.e., no more plastic activity takes place until we increase again the 
 externally applied strain. At this stable state, we tell the history that the macrostate of the 
@@ -330,7 +331,7 @@ simulation loop.
 When we scape the main simulation loop, we want to save the evolution of some macroscale 
 properties. For this, we can iterate over the `macro_evolution` member of the history 
 object, @ref mepls::history::History<dim>::macro_evolution. This member is a vector of structs 
-@ref mepls::history::History<dim>::MacroSummaryRow, which contain many different macroscale 
+@ref mepls::history::MacroSummaryRow, which contain many different macroscale 
 properties of the system.
 
 Specifically, we are interested in the applied strain and external stress. Both scalar 
@@ -355,12 +356,12 @@ separated by a comma. The first line contains the name of each column.
 ```
    
    
-# Results{#results}
+# Results{#results_3}
 
-You can compile this program as explained in @ref HowToBuild.When running the program, the output
-will consist of two columns. The first one is the total applied strain, and the second is the 
-external stress. Instead of showing here the raw output, we will redirect it to a file and use a
-very simple Python script (see next) to plot it:
+You can compile this program as explained in [How to build](@ref HowToBuild). When running the 
+program, the output will consist of two columns. The first one is the total applied strain, and 
+the second is the external stress. Instead of showing here the raw output, we will redirect it to
+ a file and use a very simple Python script (see next) to plot it:
 
 ```sh
 $ ./run_sim
@@ -435,7 +436,7 @@ but was enough for illustrating the tutorial results. In the next tutorial, we w
  to do a full output, which will allow us to visualize the evolution of the system more in detail.
  
 
-# The complete program{#full}
+# The complete program{#full_3}
 
 ```cpp
 // -----------------------------------------------------------------------

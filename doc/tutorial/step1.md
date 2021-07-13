@@ -2,17 +2,17 @@
 
 # Step 1
 
-[< previous ](@ref StepNULL) | [next >](@ref Step2)
+< | [next >](@ref Step2)
 
 ### Table of contents
 
-- [Introducion](#introducion) 
-- [The commented program](#comented_program)
-    - [The model](#the_model)
-- [Results](#results)
-- [The complete program](#full)
+- [Introducion](#introducion_1) 
+- [The commented program](#comented_program_1)
+    - [The model](#the_model_1)
+- [Results](#results_1)
+- [The complete program](#full_1)
 
-# Introduction{#introducion}
+# Introduction{#introducion_1}
 
 In this tutorial step, we will introduce the @ref mepls::element::Element<dim>  and @ref 
 mepls::slip::Slip<dim> classes, the most fundamental building blocks of any model 
@@ -41,7 +41,7 @@ protocols that we will see in later tutorial steps. Since the elements represent
 subdomains, these slip events consequently represent plastic deformation which 
 is spatially localized. 
 
-### The model{#the_model}
+## The model{#the_model_1}
 
 The example class @ref example::element::Scalar<dim> implements 2D single-slip crystal plasticity, 
 where slip events can occur on a single plane of fixed orientation. This behavior is 
@@ -84,7 +84,7 @@ associated with a shear angle \f$ \theta=0 \f$ and its reversed, associated with
  \f$
  
  
-# The commented program{#comented_program}
+# The commented program{#comented_program_1}
 
 First, we include the headers that are necessary for this tutorial step. The 
 element and slip classes that we will use are defined in the header 
@@ -251,7 +251,7 @@ As expected, since we didn't change the parent's stress, the `eff_shear_stress`
 remains the same, however, the threshold and the barrier are different.
 
 
-# Results{#results}
+# Results{#results_1}
 
 You can compile this program as explained in @ref HowToBuild. Then, you can run it as follows,
 
@@ -289,7 +289,7 @@ event and how to add it to an element.
 
 
 
-# The complete program{#full}
+# The complete program{#full_1}
 
 ```cpp
 // -----------------------------------------------------------------------

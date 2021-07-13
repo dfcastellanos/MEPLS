@@ -35,8 +35,8 @@ class Element;
 /*! This namespace contains the abstract class system::System, which
  * serves as a common interface for the derived system classes. A system represents a
  * solid material that can undergo plastic deformation by discrete localized
- * slip events (see @ref Background, and e.g., @cite DFCastellanos_CRP @cite
- * FernandezCastellanos2019 @cite nicolas_deformation_2018). */
+ * slip events (see @ref Background, and e.g., @cite DFCastellanos_CRP
+ * @cite FernandezCastellanos2019 @cite nicolas_deformation_2018). */
 namespace system
 {
 
@@ -191,8 +191,8 @@ struct MacroState
 
 /*! The System class serves as a common interface for the derived system classes.
  * A system represents a solid material that can undergo plastic deformation by discrete localized
- * slip events (see @ref Background, and e.g., @cite DFCastellanos_CRP @cite
- * FernandezCastellanos2019 @cite nicolas_deformation_2018).
+ * slip events (see @ref Background, and e.g., @cite DFCastellanos_CRP
+ * @cite FernandezCastellanos2019 @cite nicolas_deformation_2018).
  *
  * The class is composed of different members that represent different aspects
  * of the material: a vector @ref System<dim>::elements of element objects which represent
@@ -471,8 +471,8 @@ class Standard: public System<dim>
 		 * elements in which a slip event took place get their structural
 		 * properties renewed, as defined by @ref
 		 * element::Element<dim>::renew_structural_properties(). The new structural
-		 * properties are resgitered as events of type @ref
-		 * event::RenewSlip<dim> in @ref history.
+		 * properties are registered as events of type @ref mepls::event::RenewSlip<dim>
+		 * in @ref mepls::system::System<dim>::history.
 		 *
 		 * @note since plastic deformation changes the external stress (if the
 		 * system is displacement-controlled) or the total strain (if the system

@@ -87,7 +87,7 @@ struct PatchPropertiesTensorial
 
 	double theta = 0.;
 	/*!< Orientation of the shear test performed on the patch. This angle is
-	 * the same used in @ref utils::tensor::schmid. */
+	 * the same used in @ref utils::tensor::make_schmid. */
 
 	dealii::SymmetricTensor<2, dim> stress_ss;
 	/*!< Stress tensor averaged over the elements composing the patch. The
@@ -399,13 +399,13 @@ void apply_patch_shear_test(
 	 * shear strain increments along with a certain orientation. The properties
 	 * of the system at the ss- oi- and ee-states are computed.
 	 *
-	 * @param results of the shear test
-	 * @param system on which we apply the shear test
+	 * @param patch_system system on which we apply the shear test
 	 * @param do_ee if false, compute only the ss- and oi-state. If true, compute
 	 * also the ee-state
-	 * @param dgamma amplitude of the discrete external shear strain increments
-	 * @param Nx number of elements in the input system along direction x
-	 * @param Ny number of elements in the input system along direction y
+	 * @param dgamma amplitude of the discrete shear strain increments. This value is used
+	 * for calling @ref mepls::dynamics::finite_extremal_dynamics_step
+	 *
+	 * @return results of the shear test
 	 *
 	 * @note this function is normally used on systems representing patches,
 	 * but can be used, in general, on any system.
@@ -600,10 +600,10 @@ void analyze_patch_ensemble_opt(
 	bool do_ee)
 {
 	/*! It does the same as @ref analyze_patch_ensemble, but precalculates
-	 * @ref element::Element<dim>.ext_stress_coeff_and @ref element::Element<dim>
-	 * .S_ once and is reused for all the patches. This optimization is only
-	 * valid under the same conditions discussed for @ref
-	 * element::calculate_local_stress_coefficients_central, namely the full
+	 * @ref element::Element<dim>.ext_stress_coeff_ and @ref element::Element<dim>::S
+	 * once and is reused for all the patches. This optimization is only
+	 * valid under the same conditions discussed for
+	 * @ref element::calculate_local_stress_coefficients_central, namely the full
 	 * system has elastic homogeneous properties and periodic boundary
 	 * conditions.
 	 */
@@ -794,9 +794,9 @@ class PatchPropertiesSnapshot
   public:
 
 	/*! This struct is used for output purposes only. It converts the struct
-	 * @ref PatchPropertiesTensorial<dim>, which contains complex objects, into
+	 * @ref mepls::patches::PatchPropertiesTensorial<dim>, which contains complex objects, into
 	 * a plain struct of scalar values. In this way, it can be easily written
-	 * into, e.g., hdf5 datasets. */
+	 * into output datasets. */
 	struct DataRow
 	{
 		unsigned int ref_element = 0;
@@ -805,7 +805,7 @@ class PatchPropertiesSnapshot
 
 		float theta = 0.;
 		/*!< Orientation of the shear test performed on the patch. This angle is
-		 * the same used in @ref utils::tensor::schmid. */
+		 * the same used in @ref utils::tensor::make_schmid. */
 
 		float stress_ss_00 = 0.;
 		/*!< Component xx of the stress tensor averaged over the elements composing
@@ -905,11 +905,18 @@ class PatchPropertiesSnapshot
 		/*! Take and store the snapshot from the input system.
 		 *
 		 * @param system from where the patches are created and analyzed
-		 * @param data_patch vector containing the properties measured for each
 		 * patch
-		 * @param N patch size (see @ref select_patch_elements)
+		 * @param monitor_mag_ name of the magnitude used to check whether the
+		 * snapshot should be taken or not
+		 * @param desired_target_ value of the @ref monitor_name at which we
+		 * desired to take the snapshot
+		 * @param recorded_target_ value of the @ref monitor_name at which the
+		 * snapshot is actually taken
+		 * @param N_  patch size (see @ref select_patch_elements)
 		 * @param theta_list vector with the shear orientations along which shear
 		 * tests are to be performed
+		 * @param optimized it true, use an optimized version that runs faster. This
+		 * is only valid for homogeneous systems and structured FE meshes.
 		 * @param do_ee if false, compute only the ss- and oi-state. If true,
 		 * compute also the ee-state
 		 */
@@ -969,7 +976,7 @@ class PatchPropertiesSnapshot
 	 * taken. */
 
 	unsigned int output_index;
-	/*!< Global event index from the @ref event::History at which the snapshot
+	/*!< Global event index from the @ref mepls::history::History<dim> at which the snapshot
 	 * is taken. */
 
 	unsigned int N;

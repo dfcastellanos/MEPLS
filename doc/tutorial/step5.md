@@ -2,22 +2,22 @@
 
 # Step 5
 
-[< previous ](@ref Step4) | [next >](@ref Step6)
+[< previous ](@ref Step4) | >
 
 ### Table of contents
 
-- [Introducion](#introducion) 
-    - [The model](#the_model)
+- [Introducion](#introducion_5) 
+    - [The model](#the_model_5)
     - [The Kinetic Monte Carlo method for thermal slip activation](#kmc)
     - [Setting the temperature](#setting_temperature)
 - [The commented program](#comented_program)
     - [Creep simulation](#creep)
     - [Transition step and AQS simulation](#transition)
-- [Results](#results)
-- [The complete program](#full)
+- [Results](#results_5)
+- [The complete program](#full_5)
 
 
-# Introduction{#introducion}
+# Introduction{#introducion_5}
 
 This tutorial will expand the model considered in the two previous tutorials. We will see how 
 different driving protocols can be connected, which allows us to simulate a material's history in a
@@ -25,7 +25,7 @@ complete manner. Specifically, we will run an AQS simulation using a
 system's initial configuration that results from a previous simulation under creep conditions. Also, we will use 
 thread-based parallelism to run different repetitions of the same simulation simultaneously.
 
-### The model{#the_model}
+## The model{#the_model_5}
 
 This tutorial will continue with the model of @ref Step3 and @ref Step4, namely a material 
 sample driving in the athermal quasistatic limit. In @ref Step4, we considered that the system's 
@@ -37,10 +37,10 @@ curve.
 Here, we want to reproduce the same kind of behavior in a more physically grounded manner. To this 
 end, instead of explicitly considering different thresholds scale parameters, we will have only 
 one parameter. However, before the AQS simulation, we will simulate a sample deforming under 
-creep conditions, i.e., at non-zero temperature and constant external stress @cite 
-Castellanos2018 Castellanos2019. During the creep process, the slip thresholds will undergo a 
-survival bias, by which lower thresholds tend to be renewed by higher ones (see the results 
-section of @ref Step 3 for a short discussion about this). Due to such bias, after some time, the
+creep conditions, i.e., at non-zero temperature and constant external stress 
+@cite Castellanos2018 @cite Castellanos2019. During the creep process, the slip thresholds will 
+undergo a survival bias, by which lower thresholds tend to be renewed by higher ones (see the results 
+section of @ref Step3 for a short discussion about this). Due to such bias, after some time, the
 existing thresholds will be on average higher than as-renewed from their Weibull pdf. 
 Consequently, when using such a state as the initial one in the AQS simulation, the AQS 
 stress-strain curve will exhibit a behavior similar to @ref Step4. However, in contrast with @ref
@@ -48,11 +48,11 @@ stress-strain curve will exhibit a behavior similar to @ref Step4. However, in c
  be a direct result of a well-defined sample's thermal and mechanical history. 
 
 
-### The Kinetic Monte Carlo method for thermal slip activation{#kmc}
+## The Kinetic Monte Carlo method for thermal slip activation{#kmc}
 
 To simulate thermal activation of plastic activity during the creep simulation, we use the Kinetic 
-Monte Carlo (KMC) method @cite DFCastellanos_CRP @cite Castellanos2019 @cite Castellanos2018 @cite
- FernandezCastellanos2019. This method requires the knowledge of all the possible transitions 
+Monte Carlo (KMC) method @cite DFCastellanos_CRP @cite Castellanos2019 @cite Castellanos2018 
+@cite FernandezCastellanos2019. This method requires the knowledge of all the possible transitions 
  that the system can make from the current state towards a new one, and the energy barrier 
  associated with each transition.
 
@@ -98,7 +98,7 @@ mepls::dynamics::relaxation.
 
 
 
-### Setting the temperature{#setting_temperature}
+## Setting the temperature{#setting_temperature}
 
 The model's temperature value is the rescaled one, \f$ T^{\prime} = k_{\rm B}T/V_{\rm a} \f$ where
  \f$ V_{\rm a} \f$ is of the same order as the product of the typical local plastic strain \f$ 
@@ -408,7 +408,7 @@ void run(const Parameters &p, dealii::ConditionalOStream & cout)
    mepls::system::Standard<dim> system(elements, solver, generator);
 ```
 
-### Creep simulation{#creep}
+## Creep simulation{#creep}
 
 We create a history object specific for the creep test, named `creep_history`. Then, for performing a 
 creep simulation, we apply certain external stress and keep it fixed. To do this, we use the 
@@ -460,7 +460,7 @@ external load increment. The simulation loop stops when the time limit is reache
     cout << continue_creep << std::endl;
 ```
 
-### Transition step and AQS simulation{#transition}
+## Transition step and AQS simulation{#transition}
 
 When the creep simulation ends, we remove the external load. Immediately after the removal, some 
 slip systems might become unstable. Therefore, we call @ref mepls::dynamics::relaxation to 
@@ -481,9 +481,9 @@ system's configuration during the AQS simulation. However, since we consider the
 separated from sample preparation, we clean the current macroscale record. In this way, we start measuring the macroscale strain from zero. 
 
 Currently, the solver operates in stress-controlled mode. However, we want to perform the AQS 
-under strain-controlled conditions. We can change that in the existing solver bypassing @ref 
-mepls::elasticity_solver::ControlMode::strain to @ref
-mepls::elasticity_solver::LeesEdwards<dim>::set_control_mode. Since the driving mode have 
+under strain-controlled conditions. We can change that in the existing solver bypassing 
+@ref mepls::elasticity_solver::ControlMode::strain to 
+@ref mepls::elasticity_solver::LeesEdwards<dim>::set_control_mode. Since the driving mode have 
 changed, the local stress change per unit load increment is now different. Thus, we need to 
 call @ref mepls::element::calculate_ext_stress_coefficients to inform the elements about this.
  
@@ -545,7 +545,7 @@ The `main` function works in the same way as the previous tutorial step, but now
 different repetitions in parallel using thread parallelism provided by openMP. Different 
 repetitions denote different simulation runs with the same parameters but with a different random 
 seed. For performing several repetitions, we call `run` within a loop. To perform repetitions in 
-parallel, we enclose the loop within an openMP parallel region, as defined by #pragma omp parallel 
+parallel, we enclose the loop within an openMP parallel region, as defined by `#pragma omp parallel` 
 (see the openMP documentation). Within the parallel region, the process will run using several 
 threads. Since we want a total number of repetitions defined by the `n_rep` parameter, each 
 thread must run only that number divided by the number of threads.  
@@ -560,7 +560,8 @@ that is not important for us since it only generates seeds that will initialize 
 `std::mt19937` generator during the simulation runs.
 
 The master generator must not be used simultaneously by different threads, otherwise the seeds 
-might be repeated. Therefore, we enclose it in a critical region, defined by #pragma critical. 
+might be repeated. Therefore, we enclose it in a critical region, defined by the `#pragma 
+critical`. 
 Within this region, only one thread is allowed to enter at once. Since most of the time is spent 
 inside the `run` function, the presence of the critical region has no impact on the performance.
 
@@ -633,7 +634,7 @@ int main(int argc, char *argv[])
 
    
 
-# Results{#results}
+# Results{#results_5}
 
 We run the program as in @ref Step4, which generates a template parameters file,
 
@@ -749,7 +750,7 @@ material's thermal and mechanical history on its brittle or ductile response.
 
 
 
-# The complete program{#full}
+# The complete program{#full_5}
 
 ```cpp
 // -----------------------------------------------------------------------

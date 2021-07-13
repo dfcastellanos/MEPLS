@@ -6,18 +6,18 @@
 
 ### Table of contents
 
-- [Introducion](#introducion) 
-    - [The model](#the_model)
-- [The commented program](#comented_program)
+- [Introducion](#introducion_4) 
+    - [The model](#the_model_4)
+- [The commented program](#comented_program_4)
     - [Using input parameters files](#param_files)
     - [Writing structured output data](#write_data)
     - [The simulation](#simulation)
     - [The main function](#main)
-- [Results](#results)
-- [The complete program](#full)
+- [Results](#results_4)
+- [The complete program](#full_4)
 
 
-# Introduction{#introducion}
+# Introduction{#introducion_4}
 
 This tutorial will use the same model introduced in the previous tutorial step with little 
 modifications. This time, however, we will use MEPLS built-in tools for defining the dynamics of 
@@ -27,7 +27,7 @@ all the simulation the results in a clean and well-structured manner, easy to be
 by Python scripts.
 
 
-### The model{#the_model}
+## The model{#the_model_4}
 
 We consider the same model as in the previous step, i.e., a material being driven in 
 strain-controlled pure shear conditions in the athermal quasistatic limit. This time, however, we
@@ -55,7 +55,7 @@ band.
 
 
 
-# The commented program{#comented_program}
+# The commented program{#comented_program_4}
    
 We include the same headers of the previous tutorial (see @ref Step3), plus the headers with the tools
 for the MEPLS system dynamics, loading input parameter files, and creating output JSON files.
@@ -81,7 +81,7 @@ for the MEPLS system dynamics, loading input parameter files, and creating outpu
 #include <boost/property_tree/json_parser.hpp>
 ```
 
-### Using input parameters files{#param_files}
+## Using input parameters files{#param_files}
 
 In this tutorial, we want to pass the simulation parameters using a text file. This text file 
 will be parsed, and the values will be set in a struct of type `Parameters`  that we will use
@@ -183,7 +183,7 @@ generate a new file, that can be used as a template input file.
 }; // Parameters
 ```
 
-### Writing structured output data{#write_data}
+## Writing output data files{#write_data}
   
 we will save the results into a tree data structure of class `boost::property_tree::ptree`. This 
 tree allows us to organize the data in a hierarchical way easily. The hierarchy can then be 
@@ -285,7 +285,7 @@ void write_data(
 }
 ``` 
 
-### The simulation{#simulation}
+## The simulation{#simulation}
 
 We implement a `run()` function that constitutes the simulation itself, and will be called later 
 from the `%main()` function. The `run()` function takes as an input the parameters struct and 
@@ -434,7 +434,7 @@ output file.
 } // run
 ```
 
-### The main function{#main}
+## The main function{#main}
    
 Finally, we define the `%main()` function. The first thing that we do here is to read the command
 line arguments passed to the program. We only define the argument `-f`, which takes the path to 
@@ -489,7 +489,7 @@ the Results section will show how to load and visualize the data stored in that 
 ```
 
 
-# Results{#results}
+# Results{#results_4}
 
 After compiling the program (see @ref HowToBuild), we can run it as `./run_sim`,
 
@@ -589,8 +589,8 @@ stress overshoot and how abrupt the stress drop is will depend on the difference
 between of `lambda_init` and `lambda_renew`. The other simulation parameters also have an 
 impact on it as, e.g., the parameter `k` controlling the disorder in the slip thresholds. The 
 effects of the different parameters on the stress overshoot and the formation of the shear band 
-have been widely studied in the scientific literature, see e.g., @cite PhysRevE.98.040901 @cite 
-Tuszes2017 @cite Castellanos2018 @cite Vandembroucq2011.
+have been widely studied in the scientific literature, see e.g., @cite PhysRevE.98.040901 
+@cite Tuszes2017 @cite Castellanos2018 @cite Vandembroucq2011.
 
 In this tutorial, we implemented the system dynamics using MEPLS built-in tools. Also, we saw how
 to control the simulation parameters using input files and how to create and load output files 
@@ -605,7 +605,7 @@ performance of the statistical sampling of the model.
 
 
 
-# The complete program{#full}
+# The complete program{#full_4}
 
 ```cpp
 // -----------------------------------------------------------------------

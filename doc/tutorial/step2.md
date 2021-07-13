@@ -6,17 +6,17 @@
 
 ### Table of contents
 
-- [Introducion](#introducion) 
-- [The commented program](#comented_program)
+- [Introducion](#introducion_2) 
+- [The commented program](#comented_program_2)
     - [The solver](#the_solver)
     - [The system](#the_system)
     - [Plastic events](#plastic_events)
     - [Driving events](#driving_events)
     - [Cleaning up](#cleaning)
-- [Results](#results)
-- [The complete program](#full)
+- [Results](#results_2)
+- [The complete program](#full_2)
 
-# Introduction{#introducion}
+# Introduction{#introducion_2}
 
 In this tutorial step, we will introduce the solver and system modules. These modules contain the 
 classes @ref mepls::elasticity_solver::Solver<dim> and @ref mepls::system::System<dim>, 
@@ -30,7 +30,7 @@ We will continue using the same slip and elements classes introduced in @ref Ste
 mepls::slip::Slip<dim> and  @ref mepls::element::Element<dim>.
 
 
-# The commented program{#comented_program}
+# The commented program{#comented_program_2}
 
 First, we include the headers that are necessary for this tutorial step. We will include the same
 headers of the previous step (see @ref Step1) plus the headers containing the solver and system 
@@ -90,7 +90,7 @@ elements:
    }
 ```
 
-### The solver{#the_solver}
+## The solver{#the_solver}
 
 The solver class calculates elastic fields using the Finite Element Method. For that, it
 uses a mesh where each finite element is associated with one mesoscale element. The
@@ -198,7 +198,7 @@ example of this:
    solver.clear();    
 ```
 
-### The system{#the_system}
+## The system{#the_system}
 
 After this quick example of how the solvers operate, let's retake our main goal now: building the
 system of mesoscale elements.
@@ -327,7 +327,7 @@ macroscale state of the system (that is, of the global properties such as extern
 @note the system object stores references to the vector of elements, the solver and the 
 generator, therefore these objects are expected to live during the entire life of the system.
 
-### Plastic events{#plastic_events}
+## Plastic events{#plastic_events}
 
 Now we can easily perform slip events, and the system will take care of everything for us. To do 
 it, first we create a event of class @ref mepls::event::Plastic<dim>. The event takes 
@@ -389,14 +389,14 @@ Sometimes, it is useful to see the changes introduced by the event itself. When 
 the event object, it is only given the active slip, and the rest of its members remain with their 
 default initialization. However, when after we added to the system, its members have been updated.
 For example, we can check the eigenstrain increment associated with the event with
-@ref mepls::event::Plastic<dim>::eigenstrain_increment. In this case, this increment is
+@ref mepls::event::Plastic<dim>::eigenstrain. In this case, this increment is
 already known to us, and we won't show it. We can also check the number of the mesoscale element
 to which the increment is added by checking @ref mepls::event::Plastic<dim>::element. The 
 active slip is @ref mepls::event::Plastic<dim>::slip, however as explained above, 
 accessing this slip is dangerous since it gets deleted when renewing the structural properties of
  its parent element.
 
-### Driving events{#driving_events}
+## Driving events{#driving_events}
 
 Let's now consider a driving event, of class @ref mepls::event::Driving<dim>. ThisThis class
 allows us to control the loading mechanism by performing a load increment. As with 
@@ -453,7 +453,7 @@ Thus, we could look at, e.g., the external stress change induced by the event by
 stress independently of the specific meaning of the load value (remember that the load value can 
 have different meanings, depending on the solver, loading conditions, and driving mode). 
 
-### Cleaning up{#cleaning}
+## Cleaning up{#cleaning}
 
 Lastly, we delete the elements that we created. Since they were dynamically allocated, it is our 
 responsibility to delete them. In this case, the program has reached its end, so we don't really 
@@ -468,7 +468,7 @@ which element objects might be, e.g., copied around.
 ```
 
 
-# Results{#results}
+# Results{#results_2}
 
 You can compile this program as explained in @ref HowToBuild. Then, you can run it as follows,
 
@@ -521,7 +521,7 @@ tutorial, we will see how to do this and also how to access the system's evoluti
 outputting the results.
 
 
-# The complete program{#full}
+# The complete program{#full_2}
 
 ```cpp
 // -----------------------------------------------------------------------

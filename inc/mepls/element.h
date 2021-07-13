@@ -304,8 +304,7 @@ class Element
 
 	const dealii::SymmetricTensor<2, dim> &eigenstrain() const
 	{
-		/*! Return a reference to the accumlated eigenstrain tensor
-		 * @ref eigenstrain_. */
+		/*! Return the accumlated eigenstrain tensor. */
 
 		return eigenstrain_;
 	}
@@ -322,15 +321,14 @@ class Element
 
 	double integrated_vm_eigenstrain() const
 	{
-		/*! Return the value of the integrated von Mises eigenstrain
-		 * @ref integrated_vm_eigenstrain_. */
+		/*! Return the integrated von Mises eigenstrain. */
 
 		return integrated_vm_eigenstrain_;
 	}
 
 	void integrated_vm_eigenstrain(double input_integrated_vm_eigenstrain)
 	{
-		/*! Set a new value for integrated_vm_eigenstrain_.
+		/*! Set a new value for integrated von Mises eigenstrain.
 		 * @note in most situations, the user controls the eigenstrain only
 		 * through @ref add_eigenstrain and this function doesn't need
 		 * to be called. */
@@ -340,14 +338,14 @@ class Element
 
 	const dealii::SymmetricTensor<2, dim> &prestress() const
 	{
-		/*! Return a reference to the prestress tensor @ref presstress_. */
+		/*! Return the prestress tensor. */
 
 		return prestress_;
 	}
 
 	void prestress(const dealii::SymmetricTensor<2, dim> &prestress)
 	{
-		/*! Set a new prestress tensor @ref presstress_. The total stress is
+		/*! Set a new prestress tensor. The total stress is
 		 * updated afterwards. */
 
 		prestress_ = prestress;
@@ -357,24 +355,22 @@ class Element
 
 	const dealii::SymmetricTensor<2, dim> &stress() const
 	{
-		/*! Return a reference to the total stress tensor @ref stress_. */
+		/*! Return the total stress tensor. */
 
 		return stress_;
 	}
 
 	const dealii::SymmetricTensor<2, dim> &elastic_stress() const
 	{
-		/*! Return a reference to the elastic stress tensor
-		 * @ref elastic_stress_. */
+		/*! Return the elastic stress tensor. */
 
 		return elastic_stress_;
 	}
 
 	void elastic_stress(const dealii::SymmetricTensor<2, dim> &input_elastic_stress)
 	{
-		/*! Set a new elastic stress tensor @ref elastic_stress_. The total
-		 * stress is updated afterwards as defined
-		 * by @ref update_stress. */
+		/*! Set a new elastic stress tensor. The total stress is updated afterwards as defined
+		 * in @ref update_stress. */
 
 		elastic_stress_ = input_elastic_stress;
 
@@ -383,15 +379,14 @@ class Element
 
 	const dealii::Tensor<2, dim> &def_grad() const
 	{
-		/*! Return a reference to the deformation grandient tensor,
-		 * @ref def_grad_. */
+		/*! Return the deformation grandient tensor. */
 
 		return def_grad_;
 	}
 
 	void def_grad(const dealii::Tensor<2, dim> &input_def_grad)
 	{
-		/*! Set a new deformation gradient tensor, @ref def_grad_. */
+		/*! Set a new deformation gradient tensor. */
 
 		def_grad_ = input_def_grad;
 	}
@@ -406,7 +401,7 @@ class Element
 
 	const dealii::SymmetricTensor<4, dim> &S() const
 	{
-		/*! Return a reference to the @ref S_ tensor. */
+		/*! Return the @ref S_ tensor. */
 
 		M_Assert(S_already_is_set, "Local strain coeffs. have not been set yet");
 
@@ -415,7 +410,7 @@ class Element
 
 	void C(const dealii::SymmetricTensor<4, dim> &input_C)
 	{
-		/*! Set a new @ref C_ tensor. */
+		/*! Set a new stiffness tensor. */
 
 		C_ = input_C;
 
@@ -427,21 +422,21 @@ class Element
 
 	const dealii::SymmetricTensor<4, dim> &C() const
 	{
-		/*! Return a reference to the @ref C_ tensor. */
+		/*! Return the stiffness tensor. */
 
 		return C_;
 	}
 
 	const dealii::SymmetricTensor<4, dim> &J() const
 	{
-		/*! Return a reference to the @ref J_ tensor. */
+		/*! Return the compliance tensor. */
 
 		return J_;
 	}
 
 	const dealii::SymmetricTensor<2, dim> &ext_stress_coeff() const
 	{
-		/*! Return a reference to the @ref ext_stress_coeff_ tensor. */
+		/*! Return the @ref ext_stress_coeff_ tensor. */
 
 		M_Assert(ext_stress_coeff_is_set, "Ext. stress coeffs. have not been set yet");
 
