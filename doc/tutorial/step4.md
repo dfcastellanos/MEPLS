@@ -65,6 +65,7 @@ for the MEPLS system dynamics, loading input parameter files, and creating outpu
 #include <mepls/utils.h>
 #include <mepls/solver.h>
 #include <mepls/system.h>
+#include <mepls/event.h>
 #include <mepls/history.h>
 
 // MEPLS built-in dynamics
@@ -623,6 +624,7 @@ performance of the statistical sampling of the model.
 #include <mepls/utils.h>
 #include <mepls/solver.h>
 #include <mepls/system.h>
+#include <mepls/event.h>
 #include <mepls/history.h>
 
 // MEPLS built-in dynamics

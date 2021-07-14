@@ -13,6 +13,7 @@
 #include <mepls/utils.h>
 #include <mepls/solver.h>
 #include <mepls/system.h>
+#include <mepls/event.h>
 #include <mepls/history.h>
 
 // MEPLS built-in dynamics

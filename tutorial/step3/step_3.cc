@@ -14,9 +14,10 @@
 #include <mepls/utils.h>
 #include <mepls/solver.h>
 #include <mepls/system.h>
-#include <mepls/history.h>
+#include <mepls/event.h>
 
-// new header
+// new headers
+#include <mepls/history.h>
 #include <fstream>
 
 int main()

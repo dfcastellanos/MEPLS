@@ -16,7 +16,7 @@
 // new headers
 #include <mepls/solver.h>
 #include <mepls/system.h>
-#include <mepls/history.h>
+#include <mepls/event.h>
 
 int main()
 {

@@ -34,7 +34,7 @@ mepls::slip::Slip<dim> and  @ref mepls::element::Element<dim>.
 
 First, we include the headers that are necessary for this tutorial step. We will include the same
 headers of the previous step (see @ref Step1) plus the headers containing the solver and system 
-classes. The event classes are defined in the history header.
+classes. The event classes are defined in the event header.
  
 
 ```cpp
@@ -45,7 +45,7 @@ classes. The event classes are defined in the history header.
 // new headers
 #include <mepls/solver.h>
 #include <mepls/system.h>
-#include <mepls/history.h>
+#include <mepls/event.h>
 ```
 
 Some things will be necessary for creating the elements, as in the previous tutorial step: 
@@ -542,7 +542,7 @@ outputting the results.
 // new headers
 #include <mepls/solver.h>
 #include <mepls/system.h>
-#include <mepls/history.h>
+#include <mepls/event.h>
 
 int main()
 {

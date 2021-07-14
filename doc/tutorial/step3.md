@@ -99,18 +99,18 @@ external strain limit.
    
 First, we include the headers that are necessary for this tutorial. We will include the same
 headers of the previous tutorial (see @ref Step2) plus the standard library header `fstream` to 
-write
-the final data to an output file.
+write the final data to an output file, and the MEPLS' history header to handle the system's 
+evolution history.
    
 ```cpp
 #include <example.h>
 #include <mepls/utils.h>
 #include <mepls/solver.h>
 #include <mepls/system.h>
-#include <mepls/history.h>
-#include <random>
+#include <mepls/event.h>
 
-// new header
+// new headers
+#include <mepls/history.h>
 #include <fstream>
 ```
 
@@ -454,10 +454,10 @@ but was enough for illustrating the tutorial results. In the next tutorial, we w
 #include <mepls/utils.h>
 #include <mepls/solver.h>
 #include <mepls/system.h>
-#include <mepls/history.h>
-#include <random>
+#include <mepls/event.h>
 
-// new header
+// new headers
+#include <mepls/history.h>
 #include <fstream>
 
 int main()
