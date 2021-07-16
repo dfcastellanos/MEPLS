@@ -39,7 +39,7 @@ and strain localization, such as brittle-to-ductile transition or shear-banding.
     * Evolution history
     
 * @ref Step4 
-    * Step 3 dynamics with built-in tools: 
+    * The same dynamics as in Step 3, but using MEPLS built-in tools: 
         * Extremal dynamics 
         * Mechanical relaxation
     * Writing output data    
@@ -50,11 +50,11 @@ and strain localization, such as brittle-to-ductile transition or shear-banding.
     * Combining different driving protocols
     * Running several repetitions in parallel
     
-* To be added:
+* Step 6 (to be added):
     * How to implement new elements and slips    
 
 The tutorial source code is located in `MEPLS/tutorial`, and each step can be built like other 
-MEPLS models, as explained in @ref HowToBuild.            
+MEPLS models, as explained in [How to build](@ref HowToBuild).            
      
 @note After the tutorial, you can take a look at the @ref Gallery of models. Such models are
 less documented, but they are natural extensions of the tutorial steps, illustrating how to 

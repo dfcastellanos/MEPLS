@@ -26,10 +26,10 @@ MEPLS is developed around three pillars:
     needs.
 
 MEPLS enables the user to study the impact that microstructural properties have on the macroscale
-elasto-plastic behavior of a material. This question is especially challenging to answer when 
+mechanical behavior of a material. This question is especially challenging to answer when 
 those properties are spatially heterogeneous and statistically distributed, which is, in turn, 
 the most common situation (see [Background] (@ref Background)). MEPLS allows to study 
-the influence that many different model features or ingredients may have on a material's mechanical 
+the influence that many different model features or ingredients have on a material's mechanical 
 properties. Example of such features are:
 
 * the statistics of local elastic properties, local yield criteria, plastic deformation, structural 
@@ -50,8 +50,7 @@ ouwn model.
 
 New models can be implemented following the tutorial and the MEPLS documentation. However, 
 sometimes a model might require a use of MEPLS more advanced than illustrated in the tutorial. In
-this case, the [gallery](@ref Gallery) of models shows more advanced examples of models built for 
-very specific 
+this case, the [gallery](@ref Gallery) of models shows advanced examples built for specific 
 purposes. 
 
 
@@ -76,7 +75,7 @@ requests and ideas for the project or if you need some help to use MEPLS.
 ## License
 MEPLS is open source. You can freely use it, redistribute it, and/or modify it
 under the terms of the [Creative Commons Attribution 4.0 International Public 
-License](https://creativecommons.org/licenses/by/4.0/)
+License](https://creativecommons.org/licenses/by/4.0/).
 
 
 ##Last update
@@ -88,6 +87,6 @@ Jul 10 2021
 
 [deal.II]: https://www.dealii.org/
 [project's website]: https://mepls.davidfcastellanos.com/
-[author's website]: https://www.davidfcastellanos.com/
+[author's website]: https://www.davidfcastellanos.com/contact
 [project's repository]: https://github.com/kastellane/MEPLS
 

@@ -30,15 +30,16 @@ namespaces grouping classes and functions with similar responsibilities:
 
 | Namespace | Responsibility of the members |
 | ------ | ------ |
-| `element` | represent the material's mesoscale subdomains, a.k.a elements |
-| `slip` | implement the physics of slip activation within the elements |
-| `elasticity_solver` | compute the elastic fields, i.e., how the elements influence each other |
-| `history` | record, continuously in time, the evolution and changes in the system |
-| `system` | manage the elements, the solver, and the history  |
-| `dynamics` | algorithms for the dynamical evolution of the system |
-| `snapshot` | take snapshots of the elements' state at certain discrete time steps |
-| `patches` | sample the local elasto-plastic response of the system at different length scales |
-| `utils` | contains utilities that come in handy in different situations |
+| [element](@ref mepls::element) | represent the material's mesoscale subdomains, a.k.a elements |
+| [slip](@ref mepls::slip) | implement the physics of slip activation within the elements |
+| [elasticity_solver](@ref mepls::elasticity_solver) | compute the elastic fields, i.e., how the elements influence each other |
+| [system](@ref mepls::system) | manage the elements, the solver, and the history  |
+| [dynamics](@ref mepls::dynamics) | algorithms for the dynamical evolution of the system |
+| [event](@ref mepls::event) | events representing changes in the system |
+| [history](@ref mepls::history) | record, continuously in time, the evolution and changes in the system |
+| [snapshot](@ref mepls::snapshot) | take snapshots of the elements' state at certain discrete time steps |
+| [patches](@ref mepls::patches) | sample the local elasto-plastic response of the system at different length scales |
+| [utils](@ref mepls::utils) | contains utilities that come in handy in different situations |
 
 </center>
 

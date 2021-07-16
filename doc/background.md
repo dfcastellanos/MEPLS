@@ -34,11 +34,27 @@ Mesomodels divide a material sample into discrete mesoscale subdomains or elemen
 
 * The first interpretation is that of a cellular automaton. Or, more accurately, a stochastic one. Cellular automata are well-known sandbox models. With them, the user can easily modify state transition rules to see the impact on the self-organization of the system and the emergent global behavior.
 	
-* On the other hand, from a purely statistical perspective, these models represent a Markov chain Monte Carlo (MCMC) method applied to the plastic deformation of materials. The goal of the model is to help find the probability distributions that describe a particular model’s outcome. However, finding such distributions is a non-trivial task since they depend on the interplay of many highly correlated variables. A way to estimate them is using MCMC methods. MCMC depends on rules which define the transition from one state to the next. By starting with an initial configuration and iterating the transition rules, we obtain a sequence of random samples that correspond to the system’s state over time. These samples allow us to estimate the desired distributions. In this case, the MCMC transition rules correspond to the local mesoscale rules mentioned above, which govern the behavior of the individual elements.
+* On the other hand, from a purely statistical perspective, these models represent a Markov chain
+ Monte Carlo (MCMC) method applied to the plastic deformation of materials. The goal of the model
+  is to help find the probability distributions that describe a particular model’s outcome. 
+  However, finding such distributions is a non-trivial task since they depend on the interplay of
+   many highly correlated variables. A way to estimate them is using MCMC methods. MCMC depends 
+   on rules which define the transition from one state to the next. By starting with an initial 
+   configuration and iterating the transition rules, we obtain a sequence of random samples that 
+   correspond to the system’s state over time. These samples allow us to estimate the desired 
+   distributions. In this case, the MCMC transition rules correspond to the local mesoscale rules
+    mentioned above, which model physical mechanisms and govern the behavior of the elements.
 
 
 ## Why MEPLS?
-MEPLS is a framework that provides easy-to-use tools to build mesoscale models of the plastic deformation of materials under a broad range of physical scenarios. An alternative description is that MEPLS allows sampling a mesoscale model’s configuration space with Markov chain Monte Carlo methods. MEPLS enables the user to study the impact that microstructural properties have on the macroscale elasto-plastic behavior of a material. This question is especially challenging to answer when those properties are spatially heterogeneous and statistically distributed, which is, in turn, the most common situation. The built-in MEPLS tools abstract away unnecessary complexity associated with the model implementation, allowing the user to focus on the physics of the problem.
+MEPLS is a framework that provides easy-to-use tools to build mesoscale models of the plastic 
+deformation of materials under a broad range of physical scenarios. Moreover, MEPLS allows 
+sampling a mesoscale model’s configuration space with Markov chain Monte Carlo methods. In this 
+way, the user can study the impact that microstructural properties have on the macroscale 
+mechanical behavior of a material. This question is especially challenging to answer when 
+those properties are spatially heterogeneous and statistically distributed, which is, in turn, 
+the most common situation. MEPLS provides a set of tools that abstract away unnecessary complexity 
+associated with the model implementation, allowing the user to focus on the physics of the problem.
 
 ## References
 @cite DFCastellanos_CRP @cite BudrikisNatCom @cite Talamali2012 @cite nicolas_deformation_2018 

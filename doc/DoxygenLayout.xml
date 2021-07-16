@@ -25,7 +25,7 @@
     </tab>
 
    <tab type="user" visible="yes" title="Gallery" url="@ref Gallery">
-	    <tab type="user" visible="yes" title="ESPCI" url="@ref ESPCI" />
+<!--	    <tab type="user" visible="yes" title="ESPCI" url="@ref ESPCI" />-->
     </tab>
 
    <tab type="user" visible="yes" title="Documentation" url="@ref Documentation">

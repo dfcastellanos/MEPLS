@@ -21,7 +21,7 @@
 
 This tutorial will expand the model considered in the two previous tutorials. We will see how 
 different driving protocols can be connected, which allows us to simulate a material's history in a
-complete manner. Specifically, we will run an AQS simulation using a 
+complete manner. Specifically, we will run an athermal quasistatic (AQS) simulation using a 
 system's initial configuration that results from a previous simulation under creep conditions. Also, we will use 
 thread-based parallelism to run different repetitions of the same simulation simultaneously.
 
@@ -39,12 +39,14 @@ end, instead of explicitly considering different thresholds scale parameters, we
 one parameter. However, before the AQS simulation, we will simulate a sample deforming under 
 creep conditions, i.e., at non-zero temperature and constant external stress 
 @cite Castellanos2018 @cite Castellanos2019. During the creep process, the slip thresholds will 
-undergo a survival bias, by which lower thresholds tend to be renewed by higher ones (see the results 
-section of @ref Step3 for a short discussion about this). Due to such bias, after some time, the
-existing thresholds will be on average higher than as-renewed from their Weibull pdf. 
-Consequently, when using such a state as the initial one in the AQS simulation, the AQS 
-stress-strain curve will exhibit a behavior similar to @ref Step4. However, in contrast with @ref
- Step4, the magnitude of the stress overshoot and the intensity of the strain localization will 
+undergo a survival bias, by which lower thresholds are more likely to be overcome due to 
+thermal effects. After low thresholds are overcome and the slip event occur, the renew threshold 
+will be statistically higher. Due to this stattistical bias, after some time, the existing 
+thresholds will be on average higher than the average of the Weibull distribution from where they
+ are renewed. Consequently, when using such a state as the initial one in the AQS simulation, the
+  AQS stress-strain curve will 
+exhibit a behavior similar to @ref Step4. However, in contrast with @ref Step4, the magnitude of 
+the stress overshoot and the intensity of the strain localization will 
  be a direct result of a well-defined sample's thermal and mechanical history. 
 
 
@@ -61,20 +63,21 @@ The energy barrier \f$ \Delta E \f$ for a specific slip activation can be relate
 distance to threshold (@ref mepls::slip::Slip<dim>::barrier) \f$ \Delta \tau^{\rm c} \f$ as \f$ 
 \Delta E \approx \Delta \tau^{\rm c} V_{\rm a}\f$. The quantity \f$ V_{\rm a} \f$ is the so-called 
 activation volume, which is of the order of the product of the typical local strain induced by a 
-plastic event and the the volume occupied by the event. It is a microscopic quantity 
+plastic event and the volume occupied by the event. It is a microscopic quantity 
 characteristic of a specific microstructure, and is an input to the model.
 
 The KMC method models thermal activation as a Poisson process, where each possible transition (i
 .e., activation of a slip system) is an independent Poisson variable with an activation rate \f$ 
 \nu \f$. Here, we consider an Arrenius dependency on temperature and energy,
 
-\f[ \nu(n) = \nu_0 e^{-\frac{\Delta E(n)}{k_{\rm B}T}}\f]
+\f[ \nu(n) = \nu_0 \exp{\left( -\frac{\Delta E(n)}{k_{\rm B}T} \right) }\f]
 
 where \f$ n \f$ denotes a specific slip sytem and the parameter \f$ \nu_0 \f$ is a microscopic slip 
 activation rate characteristic of the microstructure. The units of time in the model are defined
  by \f$ \Delta t_0 = 1/\nu_0\f$. In terms of stress, we can approximate the expression above as,
 
-\f[ \nu(n) = \nu_0 e^{-\frac{\Delta\tau^{\rm c}(n) V_{\rm a}}{k_{\rm B}T}} = \nu_0 e^{-\frac{\Delta\tau^{\rm c}(n)}{T^{\prime}}} \f]
+\f[ \nu(n) = \nu_0 \exp{\left( -\frac{\Delta\tau^{\rm c}(n) V_{\rm a}}{k_{\rm B}T} \right)} = \nu_0 
+\exp{\left( -\frac{\Delta\tau^{\rm c}(n)}{T^{\prime}} \right)} \f]
 
 where \f$ T^{\prime} = k_{\rm B}T/V_{\rm a} \f$. Note that this rescaled temperature has units of
 stress, and it characterizes the typical amplitude of the local stress fluctuations induced by 
@@ -87,14 +90,14 @@ of Poisson processes. There are several possibilities to implement the KMC. The 
 mepls::dynamics::KMC implements the method described in @cite DFCastellanos_CRP @cite Castellanos2019
  @cite Castellanos2018 @cite FernandezCastellanos2019.
 
-We consider an extra ingredient in the model of thermal deformation. As we saw in previous 
+We consider an extra ingredient in the model of thermal activation. As we saw in previous 
 tutorials, after a thermally activated slip event occurs, other slip systems might become 
 unstable. We consider that mechanically unstable slip systems become active much faster than the 
 time necessary for a new thermal activation somewhere in the whole system (this approximation 
 breaks down if the temperature is too high, specifically if the material approaches a point such 
 as the glass transition in glasses). Therefore, before triggering a new thermal event 
 with the KMC, we apply an athermal relaxation as in the AQS simulations by calling @ref 
-mepls::dynamics::relaxation. 
+mepls::dynamics::relaxation(). 
 
 
 
@@ -104,31 +107,55 @@ The model's temperature value is the rescaled one, \f$ T^{\prime} = k_{\rm B}T/V
  \f$ V_{\rm a} \f$ is of the same order as the product of the typical local plastic strain \f$ 
 \Delta\gamma^{*}_{\rm pl} \f$ induced by an event and the volume occupied by the event. 
 In this case, since we are working in 2D, it's an area. Let's denote by \f$ l^{*} \f$ the linear 
-length of the event's region. The length of a mesoscale elements is \f$ l \f$, and at that 
-scale the plastic strain is \f$ \Delta\gamma_{\rm pl} \f$. All quantities are related as
+length of the event's region. The length of a mesoscale element containing the event is \f$ l \f$,
+ and at that scale the plastic strain is \f$ \Delta\gamma_{\rm pl} \f$. All quantities are 
+ related as
 
 \f[  \Delta\gamma^{*}_{\rm pl} \cdot (l^{*})^2 = \Delta\gamma_{\rm pl} \cdot  l^2 \f]
 
-If we use mesoscale elements that have the same size as the local plastic event, then \f$ l^{*}=l 
-\f$, and therefore \f$ \Delta\gamma^{*}_{\rm pl} = \Delta\gamma_{\rm pl} \f$. The value of
+If we use mesoscale elements that have a size comparable to the typical size of the 
+microstructure's plastic events, then \f$ l^{*} \approx l \f$, and therefore \f$ 
+\Delta\gamma^{*}_{\rm pl} \approx \Delta\gamma_{\rm pl} \f$. The value of
 \f$ \Delta\gamma_{\rm pl} \f$ is known since it is given by the input parameter `gamma`. 
 Thus, if we set e.g. `gamma=0.05`, then \f$ \Delta\gamma^{*}_{\rm pl} = 0.05\f$. Now, let's say 
-that the scale of a local plastic rearrangement is, for the microstructure that we are modelling, 1
- nm. In this case we have \f$ V_{\rm a} = \Delta\gamma^{*}_{\rm pl} \cdot (l^{*})^2 = 0.05 
+that the length scale of a local plastic rearrangement is, for the microstructure that we are 
+modelling, of the order of 1 nm. In this case we have \f$ V_{\rm a} = \Delta\gamma^{*}_{\rm pl} 
+\cdot (l^{*})^2 \approx 0.05 
  \textrm{nm}^2  \f$. The rescaled temperature is then
 
-\f[  T^{\prime} = 3 \cdot 10^{-4} T \f]
+\f[  T^{\prime} \approx 3 \cdot 10^{-4} T \f]
 
 which for a material undergoing thermal activation at, let's say \f$ T = 360 K \f$, is \f$ 
-T^{\prime} = 0.1\f$.
+T^{\prime} \approx 0.1\f$.
 
 As discussed above, this value denotes the typical amplitude of the local shear stress fluctuations 
 induced by temperature. This value is a tenth of the typical slip threshold, given by
 a scale parameter `lambda = 1.0`. Thus, thermal fluctuations are small compared to the 
-thresholds, which means that the material is far away from a liquid-like behavior (i.e., its melting 
-point). This fact justifies the applicability of the current modeling approach, based on solid 
-mechanics, at that temperature. 
-  
+thresholds (importantly, also to their standard deviation), which means that the material is far 
+away from a liquid-like behavior. This fact justifies the applicability of the current modeling 
+approach, based on solid mechanics, at that temperature. 
+
+Moreover, we can come back to the criterion of athermal deformation given in @ref Step3. As shown
+ there, it is
+ 
+ \f[
+ T << \frac{V_{\rm a}\lambda}{k_{\rm B}}
+\f] 
+
+which using the values estimated above becomes \f$ T << 181K \f$, which is rather cold. We could 
+legitimately argue that the athermal limit for this material is quite unrealistic and that 
+temperature effects cannot be neglected. Nonetheless, we must take into account that the value of
+ 1nm for the size of the atomistic rearrangements, or the typical local strain increment of 
+`gamma=0.05` are sensible guesses (they are material dependent and, normally, they are difficult 
+to measure experimentally, see e.g. @cite Schuh2007 @cite Rodney2009 @cite Albaret2016). 
+Moreover, in reality, the values are not fixed, but statistically distributed. 
+Thus, conceptually there's no difference between, e.g., atomistic rearrangements of 1nm or 1.5nm.
+ However, in the latter case, the criterion above becomes
+\f$ T << 400K \f$. Something much more realistic, since this temperature is not too far from the glass 
+transition of many glasses. Consequently, setting a specific value for the temperature or the 
+activation volume is complicated, but we can still rely on the calculations above to establish 
+their order of magnitude.
+
    
 
 # The commented program{#comented_program}
@@ -136,7 +163,8 @@ mechanics, at that temperature.
 We add two new headers. The header `omp.h` has functions 
 that will provide us with information such as, e.g., the number running threads and the current 
 thread id. The header `deal.II/base/conditional_ostream.h` defines an output stream, which will 
-only accept the input from a specific thread.
+only accept the input from a specific thread. This is useful for avoiding that many threads print
+simoultaneously to the screen.
 
 ```cpp
 #include <example.h>
@@ -250,10 +278,10 @@ struct Parameters
 
 This time, we will write two different histories, one for the creep and one for the AQS test.
 We introduce a new level in the data hierarchy, adding `creep` and `AQS` between 
-`Data` and the data sets. Thus, we have, e.g., `Data.creep.plastic_events` and `Data.AQS
-.plastic_events`. The name of the output file is generated based on the simulation parameters. 
+`Data` and the data sets. Thus, we have, e.g., `Data.creep.plastic_events` and `Data.AQS.plastic_events`.
+ The name of the output file is generated based on the simulation parameters. 
 When generating the filename, the most important parameter is the `seed` parameter used for 
-initializing the random number generator at the beginning of the `run` function. Adding the seed 
+initializing the random number generator at the beginning of the `%run()` function. Adding the seed 
 to the filename ensures that even if we perform many repetitions of the same simulation, files will
  never be overwritten unless they correspond to exactly the same simulation. Apart from that, the
  data is written in the same manner as in the previous tutorial step. 
@@ -364,8 +392,8 @@ void write_data(const mepls::history::History<dim> &creep_history,
 }
 ```
 
-The `run` function takes as an argument the parameters struct and a specialized output stream 
-implemented by the `deal.II`, that will be described later. First, we set up the elements, the 
+The `%run()` function takes as argument the parameters struct and the conditional output 
+stream explained above. First, we set up the elements, the 
 solver, and the system, as done in the previous tutorials. However, this time, the solver is 
 configured to apply a stress-controlled load. Since we are 
 using the solver @ref mepls::elasticity_solver::LeesEdwards<dim>, the stress-controlled load 
@@ -398,6 +426,7 @@ void run(const Parameters &p, dealii::ConditionalOStream & cout)
       elements.push_back(element);
    }
 
+   // the solver has stress-control conditions
    mepls::elasticity_solver::LeesEdwards<dim> solver(p.Nx, p.Ny, mepls::elasticity_solver::ControlMode::stress);
    for(auto &element : elements)
       solver.set_elastic_properties(element->number(), element->C());
@@ -413,15 +442,16 @@ void run(const Parameters &p, dealii::ConditionalOStream & cout)
 
 We create a history object specific for the creep test, named `creep_history`. Then, for performing a 
 creep simulation, we apply certain external stress and keep it fixed. To do this, we use the 
-function @ref mepls::dynamics::fixed_load_increment, which applies to the system the 
+function @ref mepls::dynamics::fixed_load_increment(), which applies to the system the 
 desired load. Since the solver is currently in stress-controlled mode, the total strain will 
 change during the deformation process, but the applied stress will not.
 
-@note applying a specific load value is a straightforward operation since all we need to do is to call
-@ref mepls::elasticity_solver::Solver<dim>::add_load_increment. However, the advantage of using 
-MEPLS built-in calls such as @ref mepls::dynamics::fixed_load_increment is that the event 
-associated with the load application will be recorded. Moreover, the elastic fields will 
-be computed and the elements' stress tensors updated.
+@note in principle, applying a specific load value is a straightforward operation since all we need 
+to do is to call @ref mepls::elasticity_solver::Solver<dim>::add_load_increment(). What's 
+the need of calling @ref mepls::dynamics::fixed_load_increment()? The reason is that in this 
+case, MEPLS will automatically handle many operations for us. Specifically, the event associated 
+with the load application will be recorded, the elastic fields will be computed and the elements'
+ stress tensors updated.
  
 ```cpp
    mepls::history::History<dim> creep_history("creep_history");
@@ -464,7 +494,7 @@ external load increment. The simulation loop stops when the time limit is reache
 ## Transition step and AQS simulation{#transition}
 
 When the creep simulation ends, we remove the external load. Immediately after the removal, some 
-slip systems might become unstable. Therefore, we call @ref mepls::dynamics::relaxation to 
+slip systems might become unstable. Therefore, we call @ref mepls::dynamics::relaxation() to 
 perform the associated slip events.
    
 ```cpp
@@ -479,14 +509,21 @@ perform the associated slip events.
 
 The current configuration of slip thresholds and local stress tensors defines the initial
 system's configuration during the AQS simulation. However, since we consider the AQS a process 
-separated from sample preparation, we clean the current macroscale record. In this way, we start measuring the macroscale strain from zero. 
+separated from sample preparation (i.e., the creep simulation), we clean the current macroscale 
+record. In this way, we start measuring the macroscale strain from zero. 
+
+@note since afterward we will perform an AQS simulation, it is understood that here, as part of 
+the transition between protocols, we also reduce the material's temperature enough as to fulfill 
+the criterion for athermal deformation given in @ref Step3. What the new temperature is does not 
+matter, as long as the criterion is fulfilled. 
 
 Currently, the solver operates in stress-controlled mode. However, we want to perform the AQS 
-under strain-controlled conditions. We can change that in the existing solver bypassing 
+under strain-controlled conditions. We can change that in the existing solver passing 
 @ref mepls::elasticity_solver::ControlMode::strain to 
-@ref mepls::elasticity_solver::LeesEdwards<dim>::set_control_mode. Since the driving mode have 
+@ref mepls::elasticity_solver::LeesEdwards<dim>::set_control_mode(). Since the driving mode have 
 changed, the local stress change per unit load increment is now different. Thus, we need to 
-call @ref mepls::element::calculate_ext_stress_coefficients to inform the elements about this.
+call @ref mepls::element::calculate_ext_stress_coefficients() again to inform the elements about 
+this change.
  
 ```cpp
     // in the AQS, we start measuring the macroscale strain from zero
@@ -501,16 +538,19 @@ call @ref mepls::element::calculate_ext_stress_coefficients to inform the elemen
 ```
 
 Now we perform the AQS simulation. The only difference with the previous tutorial 
-step is that now we use the function @ref mepls::dynamics::extremal_dynamics_step. This function 
+step is that now we use the function @ref mepls::dynamics::extremal_dynamics_step(). This function 
 implements the quasistatic limit as accurately as possible within this model. Specifically, it 
 performs an external load increment such that the barrier of one, and only one, slip system 
 becomes zero. Therefore, after the load increment the system is infinitesimally close to 
-undergoing plastic deformation. This critical corresponds to the minimal possible increment, in 
-contrast with the previous tutorial step, where @ref mepls::dynamics::finite_extremal_dynamics_step performed a 
+undergoing plastic deformation. This critical load increment corresponds to the minimal possible 
+increment that will trigger an event, in contrast with the previous tutorial step, where @ref 
+mepls::dynamics::finite_extremal_dynamics_step() performed a 
 very small load but the probability of triggering several events at once was not zero. 
 
-@note For using @ref mepls::dynamics::extremal_dynamics_step, having called @ref 
-mepls::element::calculate_ext_stress_coefficients before is mandatory.
+@note For using @ref mepls::dynamics::extremal_dynamics_step(), having called @ref 
+mepls::element::calculate_ext_stress_coefficients() before is mandatory, since slip objects rely 
+on @ref mepls::element::Element<dim>::ext_stress_coeff_ for computing the critical load 
+increment.
 
 ```cpp
        mepls::history::History<dim> aqs_history("aqs_history");
@@ -542,10 +582,10 @@ mepls::element::calculate_ext_stress_coefficients before is mandatory.
 } // run
 ```
 
-The `main` function works in the same way as the previous tutorial step, but now we will run 
+The `%main()` function works in the same way as the previous tutorial step, but now we will run 
 different repetitions in parallel using thread parallelism provided by openMP. Different 
 repetitions denote different simulation runs with the same parameters but with a different random 
-seed. For performing several repetitions, we call `run` within a loop. To perform repetitions in 
+seed. For performing several repetitions, we call `%run()` within a loop. To perform repetitions in 
 parallel, we enclose the loop within an openMP parallel region, as defined by `#pragma omp parallel` 
 (see the openMP documentation). Within the parallel region, the process will run using several 
 threads. Since we want a total number of repetitions defined by the `n_rep` parameter, each 
@@ -553,10 +593,10 @@ thread must run only that number divided by the number of threads.
 
 However, care must be taken to ensure that each parallel repetition differs from the repetitions
 performed by the other threads. For that, we need to ensure that the random generator at 
-the beginning of the `run` function is never initialized with the same seed. To this end, we 
+the beginning of the `%run()` function is never initialized with the same seed. To this end, we 
 consider the seed in the input parameters file as a master seed. We use the master seed to 
 initialize a master random generator, which is used to generate different seeds passed to 
-the `run` function. As a master generator, we use `std::rand`. This generator is of low quality, but 
+the `%run()` function. As a master generator, we use `std::rand`. This generator is of low quality, but 
 that is not important for us since it only generates seeds that will initialize a much better 
 `std::mt19937` generator during the simulation runs.
 
@@ -564,9 +604,9 @@ The master generator must not be used simultaneously by different threads, other
 might be repeated. Therefore, we enclose it in a critical region, defined by the `#pragma 
 critical`. 
 Within this region, only one thread is allowed to enter at once. Since most of the time is spent 
-inside the `run` function, the presence of the critical region has no impact on the performance.
+inside the `%run()` function, the presence of the critical region has no impact on the performance.
 
-The output stream that is passed to the `run` function ican be switched on or off. It is useful 
+The output stream that is passed to the `%run()` function can be switched on or off. It is useful 
 in a multi-threaded environment, since we can activate it for only one thread to avoid polluting 
 the screen with simultaneous output.
 
@@ -673,7 +713,7 @@ with the thresholds (of the order of `lambda = 1.00`) and the stress fluctuation
 of `T = 0.1`), so it acts only as a small bias in the system's deformation leading to non-zero net deformation.
 
 We set a number of repetitions `n_rep=20`. To perform those repetitions in parallel, we 
-can set the number of threads we want to use by setting the environment variable 
+can set the number of threads we want to use by setting the shell environment variable 
 `OMP_NUM_THREADS`. Thus, for using 4 threads we do
 
 ```bash
@@ -686,8 +726,8 @@ Also, it helps to set the variable
 export OMP_PROC_BIND=TRUE
 ```
 
-which pins the threads to specific cores avoiding continous switches and increases the performance 
-about 20%. After setting these variables and modifying the parameters file, we run the program,
+which pins the threads to specific CPUs avoiding possible continous switches and increases the 
+performance about 20%. After setting these variables and modifying the parameters file, we run the program,
 
 ```sh
 $ ./run_sim
@@ -718,10 +758,13 @@ following animation,
 
 <center><img src="step5_plastic_strain_time_curve.gif" width="40%"></center>
 
-The plot on the left shows the average von Mises plastic deformation vs. time curve. After a transient creep regime, we see how the system enters the stationary creep characterized by a 
+The plot on the left shows the curve of the average von Mises plastic strai vs. time. 
+After a transient creep regime, we see how the system enters the stationary creep characterized by a 
 constant strain rate. On the right, we can see the spatial activity. We cannot observe the 
 formation of any clear patterns because the external stress is very low, as explained above. In 
-this case, thermal activation leads to very noisy activity. 
+this case, thermal activation leads to very noisy activity. However, the thresholds undergo the 
+survival bias explained in the introduction, increasing the stability of the sample. This is can 
+be understood as aging.
 
 The final state of the creep simulation was used as the initial state for the AQS one. To show 
 the results of the AQS simulation, we do 
@@ -730,12 +773,12 @@ the results of the AQS simulation, we do
 python animate.py Nx_32+gamma_0.05+lambda_1.00+k_6.00+G_30.00+T_0.10+ext_stress_0.02+seed_1303402199.json /Data/AQS/plastic_events /Data/AQS/driving_events total_strain ext_stress dstrain --labels '$\varepsilon_{\rm xy}$ (%)' '$\Sigma_{\rm xy}$ (MPa)' '$\varepsilon_{\rm vm}(\vec{r})$' --rescale 100 1000 1
 ```
 
-which produces the following animation
+which produces the following animation,
 
 <center><img src="step5_stress_strain_curve.gif" width="40%"></center>
 
 We see that result is very similar to @ref Step4, where we considered that the slip thresholds 
-where initially higher than after they are renewed. Here, the explanation is the same, but the 
+are initially higher than after they are renewed. Here, the explanation is the same, but the 
 initial thresholds configuration is the result of the creep dynamics. After the creep 
 simulation, the system has undergone a certain plastic deformation at non-zero temperature and 
 applied stress. In these conditions, the slip thresholds have experienced a survival bias, by 
@@ -747,7 +790,7 @@ amplitude of the stress overshoot will depend on the temperature, the applied st
 the duration of the creep simulation (but it if reaches the stationary state, it won't 
 change anymore). Thus, although the results are similar to @ref Step4, here we have built a model 
 much more powerful, which provides us with a great insight into the effects of a 
-material's thermal and mechanical history on its brittle or ductile response.
+material's thermal and mechanical history on its brittle or ductile response when strain is applied.
 
 
 
@@ -993,6 +1036,7 @@ void run(const Parameters &p, dealii::ConditionalOStream & cout)
       elements.push_back(element);
    }
 
+   // the solver has stress-control conditions
    mepls::elasticity_solver::LeesEdwards<dim> solver(p.Nx, p.Ny, mepls::elasticity_solver::ControlMode::stress);
    for(auto &element : elements)
       solver.set_elastic_properties(element->number(), element->C());

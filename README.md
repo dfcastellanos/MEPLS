@@ -250,6 +250,6 @@ Copyright (C) 2020  - David Fernández Castellanos.
 
    [deal.II]: <https://www.dealii.org/>
    [project's website]: <https://mepls.davidfcastellanos.com/>
-   [author's website]: <https://www.davidfcastellanos.com/>
+   [author's website]: <https://www.davidfcastellanos.com/contact>
    
 ____

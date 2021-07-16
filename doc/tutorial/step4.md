@@ -19,36 +19,37 @@
 
 # Introduction{#introducion_4}
 
-This tutorial will use the same model introduced in the previous tutorial step with little 
-modifications. This time, however, we will use MEPLS built-in tools for defining the dynamics of 
-the system. Also, we will introduce the last missing parts that the program needs to be user-friendly:
-we will show how to set the model parameters using input configuration files, and how to write 
-all the simulation the results in a clean and well-structured manner, easy to be read afterward
+This tutorial will use the model of a material driven in the athermal 
+quasistatic limit introduced in the previous tutorial steps with little modifications. This time,
+ however, we will use MEPLS built-in tools for defining the dynamics of the system. Also, we will
+introduce the last missing parts that the program needs in order to be user-friendly: we will show
+ how to set the model parameters using input configuration files, and how to write 
+all the simulation results in a clean and well-structured manner, easy to be read afterward
 by Python scripts.
 
 
 ## The model{#the_model_4}
 
-We consider the same model as in the previous step, i.e., a material being driven in 
-strain-controlled pure shear conditions in the athermal quasistatic limit. This time, however, we
-consider that the material has some thermal or mechanical history prior to the beginning of the 
-driving loading protocol, e.g. the material has undergone aging at non-zero temperature or has 
-been strained before.
+We consider the same model as in the previous step, i.e., a single-slip crystal material being 
+driven in strain-controlled pure shear conditions in the athermal quasistatic limit (AQS). This 
+time, however, we consider that the material has some thermal or mechanical history prior to the 
+beginning of the driving loading protocol. This is the case if, e.g., the material has undergone aging at non-zero 
+temperature or has been strained before.
 
 In this situation, the statistics of the material's structural properties exhibit differences from
 the properties renewed just after a local plastic event. To see it more clearly, we can 
-think, e.g., of a glass sample annealed during some time. In this situation, the glassy structure 
-evolves finding ever more thermodynamically stable configurations. From a micromechanics point of
-view, more stable configurations mean higher local slip thresholds. However, when a local 
-plastic event takes place, the local atomistic configuration changes, which will result in new 
-local slip thresholds and, typically in a structure softer than the initial, highly stable one. 
+think, e.g., of a sampled annealed during some time. In this situation, the disordered 
+microstructure evolves finding ever more thermodynamically stable configurations. From a 
+micromechanics point of view, more stable configurations mean higher local slip thresholds. 
+However, when a local plastic event takes place, the local atomistic configuration changes, which
+ will result in new local slip thresholds and, typically in a structure softer than the initial, highly stable one. 
 There are many posibilities to model this kind of behavior, but we will use a fairly simple one. 
 To this end, we consider two different slip threshold scale parameters, \f$ \lambda_{\rm init} \f$ 
 for the intial state, and \f$ \lambda_{\rm renew} \f$ for renewing the thresholds after plastic slip
 events occur @cite PhysRevE.98.040901. Thus, if \f$ \lambda_{\rm init} = \lambda_{\rm renew}\f$ 
 the model reduces entirely to the previous tutorial step model. However, if \f$ \lambda_{\rm init} > \lambda_{\rm 
-renew}\f$, we model a material with an initial structure which is more stable than after plastic 
- deformation. We can think of this process as a kind of abrupt strain softening @cite Tuszes2017
+renew}\f$, we model a material with an initial structure that is more stable at the beginning 
+than after plastic deformation. We can think of this process as a kind of abrupt strain softening @cite Tuszes2017
  @cite Castellanos2018, and as we will see in the results section, it leads to a stress overshoot in the 
  stress-strain curve and to strain localization in the form of a permanent shear 
 band.
@@ -58,7 +59,8 @@ band.
 # The commented program{#comented_program_4}
    
 We include the same headers of the previous tutorial (see @ref Step3), plus the headers with the tools
-for the MEPLS system dynamics, loading input parameter files, and creating output JSON files.
+for the MEPLS dynamics, for loading input parameter files, and for creating output text files with 
+JSON format.
    
 ```cpp
 #include <example.h>
@@ -84,10 +86,14 @@ for the MEPLS system dynamics, loading input parameter files, and creating outpu
 
 ## Using input parameters files{#param_files}
 
-In this tutorial, we want to pass the simulation parameters using a text file. This text file 
-will be parsed, and the values will be set in a struct of type `Parameters`  that we will use
-throughout the program. The `Parameters` struct uses 
-[deal.II's ParameterHandler](https://dealii.org/current/doxygen/deal.II/classParameterHandler.html) class 
+In this tutorial, we want to pass the simulation parameters using a text file. This text file can
+ be modified by a text editor before running the program, or automatically generated by some 
+ scripts (we will see the structure of the file in the results section). The file will be parsed, 
+ and the values will be set in a struct of type `Parameters` that we will use throughout the 
+ program. Although the `Parameters` struct is very simple, you don't need to understand it in 
+ detail, and you can easily adapt the example to your needs. 
+ 
+ The `Parameters` struct uses [deal.II's ParameterHandler] (https://dealii.org/current/doxygen/deal.II/classParameterHandler.html) class 
 for parsing the input text file. In the definition of the struct, we first declare the different 
 members and their default values. Then, in `declare_entries(...)`, we 
 declare the entries that the parser will look for in the input file. The definition of 
@@ -186,8 +192,9 @@ generate a new file, that can be used as a template input file.
 
 ## Writing output data files{#write_data}
   
-we will save the results into a tree data structure of class `boost::property_tree::ptree`. This 
-tree allows us to organize the data in a hierarchical way easily. The hierarchy can then be 
+We will save the results calling the following `write_data()` function. This function uses a 
+tree data structure of class `boost::property_tree::ptree`. This tree allows us to organize the 
+data in a hierarchical way easily. The hierarchy can then be 
 easily written to a JSON plain text file. First, we write some metadata, such as a simulation or 
 model name and a description. Here we can add any fields we may deem necessary. Then, we save the
 simulation parameters. Although they are already stored in the input parameters file, it is 
@@ -202,9 +209,9 @@ activity.
 The tree structure is very flexible, and we can store the data in many different ways. An 
 easy and efficient way is to consider the tree as a file system, through which we can navigate to
 locate the datasets, which contain the actual heavy data formatted in CSV. We will 
-store the datasets as `Data/plastic_events` and `Data/driving_events`. (We could make the 
+store the datasets as `Data.plastic_events` and `Data.driving_events`. (We could make the 
 tree even more descriptive and have metadata associated with individual datasets by doing, e.g.,
-`Data/driving_events/metadata` and `Data/driving_events/csv`).  
+`Data.driving_events.metadata` and `Data.driving_events.csv`).  
   
 ```cpp
 template<int dim>
@@ -288,75 +295,76 @@ void write_data(
 
 ## The simulation{#simulation}
 
-We implement a `run()` function that constitutes the simulation itself, and will be called later 
-from the `%main()` function. The `run()` function takes as an input the parameters struct and 
-a structure to store the simulation results that we will describe later. In the previous 
-tutorials, we have already described in detail the parts of this function. First, we create 
-and set up the elements, solver, and system. This time, the values of the parameters are set using
-the input parameters struct. Also, we store the elements in two different vectors. The vector 
+We implement a `%run()` function that constitutes the simulation itself, and will be called later 
+from the `%main()` function. The `%run()` function takes as an input the parameters struct, 
+described above. In the previous tutorials, we have already described in detail the parts that 
+constitute the `%run()` function. First, we create and set up the elements, solver, and system. 
+This time, the values of the parameters are set using the input parameters struct. Also, we store
+ the elements in two different vectors. The vector 
 of class @ref mepls::element::Vector<dim> stores pointers to the element base class @ref 
 mepls::element::Element<dim>, which is enough for passing it as an argument to the different MEPLS
 tools. However, in this tutorial, we will reaccess the elements' internal configuration struct. To
  do this, we need pointers to the derive class @ref example::element::Scalar<dim>. There are two 
-possibilities: we can cast the pointers to the known derive class, or we can store the elements 
+possibilities: we can cast the pointers to the known derived class, or we can store the elements 
 also in a vector `std::vector<example::element::Scalar<dim> *>`. We will use the second 
-option. Note that havint two vector of elemnts doesn't have any real impact on the 
-simulation since the vectors contain only pointers to the actual element objects.
+option. Note that having two vector of elements doesn't have any real impact on memory since the 
+vectors contain only pointers to the actual element objects.
 
 ```cpp
-void run(const Parameters &p, boost::property_tree::ptree &data_tree)
+void run(const Parameters &p)
 {
-   // we do the same as in the previous tutorial, but this time we use the
-   // parameters from the input Parameters object
-  
-   constexpr unsigned dim = 2;
-   std::mt19937 generator(p.seed);
+	// we do the same as in the previous tutorial, but this time we use the
+	// parameters from the input Parameters object
 
-   dealii::SymmetricTensor<4, dim> C = mepls::utils::tensor::make_isotropic_stiffness<dim>(p.G, p.nu);
+	constexpr unsigned dim = 2;
+	std::mt19937 generator(p.seed);
 
-   mepls::element::Vector<dim> elements;
+	dealii::SymmetricTensor<4, dim> C = mepls::utils::tensor::make_isotropic_stiffness<dim>(p.G,
+																							p.nu);
 
-   // we also store the elements into a vector that knows the derived class, so we can access
-   // the example::element::Scalar<dim>::conf struct later (this member cannot be accessed
-   // through the pointers to the base mepls::element::Element<dim>)
-   std::vector<example::element::Scalar<dim> *> elements_scalar;
+	mepls::element::Vector<dim> elements;
 
-   for(double n = 0; n < p.Nx * p.Ny; ++n)
-   {
-      example::element::Scalar<dim>::Config conf;
-      conf.number = n;
-      conf.gamma = p.gamma;
-      conf.lambda = p.lambda_init;
-      conf.k = p.k;
+	// we also store the elements into a vector that knows the derived class, so we can access
+	// the example::element::Scalar<dim>::conf struct later (this member cannot be accessed
+	// through the pointers to the base mepls::element::Element<dim>)
+	std::vector<example::element::Scalar<dim> *> elements_scalar;
 
-      auto element = new example::element::Scalar<dim>(conf, generator);
-      element->C(C);
+	for(double n = 0; n < p.Nx * p.Ny; ++n)
+	{
+		example::element::Scalar<dim>::Config conf;
+		conf.number = n;
+		conf.gamma = p.gamma;
+		conf.lambda = p.lambda_init;
+		conf.k = p.k;
 
-      elements_scalar.push_back(element);
-      elements.push_back(element);
-   }
+		auto element = new example::element::Scalar<dim>(conf, generator);
+		element->C(C);
 
-   mepls::elasticity_solver::LeesEdwards<dim> solver(p.Nx, p.Ny);
-   for(auto &element : elements)
-      solver.set_elastic_properties(element->number(), element->C());
-   solver.setup_and_assembly();
+		elements_scalar.push_back(element);
+		elements.push_back(element);
+	}
 
-   mepls::element::calculate_ext_stress_coefficients(elements, solver);
-   mepls::element::calculate_local_stress_coefficients_central(elements, solver);
+	mepls::elasticity_solver::LeesEdwards<dim> solver(p.Nx, p.Ny);
+	for(auto &element : elements)
+		solver.set_elastic_properties(element->number(), element->C());
+	solver.setup_and_assembly();
 
-   mepls::system::Standard<dim> system(elements, solver, generator);
+	mepls::element::calculate_ext_stress_coefficients(elements, solver);
+	mepls::element::calculate_local_stress_coefficients_central(elements, solver);
 
-   mepls::history::History<dim> sim_history("Simulation_history");
+	mepls::system::Standard<dim> system(elements, solver, generator);
 
-   system.set_history(sim_history);
+	mepls::history::History<dim> sim_history("Simulation_history");
+
+	system.set_history(sim_history);
 ```
 
 When the elements are created, their slip systems are initialized using the parameters passed in 
 the struct @ref example::element::Scalar<dim>::Config. As explained in the introduction, we want 
 that after local plastic deformation has occurred, the slip systems have different statistical 
 properties. As seen in @ref Step1, the elements will keep their initial slip systems until their 
-structural properties are first renewed. A way to do this is to change the values of the elements 
-configuration parameters after they have been created, but before the first structural renewal 
+structural properties are first renewed. Thus, a way to do it is to change the values of the 
+elements configuration parameters after they have been created, but before the first structural renewal 
 takes place (which occurs in the dynamics, when plastic events are added). To this end, we 
 iterate over the elements using the pointers to the derived class, access their configuration 
 parameters, and replace the value of the slip threshold scale from the initial `lambda_init` to
@@ -376,60 +384,64 @@ in the previous tutorial @ref Step3. However, now we use MEPLS built-in function
 optimized implementation, debug flags, and extra control through the function arguments.
 
 To check if the simulation must stop, we use the class @ref mepls::utils::ContinueSimulation. When we use 
-the call operator, the object will tell us whether the simulation should continue running or not.  
-This class can be used to check for conditions in different parts of the simulation, and we can 
+the call operator of this class, the object will tell us whether the simulation should continue 
+running or not. This class can be used to check for conditions in different parts of the simulation, and we can 
 associate a different message to each of these conditions. Whenever one the conditions is not 
 met, the object's internal state is set to `false`, and it won't change again. At the end, 
 using the associated message, the user will be informed about which of the conditions caused 
-the simulation to stop. In this case, we will use as the stopping criterion reaching a maximum total 
-strain value. Also, passing the continue_simulation object to the function @ref 
-mepls::dynamics::relaxation, we will also check for an extra condition within the function body.
-Specifically, it will check if the avalanche size overcomes a certain maximum upper limit, in which 
+the simulation to stop. In this case, reaching a maximum total strain value will be 
+stopping criterion  Also, passing the `continue_simulation` object to the function @ref 
+mepls::dynamics::relaxation, it will also check for an extra condition within the function.
+Specifically, it will check if the size of the avalanche of slip events composing the 
+mechanical relaxation of the system overcomes a certain maximum upper limit, in which 
 case two possibilities exist: the avalanche is unrealistically big because we are using simulation 
 parameters that are far from the reality, or (in some models) such avalanche can mean that a 
-material has undergone mechanical failure. When the main loop finishes, we write the data to the 
-output file.
+material has undergone mechanical failure. 
+
+When the main loop finishes, we write the data to the output file.
    
 ```cpp
-   // This object will allow us to check for different conditions by which
-   // the simulation might stop. Different conditions might be checked, but as long as one of 
-   // them evaluates to false, when continue_simulation() is called it will return false
-   mepls::utils::ContinueSimulation continue_simulation;
+	// This object will allow us to check for different conditions by which
+	// the simulation might stop. Different conditions might be checked, but as long as one of
+	// them evaluates to false, when continue_simulation() is called it will return false
+	mepls::utils::ContinueSimulation continue_simulation;
 
-   sim_history.add_macro(system);
+	sim_history.add_macro(system);
 
-   // run while the continue_simulation object says so
-   while(continue_simulation())
-   {
-      std::cout << system.macrostate["total_strain"] << " " << system.macrostate["ext_stress"] << std::endl;
-
-
-      // these are the same dynamics we implemented in the previous tutorial, but using MEPLS built-in
-
-      // apply an external strain increment of 0.01%
-      mepls::dynamics::finite_extremal_dynamics_step(1e-4, system);
-      sim_history.add_macro(system);
-
-      // perform and avalanche of slip events. By passing the continue_simulation object, 
-      // the relaxation function can set its own condition for stopping the simulation. 
-      // Specifically, it will check if the avalanche size overcomes a certain maximum upper limit
-      mepls::dynamics::relaxation(system, continue_simulation);
-      sim_history.add_macro(system);
+	// run while the continue_simulation object says so
+	while(continue_simulation())
+	{
+		std::cout << system.macrostate["total_strain"] << " " << system.macrostate["ext_stress"]
+				  << std::endl;
 
 
-      // check if the strain has reached the strain limit. If it has, the next time continue_simulation() is called
-      // it will return false, so we will exit the main loop
-      continue_simulation(system.macrostate["total_strain"] < p.strain_limit, "total strain limit reached");
+		// these are the same dynamics we implemented in the previous tutorial, but using MEPLS built-in
 
-   }
+		// apply an external strain increment of 0.01%
+		mepls::dynamics::finite_extremal_dynamics_step(1e-4, system);
+		sim_history.add_macro(system);
 
-   // print the message of the stopping condition that was met 
-   std::cout << continue_simulation << std::endl;
+		// perform and avalanche of slip events. By passing the continue_simulation object,
+		// the relaxation function can set its own condition for stopping the simulation.
+		// Specifically, it will check if the avalanche size overcomes a certain maximum upper limit
+		mepls::dynamics::relaxation(system, continue_simulation);
+		sim_history.add_macro(system);
 
-   for(auto &element : elements)
-      delete element;
-      
-      
+
+		// check if the strain has reached the strain limit. If it has, the next time continue_simulation() is called
+		// it will return false, so we will exit the main loop
+		continue_simulation(system.macrostate["total_strain"] < p.strain_limit,
+							"total strain limit reached");
+
+	}
+
+	// print the message of the stopping condition that was met
+	std::cout << continue_simulation << std::endl;
+
+	for(auto &element : elements)
+		delete element;
+
+
 	write_data(sim_history, p);
 	
 } // run
@@ -438,9 +450,9 @@ output file.
 ## The main function{#main}
    
 Finally, we define the `%main()` function. The first thing that we do here is to read the command
-line arguments passed to the program. We only define the argument `-f`, which takes the path to 
-the input parameters file to be parse. If no `-f` argument is given, a default value of `
-./default.prm` will be used.
+line arguments passed to the program using the class `%cli::Parser`. We only define the argument 
+`-f`, which takes the path to the input parameters file to be parsed. If no `-f` argument is 
+given, a default value of ` ./default.prm` will be used.
  
 ```cpp
 int main(int argc, char *argv[])
@@ -453,9 +465,10 @@ int main(int argc, char *argv[])
    // you can check https://github.com/FlorianRappl/CmdParser for a further documentation of cli::Parser
 ```
 
-Now we create a `Parameters` struct, introduced at the beginning of this section. We use a `try` 
-block to catch the exception thrown if the input file does not exist. If this is the case, a new 
-parameters file with that name is generated, and the program ends.
+Now we create a the `Parameters` struct. We use a `try` block to catch the exception thrown if 
+the input file does not exist. If this is the case, a new 
+parameters file with that name is generated, and the program ends. This generated file will be 
+used as a template that we will modify to set the values that we want.
 
 ```cpp
    // Create the parameters object
@@ -475,9 +488,9 @@ parameters file with that name is generated, and the program ends.
    }
 ```
 
-Finally, we call the `run()` function with the parameters struct as the argument. When it 
+Finally, we call the `%run()` function with the parameters struct as the argument. When it 
 returns, the program will end and the simulation results will be stored in a JSON text file. In 
-the Results section will show how to load and visualize the data stored in that file. 
+the results section will show how to load and visualize the data stored in that file. 
 
 ```cpp
 
@@ -492,7 +505,7 @@ the Results section will show how to load and visualize the data stored in that 
 
 # Results{#results_4}
 
-After compiling the program (see @ref HowToBuild), we can run it as `./run_sim`,
+After compiling the program (see [How to build](@ref HowToBuild)), we can run it as `./run_sim`,
 
 ```sh
 $ ./run_sim
@@ -501,8 +514,8 @@ Configuration file ./default.prm created
 
 Since no parameters file was given and `default.prm` was not found, the program created a 
 template file named `default.prm`. We can edit it with a text editor and set the values of the 
-parameters we will use during the simulation run. In this example, we will use a parameters 
-file like this,
+parameters we will use during the simulation run. In this example, we will use the following 
+parameter values,
 
 ```
 # Listing of Parameters
@@ -546,11 +559,11 @@ python animate.py --data out.json /Data/plastic_events /Data/driving_events --va
 ```
 
 The first argument indicates that we are reading the file `out.json` (you need to use the right 
-path to the file `out.json`). The second and third that from that file we load the plastic and 
+path to the file `out.json`). The second and third says that from that file we load the plastic and 
 driving event histories located in `/Data/plastic_events` and `/Data/driving_events` respectively
 (this paths are the same as defined by us in the program when filling in the data tree). The 
 animation consists of two plots, one with a curve Y(x) and another with a 2D plot of a variable Z. 
-The argument forth, fifth and sixth arguments indicate, respsectively, the names of X, Y and Z. 
+The forth, fifth and sixth arguments indicate, respsectively, the names of X, Y and Z. 
 With the command above, we are going to plot the `ext_stress` vs. `total_strain` curve along with 
 a 2D plot of `dstrain` (which, in the script, is a shortcut for the local von Mises plastic
 strain increments). The rest of the arguments are optional. The argument `--rescale` means that we
@@ -558,16 +571,15 @@ strain increments). The rest of the arguments are optional. The argument `--resc
  unchanged. This rescaling operation is transforming the stress from GPa to MPa and the strain 
  into a percentage. The argument `--labels` means that we are going to use the axis labels \f$ 
 \varepsilon_{\rm xy} \rm{(\%)} \f$, \f$ \Sigma_{\rm xy} \rm{(MPa)} \f$ and \f$ \varepsilon_{\rm vm}(\vec{r})\f$. 
-The resulting animation has interactive controls, which you can find with `python animate.py 
---help`. 
+The resulting animation has interactive controls, which you can find by calling `python animate.py --help`. 
 
 The following GIFs, showing the evolution of the material's stress-strain response and the spatial map of 
 plastic activity (specifically, the local von Mises plastic strain) are created from the animations. 
 
-For the simulation performed with `lambda_init = lambda_renew = 1.0`:
+For a simulation run performed with `lambda_init = lambda_renew = 1.0`:
 <center><img src="step4_stress_strain_curve_flat.gif" width="40%"></center>
 
-This the simulation performed with with `lambda_init = 1.3` and `lambda_renew = 1.0`:
+For a simulation run performed with with `lambda_init = 1.3` and `lambda_renew = 1.0`:
 <center><img src="step4_stress_strain_curve_drop.gif" width="40%"></center>
 
 In the first case (`lambda_init = lambda_renew = 1.0`), the results are the same as in @ref 
@@ -588,10 +600,10 @@ drop. The spatial map shows the formation of a macroscopic permanent shear band 
 plastic deformation outside of it. For brittle materials, such a shear band can lead to rupture. The 
 stress overshoot and how abrupt the stress drop is will depend on the difference 
 between of `lambda_init` and `lambda_renew`. The other simulation parameters also have an 
-impact on it as, e.g., the parameter `k` controlling the disorder in the slip thresholds. The 
-effects of the different parameters on the stress overshoot and the formation of the shear band 
-have been widely studied in the scientific literature, see e.g., @cite PhysRevE.98.040901 
-@cite Tuszes2017 @cite Castellanos2018 @cite Vandembroucq2011.
+impact on it as, e.g., the parameter `k` of the threshold's Weibull distribution, which controls 
+the threshold disorder. The effects of the different parameters on the stress overshoot and the 
+formation of the shear band have been widely studied in the scientific literature, see e.g., 
+@cite PhysRevE.98.040901 @cite Tuszes2017 @cite Castellanos2018 @cite Vandembroucq2011.
 
 In this tutorial, we implemented the system dynamics using MEPLS built-in tools. Also, we saw how
 to control the simulation parameters using input files and how to create and load output files 
@@ -601,7 +613,7 @@ necessary to develop a model and simulate it.
 In the following tutorial, we will consider an initial state with properties that differ from the
 renewed ones, as in this tutorial. However, the initial state will be dynamically constructed
 by simulating a sample deforming under creep conditions at some non-zero temperature. Also, we 
-will see how run several instances of a simulation in parallel, which will improve the 
+will see how to run several instances of a simulation in parallel, which will improve the 
 performance of the statistical sampling of the model.
 
 
