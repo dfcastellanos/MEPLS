@@ -4,9 +4,8 @@
 
 * [About](#about)
 * [Features](#features)
-* [Project structure](#project-structure)
-* [How to build it](#how-to-build-it)
 * [Documentation and tutorial](#documentation-and-tutorial)
+* [How to build it](#how-to-build-it)
 * [Contact](#contact)
 * [License](#license)
 
