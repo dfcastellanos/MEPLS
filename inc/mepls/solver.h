@@ -648,13 +648,13 @@ class LeesEdwards: public Solver<dim>
 	/*!< Set the internal state of the solver. This state can be used to revert
 	 * its state at a later stage. */
 
-	void reassemble_with_new_stiffness(dealii::SymmetricTensor<4,dim> &input_C);
-	/*!< This function assemble the solver using homogeneous elastic properties
+	void reassemble_with_new_stiffness(const dealii::SymmetricTensor<4,dim> &input_C);
+	/*!< This function assembles the solver using homogeneous elastic properties
 	 * given by the input stiffness tensor. Its purpose is the variation of the
 	 * global effective elastic properties during a simulatino run. For this
 	 * reason the assembly is optimized to leverage the homogeneity of the
 	 * properties and does not change the current plastic field and applied load.
-	 * The elastic strain and stress are recomputed according using the new elastic
+	 * The elastic strain and stress are recomputed accordingly using the new elastic
 	 * properties.
 	 * @warning Use this function only if the elastic properties are homogeneous. */
 
@@ -982,7 +982,7 @@ void LeesEdwards<dim>::setup_and_assembly()
 
 
 template<int dim>
-void LeesEdwards<dim>::reassemble_with_new_stiffness(dealii::SymmetricTensor<4,dim> &input_C)
+void LeesEdwards<dim>::reassemble_with_new_stiffness(const dealii::SymmetricTensor<4,dim> &input_C)
 {
 	for(unsigned int element = 0; element < triangulation.n_cells(); ++element)
 		Solver<dim>::set_elastic_properties(element, input_C);

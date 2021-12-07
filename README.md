@@ -5,7 +5,7 @@
 * [About](#about)
 * [Features](#features)
 * [Documentation and tutorial](#documentation-and-tutorial)
-* [How to build it](#how-to-build-it)
+* [How to build](#how-to-build)
 * [Contact](#contact)
 * [License](#license)
 
@@ -187,14 +187,14 @@ cd /path/to/dealii/build
 cmake /path/to/dealii/sources -DDEAL_II_WITH_UMFPACK=on
 make # use the argument -j<N> for a build using N parallel threads
 ```
-@note Alternatively, you can do `make install` to install the library in you system, but is not 
+Alternatively, you can do `make install` to install the library in you system, but is not 
 mandatory.
 
 If you have any doubts about the process of building deal.II, you can find a more extensive 
 explanation on its documentation (see [deal.II installation](https://www.dealii.org/current/readme
 .html#installation))
 
-Now, we can compile some of the MEPLS models. First, unpack MEPLS in some 
+Now, you can compile some of the MEPLS models. First, unpack MEPLS in some 
 directory `/path/to/MEPLS_dir`. The tutorial steps are located int `/path/to/MEPLS_dir/tutorial` 
 and the gallery models in `/path/to/MEPLS_dir/gallery`. Let’s build the model located in 
 `/path/to/MEPLS_dir/tutorial/step5`. To build it in `/path/to/model/build`, simply
@@ -207,7 +207,7 @@ cmake /path/to/MEPLS_dir/tutorial/step5 -DDEAL_II_DIR=/path/to/dealii/build -DME
 make
 ```
 
-@note Instead of adding the flags `-DDEAL_II_DIR` and `-DMEPLS_DIR`, you can also set the 
+Instead of adding the flags `-DDEAL_II_DIR` and `-DMEPLS_DIR`, you can also set the 
 corresponding environment variables as `export DEAL_II_DIR=/path/to/dealii/build` and `export 
 MEPLS_DIR=/path/to/MEPLS_dir`. Also, if you chose to install deal.II in your system, CMake should
 find it automatically.

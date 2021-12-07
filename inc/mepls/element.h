@@ -602,7 +602,7 @@ void calculate_ext_stress_coefficients(
 {
 	/*! Calculate, using the input elasticity solver, the stress variation
 	 * induced in each element by an external load increment of amplitude 1.0.
-	 * This variation is used as @ref element::Element<dim>.ext_stress_coeff_. */
+	 * This variation is used as @ref element::Element<dim>::ext_stress_coeff_. */
 
 	// make sure that the solver doesn't have any added load nor eigenstrain
 	// fields, otherwise the computed coefficients won't be the right ones
@@ -803,43 +803,43 @@ template<>
 struct SetupRow<2>
 {
 	unsigned int type;
-	/*!< Element type. See @ref element::Element<dim>.type_. */
+	/*!< Element type. See @ref element::Element<dim>::type_. */
 
 	float prestress_00;
-	/*!< Component 00 of @ref element::Element<dim>.prestress_. */
+	/*!< Component 00 of @ref element::Element<dim>::prestress_. */
 
 	float prestress_11;
-	/*!< Component 11 of @ref element::Element<dim>.prestress_ . */
+	/*!< Component 11 of @ref element::Element<dim>::prestress_ . */
 
 	float prestress_01;
-	/*!< Component 01 of @ref element::Element<dim>.prestress_. */
+	/*!< Component 01 of @ref element::Element<dim>::prestress_. */
 
 	float ext_stress_coeff_00;
-	/*!< Component 00 of @ref element::Element<dim>.ext_stress_coeff_. */
+	/*!< Component 00 of @ref element::Element<dim>::ext_stress_coeff_. */
 
 	float ext_stress_coeff_11;
-	/*!< Component 11 of @ref element::Element<dim>.ext_stress_coeff_. */
+	/*!< Component 11 of @ref element::Element<dim>::ext_stress_coeff_. */
 
 	float ext_stress_coeff_01;
-	/*!< Component 01 of @ref element::Element<dim>.ext_stress_coeff_. */
+	/*!< Component 01 of @ref element::Element<dim>::ext_stress_coeff_. */
 
 	float C_00;
-	/*!< Component 00 of @ref element::Element<dim>.C_. */
+	/*!< Component 00 of @ref element::Element<dim>::C_. */
 
 	float C_01;
-	/*!< Component 01 of @ref element::Element<dim>.C_. */
+	/*!< Component 01 of @ref element::Element<dim>::C_. */
 
 	float C_02;
-	/*!< Component 02 of @ref element::Element<dim>.C_. */
+	/*!< Component 02 of @ref element::Element<dim>::C_. */
 
 	float C_11;
-	/*!< Component 11 of @ref element::Element<dim>.C_. */
+	/*!< Component 11 of @ref element::Element<dim>::C_. */
 
 	float C_12;
-	/*!< Component 12 of @ref element::Element<dim>.C_. */
+	/*!< Component 12 of @ref element::Element<dim>::C_. */
 
 	float C_22;
-	/*!< Component 22 of @ref element::Element<dim>.C_. */
+	/*!< Component 22 of @ref element::Element<dim>::C_. */
 
 	unsigned int number;
 	/*!< Element number. */
