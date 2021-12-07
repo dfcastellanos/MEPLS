@@ -77,7 +77,7 @@ def load_data(filename, path_to_plastic, path_to_driving):
     df.loc[:,:] = df.loc[:,:].fillna(0.)
 
     # compute the local von Mises plastic strain increments
-    df['dstrain'] = np.sqrt((0.5)*(0.5*np.power(df.eigenstrain_00.values-df.eigenstrain_11.values,2.)+2*np.power(df.eigenstrain_01.values,2.)))
+    df['dstrain'] = np.sqrt((2.)*(0.5*np.power(df.eigenstrain_00.values-df.eigenstrain_11.values,2.)+2*np.power(df.eigenstrain_01.values,2.)))
    
     # compute the accumulated magnitudes
     df['vm_plastic_strain'] = np.cumsum(df.dstrain.values)/(Nx*Ny)
@@ -398,10 +398,10 @@ if __name__ == '__main__':
     
     # to save the animation as a gif
     if args['output'] is not None:
-        anim.save(args['output'], writer='imagemagick', dpi=args['dpi'] or 70)
+        # anim.save(args['output'], writer='imagemagick', dpi=args['dpi'] or 70)
         # to save the animation as a mp4 video
-        #Writer = animation.writers['ffmpeg']
-        #writer = Writer(fps=60, bitrate=1800)
-        #anim.save('out.mp4', writer=writer, dpi=300)
+        Writer = animation.writers['ffmpeg']
+        writer = Writer(fps=10, bitrate=1800)
+        anim.save('out.mp4', writer=writer, dpi=200)
     else:
         plt.show()
