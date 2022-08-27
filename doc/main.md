@@ -28,9 +28,9 @@ MEPLS is developed around three pillars:
 MEPLS enables the user to study the impact that microstructural properties have on the macroscale
 mechanical behavior of a material. This question is especially challenging to answer when 
 those properties are spatially heterogeneous and statistically distributed, which is, in turn, 
-the most common situation (see [Background] (@ref Background)). MEPLS allows to study 
+the most common situation (see [Background] (@ref Background)). MEPLS allows studying 
 the influence that many different model features or ingredients have on a material's mechanical 
-properties. Example of such features are:
+properties. Examples of such features are:
 
 * the statistics of local elastic properties, local yield criteria, plastic deformation, structural 
 evolution, etc.
@@ -43,19 +43,19 @@ You can find an extensive list in the [features section](@ref Features).
 ## Tutorial 
 
 Each [tutorial](@ref Tutorial) step introduces different tools and illustrates how to use them. 
-After going through the tutorial steps, you will have a good idea of how to use MEPLS for implementing you 
-ouwn model.
+After going through the tutorial steps, you will have a good idea of how to use MEPLS for implementing your 
+own model.
 
 ## Gallery
 
 New models can be implemented following the tutorial and the MEPLS documentation. However, 
-sometimes a model might require a use of MEPLS more advanced than illustrated in the tutorial. In
+sometimes a model might require the use of MEPLS more advanced than illustrated in the tutorial. In
 this case, the [gallery](@ref Gallery) of models shows advanced examples built for specific 
 purposes. 
 
 
 ## Documentation
-This website provides you with an interactive MEPLS [documentation](@ref Documentation). The 
+This website provides you with interactive MEPLS [documentation](@ref Documentation). The 
 **search box** on the top right corner allows you to search through the documentation for 
 functions, classes, etc. The source code in this website is also interactive, allowing you to
 click on it and jump to its documentation.
@@ -67,7 +67,7 @@ You can download the source files from the [project's repository] on GitHub.
 
 ## Contact
 MEPLS is developed and maintained by David Fernández Castellanos. You can report issues and bugs 
-in the [project's repository](https://github.com/kastellane/MEPLS). You can contact the author 
+in the [project's repository](https://github.com/dfcastellanos/MEPLS). You can contact the author 
 through the methods provided on the [author's website] for longer discussions regarding, e.g., 
 requests and ideas for the project or if you need some help to use MEPLS.
 
@@ -86,7 +86,7 @@ Jul 10 2021
 
 
 [deal.II]: https://www.dealii.org/
-[project's website]: https://mepls.davidfcastellanos.com/
-[author's website]: https://www.davidfcastellanos.com/contact
-[project's repository]: https://github.com/kastellane/MEPLS
+[project's website]: https://mepls.dfcastellanos.com/
+[author's website]: https://www.dfcastellanos.com/contact
+[project's repository]: https://github.com/dfcastellanos/MEPLS
 
