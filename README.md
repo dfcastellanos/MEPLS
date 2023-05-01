@@ -191,8 +191,7 @@ Alternatively, you can do `make install` to install the library in you system, b
 mandatory.
 
 If you have any doubts about the process of building deal.II, you can find a more extensive 
-explanation on its documentation (see [deal.II installation](https://www.dealii.org/current/readme
-.html#installation))
+explanation on its documentation, see [deal.II installation](https://www.dealii.org/current/readme.html#installation).
 
 Now, you can compile some of the MEPLS models. First, unpack MEPLS in some 
 directory `/path/to/MEPLS_dir`. The tutorial steps are located int `/path/to/MEPLS_dir/tutorial` 
@@ -233,7 +232,7 @@ instructions for macOS, after which building a MEPLS model should be straightfor
 
 ## Contact
 MEPLS is developed and maintained by David Fernández Castellanos. You can report issues and bugs 
-in the [project's repository](https://github.com/kastellane/MEPLS). You can contact the author 
+in the [project's repository](https://github.com/dfcastellanos/MEPLS). You can contact the author 
 through the methods provided on the [author's website] for longer discussions regarding, e.g., 
 requests and ideas for the project or if you need some help to use MEPLS.
 
