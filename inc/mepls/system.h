@@ -406,10 +406,13 @@ class Standard: public System<dim>
 		solver.solve();
 
 		auto &stress = solver.get_stress();
+		auto &def_grad = solver.get_deformation_gradient();
 		for(auto &element : elements)
 		{
 			unsigned int n = element->number();
 			element->elastic_stress(stress[n]);
+
+			element->def_grad(def_grad[n]);
 
 			// We set the stress back to the solver because the element adds to the
 			// elastic stress the prestress. In this way, the solver will take into
@@ -498,6 +501,8 @@ class Standard: public System<dim>
 			plastic_event.eigenstrain = eigenstrain_increment;
 			plastic_event.dplastic_strain = utils::get_von_mises_equivalent_strain(
 				eigenstrain_increment);
+
+			plastic_event.slip_threshold = slip->threshold;
 
 			element->add_eigenstrain(eigenstrain_increment);
 

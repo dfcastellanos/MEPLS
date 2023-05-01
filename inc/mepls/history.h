@@ -38,6 +38,8 @@ struct PlasticRow
 	unsigned int index;
 	unsigned int element;
 	double dtime;
+	float slip_threshold;
+	float dplastic_strain;
 	float eigenstrain_00;
 	float eigenstrain_11;
 	float eigenstrain_01;
@@ -173,6 +175,8 @@ class History
 		PlasticRow row;
 		row.element = event.element;
 		row.dtime = event.dtime;
+		row.slip_threshold = event.slip_threshold;
+		row.dplastic_strain = event.dplastic_strain;
 		row.eigenstrain_00 = float(event.eigenstrain[0][0]);
 		row.eigenstrain_11 = float(event.eigenstrain[1][1]);
 		row.eigenstrain_01 = float(event.eigenstrain[0][1]);

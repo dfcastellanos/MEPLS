@@ -67,6 +67,8 @@ struct Plastic
 	double dtime = 0.;
 	/*!< Duration of the event. */
 
+	double slip_threshold = 0.;
+
 	dealii::SymmetricTensor<2, dim> eigenstrain;
 	/*!< Eigenstrain added to the parent element (see @ref slip::Slip<dim>::parent) of
 	 * the activated slip object due to the plastic event. See @ref

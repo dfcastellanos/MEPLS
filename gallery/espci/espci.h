@@ -476,8 +476,19 @@ public:
 	dealii::SymmetricTensor<2, dim> get_eigenstrain_increment() override
 	{
 		bool thermal = conf.temperature > 0;
-		double eff_shear_stress_variation = 0.;
+		double eff_shear_stress_variation = get_local_shear_stress_variation();
+		double A = M * parent->S() * M;
+		double gamma = 2 * eff_shear_stress_variation / A;
+		dealii::SymmetricTensor<2, dim> eigenstrain_dev = gamma * M;
 
+		return eigenstrain_dev;
+	}
+
+	double get_local_shear_stress_variation()
+	{
+		bool thermal = conf.temperature > 0;
+		double eff_shear_stress_variation = 0.;
+		
 		std::gamma_distribution<double> g_a(1, 1);
 		std::gamma_distribution<double> g_b(1-conf.coupling_constant, 1);
 		double za = g_a(generator);
@@ -488,17 +499,12 @@ public:
 			eff_shear_stress_variation = -(eff_shear_stress + thermal * (barrier + conf.temperature)) * za / (za + zb);
 		}else{
 			eff_shear_stress_variation = - eff_shear_stress * za/(za+zb); // c=-1.254 for stat fit
-//			double eff_shear_stress_variation = - threshold * za/(za+zb); // c=-0.812 for stat fit
+			// eff_shear_stress_variation = - threshold * za/(za+zb); // c=-0.812 for stat fit
 
 			M_Assert(eff_shear_stress *eff_shear_stress_variation<1,
 					 "Eff. shear stress variation does not reduce local stress. Is the orientation of plastic event according to local stress?");
 		}
-
-		double A = M * parent->S() * M;
-		double gamma = 2 * eff_shear_stress_variation / A;
-		dealii::SymmetricTensor<2, dim> eigenstrain_dev = gamma * M;
-
-		return eigenstrain_dev;
+		return eff_shear_stress_variation;
 	}
 
 	Oriented<dim> *make_copy_impl() override
@@ -554,6 +560,7 @@ public:
 		double lambda_quench = 1.;
 		double gamma_pl_trans = 1e-5;
 		double beta = 0;
+		bool vary_elastic_properties = false;
 
 		unsigned int n_slip_systems = 1;
 		unsigned int number = 0;
@@ -590,24 +597,9 @@ public:
 	{
 		this->remove_slip_systems();
 
-		bool thermal = false;//conf.temperature > 0;
-//
 		double k, lambda, G, K;
 
-//		if(thermal)
-//		{
-//			double U = normal_distribution(generator)*conf.std_U + conf.av_U;
-//			this->energy_conf( U );
-//
-//			k = conf.k_quench;
-//			double av = conf.A*std::exp(-U/conf.B);
-//			lambda =  av / std::tgamma(1. + 1. / k);
-//
-//		}else{
-
-
-
-		if(this->integrated_vm_eigenstrain()==0.)
+		if(this->integrated_vm_eigenstrain()==0. or not conf.vary_elastic_properties)
 		{
 			lambda = conf.lambda_quench;
 			k = conf.k_quench;
@@ -633,12 +625,12 @@ public:
 		slip_conf.activation_rate_0 = conf.activation_rate_0;
 		slip_conf.temperature = conf.temperature;
 
-		//			slip_conf.angle = 0;
-		//			slip_conf.threshold = threshold_distribution(generator);
-		//			this->add_slip_system( new slip::Oriented<dim>(generator, slip_conf) );
-		//
-		//			slip_conf.angle = 0 + M_PI/2.;
-		//			this->add_slip_system( new slip::Oriented<dim>(generator, slip_conf) );
+//		slip_conf.angle = 0;
+//		slip_conf.threshold = mepls::utils::rand::get_weibull_rand(k, lambda, unif_distribution(generator));
+//		this->add_slip_system(new slip::Oriented<dim>(generator, unif_distribution, slip_conf));
+//
+//		slip_conf.angle = M_PI / 2.;
+//		this->add_slip_system(new slip::Oriented<dim>(generator, unif_distribution, slip_conf));
 
 		for(unsigned int i = 0; i < conf.n_slip_systems; ++i)
 		{
@@ -742,9 +734,10 @@ class History : public mepls::history::History<dim>
 {
   public:
 
-	History(const std::string &inputname_ = "history")
+	History(parameters::Parameters p_, const std::string &inputname_ = "history")
 		:
-	mepls::history::History<dim>(inputname_)
+	mepls::history::History<dim>(inputname_),
+	p(p_)
 	{
 		/*! Constructor. */
 	}
@@ -772,6 +765,8 @@ class History : public mepls::history::History<dim>
 	}
 
 	std::vector<MacroSummaryRow> macro_evolution_espci;
+
+	parameters::Parameters p;
 };
 
 
@@ -975,36 +970,36 @@ inline void evolution_history(H5::H5File &file,
 		using DataRow = history::MacroSummaryRow;
 
 		H5::CompType mtype(sizeof(DataRow));
-//		mtype.insertMember("time", HOFFSET(DataRow, time), H5::PredType::NATIVE_DOUBLE);
+		mtype.insertMember("time", HOFFSET(DataRow, time), H5::PredType::NATIVE_DOUBLE);
 		mtype.insertMember("total_strain", HOFFSET(DataRow, total_strain), H5::PredType::NATIVE_DOUBLE);
 		mtype.insertMember("ext_stress", HOFFSET(DataRow, ext_stress), H5::PredType::NATIVE_DOUBLE);
-//		mtype.insertMember("av_vm_plastic_strain", HOFFSET(DataRow, av_vm_plastic_strain),
-//						   H5::PredType::NATIVE_DOUBLE);
-//		mtype.insertMember("std_vm_plastic_strain", HOFFSET(DataRow, std_vm_plastic_strain),
-//						   H5::PredType::NATIVE_DOUBLE);
-//		mtype.insertMember("av_vm_stress", HOFFSET(DataRow, av_vm_stress), H5::PredType::NATIVE_DOUBLE);
-//		mtype.insertMember("std_vm_stress", HOFFSET(DataRow, std_vm_stress),
-//						   H5::PredType::NATIVE_DOUBLE);
-//		mtype.insertMember("av_energy_el", HOFFSET(DataRow, av_energy_el),
-//						   H5::PredType::NATIVE_DOUBLE);
-//		mtype.insertMember("std_energy_el", HOFFSET(DataRow, std_energy_el),
-//						   H5::PredType::NATIVE_DOUBLE);
-//		mtype.insertMember("av_energy_conf", HOFFSET(DataRow, av_energy_conf),
-//						   H5::PredType::NATIVE_DOUBLE);
-//		mtype.insertMember("std_energy_conf", HOFFSET(DataRow, std_energy_conf),
-//						   H5::PredType::NATIVE_DOUBLE);
+		mtype.insertMember("av_vm_plastic_strain", HOFFSET(DataRow, av_vm_plastic_strain),
+						   H5::PredType::NATIVE_DOUBLE);
+		mtype.insertMember("std_vm_plastic_strain", HOFFSET(DataRow, std_vm_plastic_strain),
+						   H5::PredType::NATIVE_DOUBLE);
+		mtype.insertMember("av_vm_stress", HOFFSET(DataRow, av_vm_stress), H5::PredType::NATIVE_DOUBLE);
+		mtype.insertMember("std_vm_stress", HOFFSET(DataRow, std_vm_stress),
+						   H5::PredType::NATIVE_DOUBLE);
+		mtype.insertMember("av_energy_el", HOFFSET(DataRow, av_energy_el),
+						   H5::PredType::NATIVE_DOUBLE);
+		mtype.insertMember("std_energy_el", HOFFSET(DataRow, std_energy_el),
+						   H5::PredType::NATIVE_DOUBLE);
+		mtype.insertMember("av_energy_conf", HOFFSET(DataRow, av_energy_conf),
+						   H5::PredType::NATIVE_DOUBLE);
+		mtype.insertMember("std_energy_conf", HOFFSET(DataRow, std_energy_conf),
+						   H5::PredType::NATIVE_DOUBLE);
 		mtype.insertMember("av_stress_00", HOFFSET(DataRow, av_stress_00),
 						   H5::PredType::NATIVE_DOUBLE);
-//		mtype.insertMember("std_stress_00", HOFFSET(DataRow, std_stress_00),
-//						   H5::PredType::NATIVE_DOUBLE);
+		mtype.insertMember("std_stress_00", HOFFSET(DataRow, std_stress_00),
+						   H5::PredType::NATIVE_DOUBLE);
 		mtype.insertMember("av_stress_11", HOFFSET(DataRow, av_stress_11),
 						   H5::PredType::NATIVE_DOUBLE);
-//		mtype.insertMember("std_stress_11", HOFFSET(DataRow, std_stress_11),
-//						   H5::PredType::NATIVE_DOUBLE);
+		mtype.insertMember("std_stress_11", HOFFSET(DataRow, std_stress_11),
+						   H5::PredType::NATIVE_DOUBLE);
 		mtype.insertMember("av_stress_01", HOFFSET(DataRow, av_stress_01),
 						   H5::PredType::NATIVE_DOUBLE);
-//		mtype.insertMember("std_stress_01", HOFFSET(DataRow, std_stress_01),
-//						   H5::PredType::NATIVE_DOUBLE);
+		mtype.insertMember("std_stress_01", HOFFSET(DataRow, std_stress_01),
+						   H5::PredType::NATIVE_DOUBLE);
 		mtype.insertMember("index", HOFFSET(DataRow, index), H5::PredType::NATIVE_UINT);
 		mtype.insertMember("shear_modulus", HOFFSET(DataRow, G), H5::PredType::NATIVE_DOUBLE);
 		mtype.insertMember("bulk_modulus", HOFFSET(DataRow, K), H5::PredType::NATIVE_DOUBLE);
@@ -1016,55 +1011,59 @@ inline void evolution_history(H5::H5File &file,
 		dataset.write(history.macro_evolution_espci.data(), mtype);
 	}
 
-//	{   /* --------- write driving event history ----------- */
-//
-//		using DataRow = typename mepls::history::DrivingRow;
-//		H5::CompType mtype(sizeof(DataRow));
-//		mtype.insertMember("index", HOFFSET(DataRow, index), H5::PredType::NATIVE_UINT);
-//		mtype.insertMember("dload", HOFFSET(DataRow, dload), H5::PredType::NATIVE_DOUBLE);
-//		mtype.insertMember("dext_stress", HOFFSET(DataRow, dext_stress),
-//						   H5::PredType::NATIVE_DOUBLE);
-//		mtype.insertMember("dpressure", HOFFSET(DataRow, dpressure), H5::PredType::NATIVE_DOUBLE);
-//		mtype.insertMember("dtotal_strain", HOFFSET(DataRow, dtotal_strain),
-//						   H5::PredType::NATIVE_DOUBLE);
-//		mtype.insertMember("dtime", HOFFSET(DataRow, dtime), H5::PredType::NATIVE_DOUBLE);
-//		mtype.insertMember("activation_protocol", HOFFSET(DataRow, activation_protocol),
-//						   H5::PredType::NATIVE_UINT);
-//
-//		hsize_t d[] = {history.driving.size()};
-//		H5::DataSpace space(1, d);
-//		H5::DataSet dataset = file.createDataSet(path + "/driving_events", mtype, space);
-//
-//		dataset.write(history.driving.data(), mtype);
-//	}
-//
-//	{   /* --------- write plastic event history ----------- */
-//
-//		using DataRow = typename mepls::history::PlasticRow;
-//		H5::CompType mtype(sizeof(DataRow));
-//		mtype.insertMember("index", HOFFSET(DataRow, index), H5::PredType::NATIVE_UINT);
-//		mtype.insertMember("element", HOFFSET(DataRow, element), H5::PredType::NATIVE_UINT);
-//		mtype.insertMember("eigenstrain_00", HOFFSET(DataRow, eigenstrain_00),
-//						   H5::PredType::NATIVE_FLOAT);
-//		mtype.insertMember("eigenstrain_11", HOFFSET(DataRow, eigenstrain_11),
-//						   H5::PredType::NATIVE_FLOAT);
-//		mtype.insertMember("eigenstrain_01", HOFFSET(DataRow, eigenstrain_01),
-//						   H5::PredType::NATIVE_FLOAT);
-//		mtype.insertMember("acting_stress_00", HOFFSET(DataRow, acting_stress_00),
-//						   H5::PredType::NATIVE_FLOAT);
-//		mtype.insertMember("acting_stress_11", HOFFSET(DataRow, acting_stress_11),
-//						   H5::PredType::NATIVE_FLOAT);
-//		mtype.insertMember("acting_stress_01", HOFFSET(DataRow, acting_stress_01),
-//						   H5::PredType::NATIVE_FLOAT);
-//		mtype.insertMember("activation_protocol", HOFFSET(DataRow, activation_protocol),
-//						   H5::PredType::NATIVE_UINT);
-//
-//		hsize_t d[] = {history.plastic.size()};
-//		H5::DataSpace space(1, d);
-//		H5::DataSet dataset = file.createDataSet(path + "/plastic_events", mtype, space);
-//
-//		dataset.write(history.plastic.data(), mtype);
-//	}
+	{   /* --------- write driving event history ----------- */
+
+		using DataRow = typename mepls::history::DrivingRow;
+		H5::CompType mtype(sizeof(DataRow));
+		mtype.insertMember("index", HOFFSET(DataRow, index), H5::PredType::NATIVE_UINT);
+		mtype.insertMember("dload", HOFFSET(DataRow, dload), H5::PredType::NATIVE_DOUBLE);
+		mtype.insertMember("dext_stress", HOFFSET(DataRow, dext_stress),
+						   H5::PredType::NATIVE_DOUBLE);
+		mtype.insertMember("dpressure", HOFFSET(DataRow, dpressure), H5::PredType::NATIVE_DOUBLE);
+		mtype.insertMember("dtotal_strain", HOFFSET(DataRow, dtotal_strain),
+						   H5::PredType::NATIVE_DOUBLE);
+		mtype.insertMember("dtime", HOFFSET(DataRow, dtime), H5::PredType::NATIVE_DOUBLE);
+		mtype.insertMember("activation_protocol", HOFFSET(DataRow, activation_protocol),
+						   H5::PredType::NATIVE_UINT);
+
+		hsize_t d[] = {history.driving.size()};
+		H5::DataSpace space(1, d);
+		H5::DataSet dataset = file.createDataSet(path + "/driving_events", mtype, space);
+
+		dataset.write(history.driving.data(), mtype);
+	}
+
+	{   /* --------- write plastic event history ----------- */
+
+		using DataRow = typename mepls::history::PlasticRow;
+		H5::CompType mtype(sizeof(DataRow));
+		mtype.insertMember("index", HOFFSET(DataRow, index), H5::PredType::NATIVE_UINT);
+		mtype.insertMember("element", HOFFSET(DataRow, element), H5::PredType::NATIVE_UINT);
+		mtype.insertMember("eigenstrain_00", HOFFSET(DataRow, eigenstrain_00),
+						   H5::PredType::NATIVE_FLOAT);
+		mtype.insertMember("eigenstrain_11", HOFFSET(DataRow, eigenstrain_11),
+						   H5::PredType::NATIVE_FLOAT);
+		mtype.insertMember("eigenstrain_01", HOFFSET(DataRow, eigenstrain_01),
+						   H5::PredType::NATIVE_FLOAT);
+		mtype.insertMember("acting_stress_00", HOFFSET(DataRow, acting_stress_00),
+						   H5::PredType::NATIVE_FLOAT);
+		mtype.insertMember("acting_stress_11", HOFFSET(DataRow, acting_stress_11),
+						   H5::PredType::NATIVE_FLOAT);
+		mtype.insertMember("acting_stress_01", HOFFSET(DataRow, acting_stress_01),
+						   H5::PredType::NATIVE_FLOAT);
+		mtype.insertMember("slip_threshold", HOFFSET(DataRow, slip_threshold),
+						   H5::PredType::NATIVE_FLOAT);
+		mtype.insertMember("dplastic_strain", HOFFSET(DataRow, dplastic_strain),
+						   H5::PredType::NATIVE_FLOAT);
+		mtype.insertMember("activation_protocol", HOFFSET(DataRow, activation_protocol),
+						   H5::PredType::NATIVE_UINT);
+
+		hsize_t d[] = {history.plastic.size()};
+		H5::DataSpace space(1, d);
+		H5::DataSet dataset = file.createDataSet(path + "/plastic_events", mtype, space);
+
+		dataset.write(history.plastic.data(), mtype);
+	}
 
 	//	   {   /* --------- write renewal event history ----------- */
 	//		  using DataRow = typename mepls::history::History<dim>::RenewSlipRow;
@@ -1776,6 +1775,53 @@ void perform_reloading(mepls::system::System<dim> &system,
 	}
 }
 
+
+template<int dim>
+double elastic_properties_evolution(mepls::system::System<dim> &system, 
+									mepls::elasticity_solver::LeesEdwards<dim> &solver, 
+									double G_old, 
+									double G_stat,
+									mepls::utils::ContinueSimulation &continue_simulation)
+{
+	auto &elements = system.elements;
+
+	// reassemble the elastic properties if the change in the shear
+	// modulus is big enough and if it's different enough from the stationary
+	// value
+	dealii::SymmetricTensor<4,dim> av_C;
+	for(auto &element : elements)
+		av_C += element->C();
+	av_C /= double(elements.size());
+
+	double G_new = av_C[0][1][0][1];
+
+	if(std::abs(G_new/G_old-1)>0.001 and std::abs(G_old/G_stat-1)>0.005)
+	{
+		G_old = G_new;
+
+		solver.reassemble_with_new_stiffness(av_C);
+
+		// we call add which will inform the macrostate and the elements
+		// about the change in external stress due to the change in global
+		// stiffness and will also record that change in the history
+		const std::vector<mepls::event::Plastic<dim>> added_yielding;
+		mepls::event::Driving<dim> driving_event_variation_stiffness;
+		driving_event_variation_stiffness.activation_protocol = mepls::dynamics::Protocol::variation_stiffness;
+		system.add(driving_event_variation_stiffness);
+
+		auto state = solver.get_state();
+		mepls::element::calculate_local_stress_coefficients_central(elements, solver);
+		mepls::element::calculate_ext_stress_coefficients(elements, solver);
+		solver.set_state(state);
+
+		// relax to ensure there are no unstable elements after the change
+		// in the elastic properties (if the shear modulus rises with strain,
+		// that will lead to stress rises that can unstabilise elements)
+		mepls::dynamics::relaxation(system, continue_simulation);
+	}
+
+	return G_old;
+}
 
 } // namespace espci
 

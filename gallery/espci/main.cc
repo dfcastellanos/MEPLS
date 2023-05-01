@@ -31,8 +31,6 @@ using namespace mepls;
 
 void run(const parameters::Parameters &p, dealii::ConditionalOStream & cout)
 {
-	// TODO here, dim=2 at least for how we set the average pressure
-
 	/////////////////////////////
 	//////  setup system ///////
 	///////////////////////////
@@ -93,6 +91,7 @@ void run(const parameters::Parameters &p, dealii::ConditionalOStream & cout)
 	M_Assert(elements.size() == solver.get_n_elements(), "Numbers of mesoscale and finite "
 													  "elements do not match");
 
+
 	// initial (default) assembly using the quench elastic properties.
 	for(auto &element : elements)
 		solver.set_elastic_properties(element->number(), element->C());
@@ -119,7 +118,7 @@ void run(const parameters::Parameters &p, dealii::ConditionalOStream & cout)
 
 	timer->enter_subsection("Simulate parent liquid");
 
-	history::History<dim> liquid_history("parent_liquid");
+	history::History<dim> liquid_history(p,"parent_liquid");
 	system.set_history(liquid_history);
 	if(parent_liquid)
 	{
@@ -160,7 +159,7 @@ void run(const parameters::Parameters &p, dealii::ConditionalOStream & cout)
 	//////      AQS     ///////
 	//////////////////////////
 
-	history::History<dim> aqs_history("AQS");
+	history::History<dim> aqs_history(p,"AQS");
 	system.set_history(aqs_history);
 
 
@@ -223,50 +222,29 @@ void run(const parameters::Parameters &p, dealii::ConditionalOStream & cout)
 
 	assert( macrostate["av_vm_plastic_strain"]==0. );
 
-	double G_old = 0.;
+	// activate the evolution of the elastic properties now for the AQS simulation.
+	// During the parent liquid simulation we don't want this feature
+	for(auto &element : elements_espci)
+	{
+		auto conf = element->config();
+		conf.vary_elastic_properties = true;
+		element->config(conf);
+	}
+	
+	double G_current = p.mat.G_quench;
 	double G_stat = p.mat.G;
+
 	while(continue_simulation())
 	{
-		// reassemble the elastic properties if the change in the shear
-		// modulus is big enough and if it's different enough from the stationary
-		// value
-		dealii::SymmetricTensor<4,dim> av_C;
-		for(auto &element : elements)
-			av_C += element->C();
-		av_C /= double(elements.size());
 
-		double G_new = av_C[0][1][0][1];
+		timer->leave_subsection("Running AQS");
+		timer->enter_subsection("Reassembling with new stiffness");
+		
+		G_current = elastic_properties_evolution<dim>(system, solver, G_current, G_stat, continue_simulation);
+		
+		timer->leave_subsection("Reassembling with new stiffness");
+		timer->enter_subsection("Running AQS");
 
-		if(std::abs(G_new/G_old-1)>0.001 and std::abs(G_old/G_stat-1)>0.005)
-		{
-			timer->leave_subsection("Running AQS");
-			timer->enter_subsection("Reassembling with new stiffness");
-
-			G_old = G_new;
-
-			solver.reassemble_with_new_stiffness(av_C);
-
-			// we call add which will inform the macrostate and the elements
-			// about the change in external stress due to the change in global
-			// stiffness and will also record that change in the history
-			const std::vector<event::Plastic<dim>> added_yielding;
-			event::Driving<dim> driving_event_variation_stiffness;
-			driving_event_variation_stiffness.activation_protocol = mepls::dynamics::Protocol::variation_stiffness;
-			system.add(driving_event_variation_stiffness);
-
-			auto state = solver.get_state();
-			mepls::element::calculate_local_stress_coefficients_central(elements, solver);
-			mepls::element::calculate_ext_stress_coefficients(elements, solver);
-			solver.set_state(state);
-
-			// relax to ensure there are no unstable elements after the change
-			// in the elastic properties (if the shear modulus rises with strain,
-			// that will lead to stress rises that can unstabilise elements)
-			dynamics::relaxation(system, continue_simulation);
-
-			timer->leave_subsection("Reassembling with new stiffness");
-			timer->enter_subsection("Running AQS");
-		}
 
 		cout << aqs_history.index() << " | " << std::fixed << macrostate["total_strain"]
 				  << " " << macrostate["ext_stress"] << std::endl;
@@ -310,6 +288,7 @@ void run(const parameters::Parameters &p, dealii::ConditionalOStream & cout)
 
 		/* ---- dyanmics ----- */
 		dynamics::finite_extremal_dynamics_step(1e-4 * 0.5, system);
+//		dynamics::extremal_dynamics_step(system);
 		aqs_history.add_macro(system);
 
 		dynamics::relaxation(system, continue_simulation);
@@ -334,7 +313,7 @@ void run(const parameters::Parameters &p, dealii::ConditionalOStream & cout)
 
 	timer->enter_subsection("Thermal relaxation");
 
-	history::History<dim> thermal_relaxation_hist("thermal_relaxation");
+	history::History<dim> thermal_relaxation_hist(p,"thermal_relaxation");
 
 	if(thermal_relaxation)
 	{
@@ -397,9 +376,9 @@ void run(const parameters::Parameters &p, dealii::ConditionalOStream & cout)
 	//////  reloading step ///////
 	/////////////////////////////
 
-	history::History<dim> aqs_unloading("AQS_unloading");
-	history::History<dim> aqs_reload_forward("AQS_reload_forward");
-	history::History<dim> aqs_reload_backward("AQS_reload_backward");
+	history::History<dim> aqs_unloading(p,"AQS_unloading");
+	history::History<dim> aqs_reload_forward(p,"AQS_reload_forward");
+	history::History<dim> aqs_reload_backward(p,"AQS_reload_backward");
 
 	if(reload)
 	{

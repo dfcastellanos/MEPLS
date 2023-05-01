@@ -58,12 +58,6 @@ enum Values
 } // protocol
 
 
-template<int dim>
-std::vector<event::Plastic<dim>> relaxation(
-								system::System<dim> &system,
-								utils::ContinueSimulation &continue_simulation,
-								double fracture_limit = 10);
-
 /*! This class implements the Kinetic Monte Carlo method, used for simulating
  * the thermal activation of slip systems. This method requires the knowledge of all the possible
  * transitions that the system can make from the current state towards a new one, and the energy
@@ -180,169 +174,6 @@ class KMC
 	std::vector<double> rates;
 	/*!< Vector containing the activation rates all the slip systems within the
 	 * material. */
-};
-
-
-
-
-
-/*! This class implements the Metropolis-Hastings algorithm for sampling the model's configuration
- * space. The transition from one configuration to another is done by activating a randomly selected
- * slip system, and triggering a subsequent avalanche with @ref mepls::dynamics::relaxation. The
- * changes introduced in the system by these actions are accepted or rejected based on the
- * Metropolis-Hastings rule. */
-template<int dim>
-class MetropolisHastings
-{
-  public:
-
-	MetropolisHastings()
-		:
-		unif_distribution(0, 1)
-	{
-		/*! Constructor. */
-	}
-
-	bool operator()(system::System<dim> &system, bool stress_redist = true)
-	{
-		/*! Perform a Metropolis-Hastings step: a random slip event is
-		 * performed and an avalanche triggered. he global energy change is computed.
-		 * All the changes induced by these actions are accepted if the energy
-		 * change is negative. If it is positive, they are accepted with probability exp
-		 * (-energy_change/T).
-		 *
-		 * @param stress_redist if false, the elastic fields will not be updated after
-		 * slip events take place. This allows to easily simulate non-interacting systems.
-		 *
-		 * @return whether the changes have been accepted or rejected. If rejected, the
-		 * system's state is exactly the same as before calling this function.  */
-
-		auto & generator = system.generator;
-
-		// we don't want to re-allocate the vectors each time. To this end, we
-		// count the total number of slips systems first, and then call resize()
-		// on the vectors. If the number of slip systems did not change, the
-		// vectors are not re-allocated
-		unsigned int n_slips = 0;
-		for(auto &element : system)
-			for(auto &slip : *element)
-				++n_slips;
-
-		slips.resize(n_slips);
-		unsigned int n = 0;
-		for(auto &element : system)
-			for(auto &slip : *element)
-			{
-				slips[n] = slip;
-				++n;
-			}
-
-
-		double energy_before = get_sum_energy(system.elements);
-
-		auto stress_before = system.solver.get_stress();
-
-		mepls::element::Vector<dim> elements_before;
-		for(auto & element : system)
-			elements_before.push_back( element->make_copy() );
-
-		std::vector<event::Plastic<dim>> all_events;
-		utils::ContinueSimulation continue_simulation;
-
-
-		// select the candidate slip
-		unsigned int i = int(unif_distribution(generator) * n_slips);
-		auto candidate_slip = slips[i];
-		event::Plastic<dim> cadidate_event( candidate_slip );
-		cadidate_event.activation_protocol = Protocol::metropolis_hastings;
-		auto element = candidate_slip->parent;
-
-		if(stress_redist)
-		{
-			system.add(cadidate_event);
-			all_events = dynamics::relaxation(system, continue_simulation);
-			all_events.push_back(cadidate_event); // add also the first event
-			if(not continue_simulation())
-			{
-				std::cout << continue_simulation << std::endl;
-				abort();
-			}
-		}
-		else
-			element->renew_structural_properties();
-
-		double energy_after = get_sum_energy(system.elements);
-
-		// decide if it is accepted
-		double energy_change = energy_after - energy_before;
-		double prob_accept = energy_change < 0. ? 1. : std::exp(-energy_change/T);
-		bool accepted = unif_distribution(generator) < prob_accept;
-
-		// TODO if rejected and we called system.add, the last renew event
-		//  history should be deleted
-
-		if(not accepted)
-		{
-			for(auto & element : system)
-				element->make_copy( elements_before[element->number()] );
-
-			if(stress_redist)
-			{
-				// add the opposite eigenstrain increment to the solver, so that
-				// in the next elastic solution the effects of this event are
-				// undone. To keep things as clean as possible, do it also in the
-				// element
-				for(auto &event : all_events)
-				{
-					unsigned int n = event.element;
-					system.solver.add_eigenstrain(n, -1.*event.eigenstrain);
-				}
-
-				// we avoid callig system.solve_elastic_problem() by setting the
-				// previous	stress
-				for(unsigned int n = 0; n < system.size(); ++n)
-					system[n]->elastic_stress( stress_before[n] );
-			}
-		}
-
-		for(auto &element : elements_before)
-			delete element;
-
-		return accepted;
-	}
-
-
-	double get_sum_energy(element::Vector<dim> &elements)
-	{
-		/*! Compute the total energy of the system. */
-
-		double sum_energy = 0.;
-
-		for(auto &element : elements)
-			sum_energy += element->energy();
-
-		return sum_energy;
-	}
-
-	double T = 1.;
-	/*!< Rescaled temperature. Its value corresponds to \f$ k_{\rm B} T \f$.
-	 *
-	 * @note this tempearature sets a characterisic scale for the energy changes. The
-	 * energy is the sum of the elastic and the configurational energy (the configurational
-	 * remains zero unless the user explicitly modifies it). By default, the elastic energy is
-	 * computed over the volume of a mesoscale element, which is 1.0 by definition. Thus,
-	 * if the user works with a different units of length,
-	 * a rescaling factor in the energy values must be taken into account. This factor can be
-	 * included in the value of this temperature. */
-
-  private:
-	std::uniform_real_distribution<double> unif_distribution;
-	/*!< A uniform distribution. */
-
-	std::vector<mepls::slip::Slip<dim> *> slips;
-	/*!< This vector stores in a sequential manner all the pointers to slip objects that are
-	 * contained within all the elements of the system.
-	 */
 };
 
 
@@ -508,7 +339,7 @@ template<int dim>
 std::vector<event::Plastic<dim>> relaxation(
 								system::System<dim> &system,
 								utils::ContinueSimulation &continue_simulation,
-								double fracture_limit)
+								double fracture_limit = 10)
 {
 	/*! Performs an avalanche of slip events. To this end, slip events are simultaneously
 	 * performed for each active slip system, and the stress fields are updated. Due to the changes
@@ -582,6 +413,167 @@ std::vector<event::Plastic<dim>> relaxation(
 
 	return all_events;
 }
+
+
+
+/*! This class implements the Metropolis-Hastings algorithm for sampling the model's configuration
+ * space. The transition from one configuration to another is done by activating a randomly selected
+ * slip system, and triggering a subsequent avalanche with @ref mepls::dynamics::relaxation. The
+ * changes introduced in the system by these actions are accepted or rejected based on the
+ * Metropolis-Hastings rule. */
+template<int dim>
+class MetropolisHastings
+{
+  public:
+
+	MetropolisHastings()
+		:
+		unif_distribution(0, 1)
+	{
+		/*! Constructor. */
+	}
+
+	bool operator()(system::System<dim> &system, bool stress_redist = true)
+	{
+		/*! Perform a Metropolis-Hastings step: a random slip event is
+		 * performed and an avalanche triggered. he global energy change is computed.
+		 * All the changes induced by these actions are accepted if the energy
+		 * change is negative. If it is positive, they are accepted with probability exp
+		 * (-energy_change/T).
+		 *
+		 * @param stress_redist if false, the elastic fields will not be updated after
+		 * slip events take place. This allows to easily simulate non-interacting systems.
+		 *
+		 * @return whether the changes have been accepted or rejected. If rejected, the
+		 * system's state is exactly the same as before calling this function.  */
+
+		auto & generator = system.generator;
+
+		// we don't want to re-allocate the vectors each time. To this end, we
+		// count the total number of slips systems first, and then call resize()
+		// on the vectors. If the number of slip systems did not change, the
+		// vectors are not re-allocated
+		unsigned int n_slips = 0;
+		for(auto &element : system)
+			for(auto &slip : *element)
+				++n_slips;
+
+		slips.resize(n_slips);
+		unsigned int n = 0;
+		for(auto &element : system)
+			for(auto &slip : *element)
+			{
+				slips[n] = slip;
+				++n;
+			}
+
+
+		double energy_before = get_sum_energy(system.elements);
+
+		auto stress_before = system.solver.get_stress();
+
+		mepls::element::Vector<dim> elements_before;
+		for(auto & element : system)
+			elements_before.push_back( element->make_copy() );
+
+		std::vector<event::Plastic<dim>> all_events;
+		utils::ContinueSimulation continue_simulation;
+
+
+		// select the candidate slip
+		unsigned int i = int(unif_distribution(generator) * n_slips);
+		auto candidate_slip = slips[i];
+		event::Plastic<dim> cadidate_event( candidate_slip );
+		cadidate_event.activation_protocol = Protocol::metropolis_hastings;
+		auto element = candidate_slip->parent;
+
+		if(stress_redist)
+		{
+			system.add(cadidate_event);
+			all_events = dynamics::relaxation(system, continue_simulation);
+			all_events.push_back(cadidate_event); // add also the first event
+			if(not continue_simulation())
+			{
+				std::cout << continue_simulation << std::endl;
+				abort();
+			}
+		}
+		else
+			element->renew_structural_properties();
+
+		double energy_after = get_sum_energy(system.elements);
+
+		// decide if it is accepted
+		double energy_change = energy_after - energy_before;
+		double prob_accept = energy_change < 0. ? 1. : std::exp(-energy_change/T);
+		bool accepted = unif_distribution(generator) < prob_accept;
+
+		// TODO if rejected and we called system.add, the last renew event
+		//  history should be deleted
+
+		if(not accepted)
+		{
+			for(auto & element : system)
+				element->make_copy( elements_before[element->number()] );
+
+			if(stress_redist)
+			{
+				// add the opposite eigenstrain increment to the solver, so that
+				// in the next elastic solution the effects of this event are
+				// undone. To keep things as clean as possible, do it also in the
+				// element
+				for(auto &event : all_events)
+				{
+					unsigned int n = event.element;
+					system.solver.add_eigenstrain(n, -1.*event.eigenstrain);
+				}
+
+				// we avoid callig system.solve_elastic_problem() by setting the
+				// previous	stress
+				for(unsigned int n = 0; n < system.size(); ++n)
+					system[n]->elastic_stress( stress_before[n] );
+			}
+		}
+
+		for(auto &element : elements_before)
+			delete element;
+
+		return accepted;
+	}
+
+
+	double get_sum_energy(element::Vector<dim> &elements)
+	{
+		/*! Compute the total energy of the system. */
+
+		double sum_energy = 0.;
+
+		for(auto &element : elements)
+			sum_energy += element->energy();
+
+		return sum_energy;
+	}
+
+	double T = 1.;
+	/*!< Rescaled temperature. Its value corresponds to \f$ k_{\rm B} T \f$.
+	 *
+	 * @note this tempearature sets a characterisic scale for the energy changes. The
+	 * energy is the sum of the elastic and the configurational energy (the configurational
+	 * remains zero unless the user explicitly modifies it). By default, the elastic energy is
+	 * computed over the volume of a mesoscale element, which is 1.0 by definition. Thus,
+	 * if the user works with a different units of length,
+	 * a rescaling factor in the energy values must be taken into account. This factor can be
+	 * included in the value of this temperature. */
+
+  private:
+	std::uniform_real_distribution<double> unif_distribution;
+	/*!< A uniform distribution. */
+
+	std::vector<mepls::slip::Slip<dim> *> slips;
+	/*!< This vector stores in a sequential manner all the pointers to slip objects that are
+	 * contained within all the elements of the system.
+	 */
+};
 
 
 } // namespace dynamcis
