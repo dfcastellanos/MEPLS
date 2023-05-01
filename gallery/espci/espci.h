@@ -61,7 +61,7 @@ struct Material
 	double beta = 0;
 
 	// others
-	double coupling_constant = 0.1;
+	double coupling_constant = 2.;
 	double temperature_liquid = 0.2;
 	double temperature_relaxation = 0.2;
 	double activation_rate = 1.;
@@ -415,7 +415,7 @@ public:
 	{
 		double threshold = 0.;
 		double angle = 0.;
-		double coupling_constant = 0.;
+		double coupling_constant = 2.;
 		double alpha_tau = 0.;
 		double activation_rate_0 = 1.;
 		double temperature = 0.2;
@@ -490,7 +490,7 @@ public:
 		double eff_shear_stress_variation = 0.;
 		
 		std::gamma_distribution<double> g_a(1, 1);
-		std::gamma_distribution<double> g_b(1-conf.coupling_constant, 1);
+		std::gamma_distribution<double> g_b(conf.coupling_constant, 1);
 		double za = g_a(generator);
 		double zb = g_b(generator);
 
@@ -551,7 +551,7 @@ public:
 		double K_quench = 1.;
 
 		double alpha_tau = 0.;
-		double coupling_constant = 0.2;
+		double coupling_constant = 2.;
 		double temperature = 0.;
 		double activation_rate_0 = 1.;
 		double k = 2;
