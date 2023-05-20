@@ -50,9 +50,11 @@ namespace mepls
 {
 
 
-/*! This namespace contains tools for creating and testing patches. Patches are
+/*! @namespace mepls::patches
+ * @brief This namespace contains tools for creating and testing patches. Patches are
  * connected sub-domains of the full system, which are cut-out and mechanically
  * shear-tested in isolation (see @cite DFCastellanos_CRP @cite Patinet2016 @cite Barbot2018).
+ * 
  *  In elasto-plastic models, patches are composed by mesoscale elements and
  *  represented as a @ref system::System object, with the same properties and evolution laws as
  *  the full-size system from where they are cut-out. Performing shear tests on individual patches
@@ -76,7 +78,8 @@ namespace patches
 {
 
 
-/*! A struct containing the properties that are measured when a patch is 
+/*! @class mepls::patches::PatchPropertiesTensorial
+ * @brief A struct containing the properties that are measured when a patch is 
  * tested. */
 template<int dim>
 struct PatchPropertiesTensorial
@@ -787,13 +790,15 @@ void analyze_patch_ensemble_opt(
 }
 
 
-/*! Snapshot of patch local properties. */
+/*! @class mepls::patches::PatchPropertiesSnapshot
+ * @brief Snapshot of patch local properties. */
 template<int dim>
 class PatchPropertiesSnapshot
 {
   public:
 
-	/*! This struct is used for output purposes only. It converts the struct
+	/*! @class mepls::patches::PatchPropertiesSnapshot::DataRow
+	 * @brief This struct is used for output purposes only. It converts the struct
 	 * @ref mepls::patches::PatchPropertiesTensorial<dim>, which contains complex objects, into
 	 * a plain struct of scalar values. In this way, it can be easily written
 	 * into output datasets. */

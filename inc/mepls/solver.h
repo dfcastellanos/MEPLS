@@ -50,7 +50,8 @@ namespace mepls
 {
 
 
-/*! This namespace contains the elasticity solvers used to compute elastic strain
+/*! @namespace mepls::elasticity_solver
+ * @brief This namespace contains the elasticity solvers used to compute elastic strain
  * and stress fields induced by the boundary conditions and the plastic (eigen)strain field.
  * The elastic fields are computed by solving the stress equilibrium equation using the Finite
  * Element Method. The solvers are implemented using the <a href="https://www.dealii.org">deal
@@ -68,8 +69,8 @@ enum ControlMode
 	strain = 1 /*!< The load value controls the applied total strain. */
 };
 
-/*!
- * This abstract class provides a common interface for different specialized
+/*! @class mepls::elasticity_solver::Solver
+ * @brief This abstract class provides a common interface for different specialized
  * solver classes.
  *
  * The solver classes compute elastic strain and stress fields induced by
@@ -115,10 +116,12 @@ template<int dim>
 class Solver
 {
 
-	/*!< This struct contains references to the data necessary to assemble FEM
+	/*!
+	 * @class mepls::elasticity_solver::Solver::DataForAssembling
+	 * @brief This struct contains references to the data necessary to assemble FEM
 	 * solvers that share the same elastic properties. Its purpose is to easily give
 	 * access to existing assembly data to new solvers in order to avoid repeating
-	 *  computations. */
+	 * computations. */
 	struct DataForAssembling
 	{
 		DataForAssembling(
@@ -561,7 +564,8 @@ class Solver
 };
 
 
-/*! This solver computes elastic fields with periodic boundary conditions. The
+/*! @class mepls::elasticity_solver::LeesEdwards
+ *  @brief This solver computes elastic fields with periodic boundary conditions. The
  * external loading conditions are pure shear with principal axes oriented along
  * \f$ \pm \pi/4\f$. The system is driven under strain-controlled conditions.
  *
@@ -583,7 +587,8 @@ template<int dim>
 class LeesEdwards: public Solver<dim>
 {
 
-	/*! This struct stores the solution computed with an external load value of 1.0
+	/*! @class mepls::elasticity_solver::LeesEdwards::SolutionToUnitLoad
+	 * @brief This struct stores the solution computed with an external load value of 1.0
 	 * when no plastic (eigen)strain is present. */
 	struct SolutionToUnitLoad
 	{
@@ -606,7 +611,8 @@ class LeesEdwards: public Solver<dim>
 		/*!< Vector containing the elastic strain of each element. */
 	};
 
-	/*! This struct contains the information about the internal state of the
+	/*! @class mepls::elasticity_solver::LeesEdwards::State
+	 * @brief This struct contains the information about the internal state of the
 	 * solver, so the state of a solver can be modified and then reverted back
 	 * to a previous one.
 	 *
@@ -1381,18 +1387,20 @@ void LeesEdwards<dim>::clear_impl()
 }
 
 
-/*! This solver computes elastic fields with non-periodic boundary conditions under
- * an external applied shear strain. The amlitude of the shear strain and its orientation can be
+/*! @class mepls::elasticity_solver::ShearBoundary
+ * @brief This solver computes elastic fields with non-periodic boundary conditions under
+ * an external applied shear strain. The amplitude of the shear strain and its orientation can be
  * controlled by the user
  * @note this solver is designed to operate on patches (see @ref mepls::patches), but can be used
- * on full systems as any other solver, since it has the standard interface defined by @ref
+ * on full systems as any other solver, since it inherits from @ref
  * mepls::elasticity_solver::Solver<dim>.
   */
 template<int dim>
 class ShearBoundary: public Solver<dim>
 {
 
-	/*! This class provides the values of the displacements that induce a shear
+	/*! @class mepls::elasticity_solver::ShearBoundary::ShearBoundaryFunc
+	 * @brief This class provides the values of the displacements that induce a shear
 	 * strain along the orientation theta. */
 	class ShearBoundaryFunc: public dealii::Function<dim>
 	{

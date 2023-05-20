@@ -24,12 +24,14 @@ template<int dim>
 class Slip;
 }
 
-/*! This namespace contains event classes, which represent
+/*! @namespace mepls::event
+ * @brief This namespace contains event classes, which represent
  * the occurrence of different kinds of discrete events within the system. */
 namespace event
 {
 
-/*! This class represents a local plastic deformation event. This plastic event is the
+/*! @class mepls::event::Plastic
+ * @brief This class represents a local plastic deformation event. This plastic event is the
  * continuum-mechanics representation of a local slip event, which is the consequence
  * of the activation of a slip system. */
 template<int dim>
@@ -93,7 +95,8 @@ struct Plastic
 };
 
 
-/*! This class represents changes in the external driving conditions. */
+/*! @class mepls::event::Driving
+ * @brief This class represents changes in the external driving conditions. */
 template<int dim>
 struct Driving
 {
@@ -129,7 +132,8 @@ struct Driving
 };
 
 
-/*! This class represents changes in the local microstructural properties. */
+/*! @class mepls::event::RenewSlip
+ * @brief This class represents changes in the local microstructural properties. */
 template<int dim>
 struct RenewSlip
 {

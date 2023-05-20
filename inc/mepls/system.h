@@ -32,7 +32,8 @@ class Element;
 }
 
 
-/*! This namespace contains the abstract class system::System, which
+/*! @namespace mepls::system
+ * @brief This namespace contains the abstract class system::System, which
  * serves as a common interface for the derived system classes. A system represents a
  * solid material that can undergo plastic deformation by discrete localized
  * slip events (see @ref Background, and e.g., @cite DFCastellanos_CRP
@@ -41,7 +42,8 @@ namespace system
 {
 
 
-/*! This class represents the macroscopic state of the system. Its state is
+/*! @class mepls::system::System
+ * @brief This class represents the macroscopic state of the system. Its state is
  * updated by registering the occurence of external load variation events
  * (event::Driving) and plastic activity in the form of slip events
  * (event::Plastic). The values of the macroscopic magnitudes (with keys
@@ -189,7 +191,8 @@ struct MacroState
 
 
 
-/*! The System class serves as a common interface for the derived system classes.
+/*! @class mepls::System
+ * @brief The System class serves as a common interface for the derived system classes.
  * A system represents a solid material that can undergo plastic deformation by discrete localized
  * slip events (see @ref Background, and e.g., @cite DFCastellanos_CRP
  * @cite FernandezCastellanos2019 @cite nicolas_deformation_2018).
@@ -357,7 +360,8 @@ class System
 };
 
 
-/*! This class implements the most basic and widely-applicable functionality for
+/*! @class mepls::system::Standard
+ * @brief This class implements the most basic and widely-applicable functionality for
  * the system. See @ref solve_elastic_problem() and @ref add() functions for
  * details. */
 template<int dim>
@@ -555,7 +559,8 @@ class Standard: public System<dim>
 };
 
 
-/*! This class implements the same functionality as @ref Standard<dim> but
+/*! @class mepls::system::ShuffledKernel
+ * @brief This class implements the same functionality as @ref Standard<dim> but
  * considers randomized elastic interactions between the @ref elements. This is
  * achieved by random-shuffling the stress variations of the @ref elements when
  * their elastic fields are updated. In this way, we remove spatial
@@ -702,7 +707,8 @@ class ShuffledKernel: public Standard<dim>
 };
 
 
-/*! This class implements the same functionality as @ref Standard<dim> but
+/*! @class mepls::system::HomogeneousKernel
+ * @brief This class implements the same functionality as @ref Standard<dim> but
  * considers homgeneous elastic interactions between the @ref elements
  * (mean-field interaction). This is achived by computing the average stress
  * variations over the @ref elements when their elastic fields are updated. */

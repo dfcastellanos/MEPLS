@@ -52,13 +52,15 @@ template<int dim>
 class Solver;
 
 
-/*! This namespace contains functions that are used for implementing the elasticiy solvers of the
+/*! @namespace mepls::elasticity_solver::impl
+ * @brief This namespace contains functions that are used for implementing the elasticiy solvers of the
  *  namespace @ref mepls::elasticity_solver using the Finite Element Method with the deal.II
  *  library.*/
 namespace impl
 {
 
-/*! This class computes diverse quantities such as strain and stress from a displacement field.
+/*! @class mepls::elasticity_solver::impl::Postprocessor
+ * @brief This class computes diverse quantities such as strain and stress from a displacement field.
  * See deal.II's dealii::DataPostprocessor<dim> class. */
 template<int dim>
 class Postprocessor: public dealii::DataPostprocessor<dim>

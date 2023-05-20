@@ -747,7 +747,7 @@ $ ./run_sim
 ```
 
 The result of the creep simulation can be animated with the Python script `animate.py`, located in 
-the `MEPLS/python` directory. See @ref Step4 for a detailed explanation. We can run it as
+the `MEPLS/tutorial/python` directory. See @ref Step4 for a detailed explanation. We can run it as
 
 ```bash
 python animate.py Nx_32+gamma_0.05+lambda_1.00+k_6.00+G_30.00+T_0.10+ext_stress_0.02+seed_1303402199.json /Data/creep/plastic_events /Data/creep/driving_events time vm_plastic_strain dstrain --labels '$t/\Delta t_0$' '$\varepsilon_{\rm vm}$ (%)' '$\varepsilon_{\rm vm}(\vec{r})$' --rescale 1 100 1

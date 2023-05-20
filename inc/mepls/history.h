@@ -25,12 +25,14 @@ template<int dim>
 class System;
 }
 
-/*! This namespace contains classes and structs used to record the occurrence of
+/*! @namespace mepls::history 
+ * @brief This namespace contains classes and structs used to record the occurrence of
  * events in the system, and ease their write into output files. */
 namespace history
 {
 
-/*! This structs is used by @ref History<dim>::add_row to reformat
+/*! @class mepls::history::PlasticRow
+ * @brief This structs is used by @ref History<dim>::add_row to reformat
 * objects of the class @ref event::Plastic as rows of an output dataset.
 * The member @ref index is set by @ref History when the event is added. */
 struct PlasticRow
@@ -49,7 +51,8 @@ struct PlasticRow
 	unsigned int activation_protocol;
 };
 
-/*! This structs is used by @ref History<dim>::add_row to reformat
+/*! @class mepls::history::DrivingRow
+ * @brief This structs is used by @ref History<dim>::add_row to reformat
 * objects of the class @ref event::Driving as rows of an output dataset.
 * The member @ref index is set by @ref History when the event is added. */
 struct DrivingRow
@@ -63,7 +66,8 @@ struct DrivingRow
 	unsigned int activation_protocol;
 };
 
-/*! This structs is used by @ref History<dim>::add_row to reformat
+/*! @class mepls::history::RenewSlipRow
+ * @brief This structs is used by @ref History<dim>::add_row to reformat
 * objects of the class @ref event::RenewSlip as rows of an output dataset.
 * The member @ref index is set by @ref History when the event is added. */
 struct RenewSlipRow
@@ -75,9 +79,10 @@ struct RenewSlipRow
 };
 
 
-/*! This structs is used by @ref History<dim>::add_macro to store the system's
+/*! @class mepls::history::MacroSummaryRow
+ * @brief This structs is used by @ref History<dim>::add_macro to store the system's
  * macroscale propreties. It contains the spatial average and standard deviation of stress tensor
- * compoents, the von Mises stress, the von Mises plastic strain, the elastic energy, the
+ * components, the von Mises stress, the von Mises plastic strain, the elastic energy, the
  * configurational energy, the time, the total strain, and the external stress
  * */
 struct MacroSummaryRow
@@ -104,7 +109,8 @@ struct MacroSummaryRow
 };
 
 
-/*! This class registers the evolution of the system's macroscale properties and the occurrence
+/*! class mepls::history::History
+ * @brief This class registers the evolution of the system's macroscale properties and the occurrence
  *  of events. The events are recorded in different datasets, depending on whether the event is a
  *  platic or driving one.
  *
@@ -260,7 +266,7 @@ class History
 	virtual void add_macro(const mepls::system::System<dim> &system)
 	{
 		/*! Record the macroscale properties of the input system. By default, it computes
-		 * the spatial average and standard deviation of stress tensor compoents, the von Mises
+		 * the spatial average and standard deviation of stress tensor components, the von Mises
 		 * stress, the von Mises plastic strain, the elastic energy, the configurational
 		 * energy, the time, the total strain, and the external stress. */
 

@@ -18,6 +18,10 @@
 #include <mepls/utils.h>
 #include <mepls/history.h>
 
+/*! @namespace mepls
+ * @brief 
+ * The top level namespace of MEPLS. Here are contained all the namespaces and classes belonging
+ * to MEPLS. */
 namespace mepls
 {
 
@@ -27,19 +31,23 @@ template<int dim>
 class Solver;
 }
 
-/*! Element objects represent mesoscale regions of a material (see @ref Background, and e.g.,
- * @cite DFCastellanos_CRP @cite FernandezCastellanos2019 @cite nicolas_deformation_2018).
+/*! @namespace mepls::element
+ * @brief 
  * This namespace contains the abstract element class element::Element, which serves as
- * a common interface for the element classes that represent specific material microstrucures. */
+ * a common interface for the element classes that represent specific material microstrucures. 
+ * (see @ref Background, and e.g., @cite DFCastellanos_CRP @cite FernandezCastellanos2019 
+ * @cite nicolas_deformation_2018)*/
 namespace element
 {
 
-/*! Element objects represent local mesoscale regions of a material (see @ref Background, and e.g.,
- * @cite DFCastellanos_CRP @cite FernandezCastellanos2019 @cite nicolas_deformation_2018). The
+/*! @class mepls::element::Element
+ * @brief The Element class represent local mesoscale regions of a material. The
  *  state of an element is defined by continuum mechanics magnitudes (stress, strain
  * and eigenstrain tensors) and slip systems present in the represented mesoscale
- * region. Each element has associated a single tensor for each magnitude. The
- * behavior of the slip systems (defined by objects of class slip::Slip) define
+ * region. 
+ * 
+ * Each element has associated a single tensor for each magnitude.
+ * The behavior of the slip systems (defined by objects of class slip::Slip) define
  * the plastic response of an element. The local element microstructural
  * properties are defined by the element's elastic properties and the existing
  * slip systems. Although from a physical perspective, each mesocale element has
@@ -51,7 +59,6 @@ namespace element
  * during the  computation of the elastic fields, which is performed outside
  * the element objects. This class serves as a common interface for the element classes.
  * that represent specific material microstructures. */
-
 template<int dim>
 class Element
 {
@@ -791,14 +798,16 @@ void calculate_local_stress_coefficients_central(
 }
 
 
-/*! This struct is used for output purposes only. It dumps a complex 
+/*! @class mepls::element::SetupRow
+ * @brief This struct is used for output purposes only. It dumps a complex 
  * @ref element::Element object into a simple struct of scalar values, which
  * contains the configuration with which a certain element was created. In this
  * way, it can be easily written into an output file. */
 template<int dim>
 struct SetupRow;
 
-/*! Instantiation of ElementSetupRow for dimension 2. */
+/*! @class mepls::element::SetupRow<2>
+* @brief Instantiation of ElementSetupRow for dimension 2. */
 template<>
 struct SetupRow<2>
 {
@@ -845,7 +854,8 @@ struct SetupRow<2>
 	/*!< Element number. */
 };
 
-/*! An alias to simpily the code. */
+/*! @typedef mepls::element::Vector
+ * @brief An alias to simpily the code. */
 template<int dim> using Vector = typename std::vector<Element<dim> *>;
 
 } // namespace element

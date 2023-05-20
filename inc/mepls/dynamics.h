@@ -19,18 +19,23 @@
 namespace mepls
 {
 
-/*! This namespace contains the algorithms to control the low-level dynamics of the system,
- * that is, the time-evolution of the external load and the activation of slip systems within the
- * material. These algorithms can be used individually or combined in specific ways to implement
- * more complex driving protocols.*/
+
 namespace dynamics
 {
 
-/*! This namespace contains the enum of values that are used to set @ref event::Plastic
- * .activation_protocol and @ref event::Driving.activation_protocol. These values are meant to
- * indicate the origin of each @ref event added to the system. */
+/*! @namespace mepls::dynamics 
+ *  @brief This namespace contains the algorithms to control the low-level dynamics of the system,
+ * that is, the time-evolution of the external load and the activation of slip systems within the
+ * material. These algorithms can be used individually or combined in specific ways to implement
+ * more complex driving protocols.*/
+
 namespace Protocol
 {
+
+/*! @namespace mepls::dynamics::Protocol
+ *  @brief This namespace contains the enum of values that are used to set @ref event::Plastic
+ * .activation_protocol and @ref event::Driving.activation_protocol. These values are meant to
+ * indicate the origin of each @ref event added to the system. */
 
 enum Values
 {
@@ -58,8 +63,11 @@ enum Values
 } // protocol
 
 
-/*! This class implements the Kinetic Monte Carlo method, used for simulating
- * the thermal activation of slip systems. This method requires the knowledge of all the possible
+/*! @class mepls::dynamics::KMC
+ * @brief This class implements the Kinetic Monte Carlo method, used for simulating
+ * the thermal activation of slip systems. 
+ * 
+ * This method requires the knowledge of all the possible
  * transitions that the system can make from the current state towards a new one, and the energy
  * barrier associated with each transition. In this case, each possible transition corresponds to
  *  the activation of a specific slip system. The energy barrier \f$ \Delta E \f$ for a specific
@@ -416,8 +424,11 @@ std::vector<event::Plastic<dim>> relaxation(
 
 
 
-/*! This class implements the Metropolis-Hastings algorithm for sampling the model's configuration
- * space. The transition from one configuration to another is done by activating a randomly selected
+/*! @class mepls::dynamics::MetropolisHastings
+ * @brief This class implements the Metropolis-Hastings algorithm for sampling the model's configuration
+ * space. 
+ * 
+ * The transition from one configuration to another is done by activating a randomly selected
  * slip system, and triggering a subsequent avalanche with @ref mepls::dynamics::relaxation. The
  * changes introduced in the system by these actions are accepted or rejected based on the
  * Metropolis-Hastings rule. */

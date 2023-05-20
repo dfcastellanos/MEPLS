@@ -73,7 +73,8 @@ namespace mepls
 
 
 /*!
- * This namespce contains tools for testing.
+ * @namespace mepls::test
+ * @brief This namespce contains tools for testing.
  */
 namespace test
 {
@@ -150,7 +151,8 @@ void assert_result(
 
 
 /*!
- * This namespce contains utilities that come in handy in different situations.
+ * @namespace mepls::utils
+ * @brief This namespce contains utilities that come in handy in different situations.
  */
 namespace utils
 {
@@ -201,8 +203,9 @@ inline double get_von_mises_equivalent_strain(const dealii::SymmetricTensor<2, 2
 
 
 
-/*! This namespace contains utility functions to work with tensors, mainly to 
- * create and manipulate 4-rank stiffness tensors. */
+/*! @namespace mepls::utils::tensor
+ * @brief This namespace contains utility functions to work with tensors, with a great focus 
+ * on creating and manipulating 4-rank stiffness tensors. */
 namespace tensor
 {
 
@@ -584,7 +587,8 @@ inline dealii::SymmetricTensor<2, 3> compute_voigts_stiffness(
 
 
 
-/*! This namespace contains utility functions to generate random numbers 
+/*! @namespace mepls::utils::rand
+ * @brief This namespace contains utility functions to generate random numbers 
  * according to specific probability distributions. */
 namespace rand
 {
@@ -785,7 +789,8 @@ std::piecewise_linear_distribution<double> *create_distribution(
 
 
 
-/*! This namespace contains utility functions to parse and generate strings. */
+/*! @namespace mepls::utils::str
+ * @brief This namespace contains utility functions to parse and generate strings. */
 namespace str
 {
 
@@ -877,8 +882,11 @@ void read_csv(std::vector<double> &xData, std::vector<double> &yData, std::strin
 
 
 
-/*! This class controls whether a simulation should continue running or should 
- * stop. When the object is called using the call operator with some input 
+/*! @class mepls::utils::ContinueSimulation
+ * @brief This class controls whether a simulation should continue running or should 
+ * stop based on user defined-criteria.
+ * 
+ * When the object is called using the call operator with some input 
  * condition, if the condition evaluates to false, the object changes its 
  * internal state to false. That state is not changed anymore during the 
  * object's life. When the object is called without input conditions, we query
@@ -969,14 +977,16 @@ inline double mod(double a, double b)
 
 
 
-/*! Singleton class to measure execution times. The advantage of using a
- * singleton pattern is that we can measure the execution times of any part of
- * the code without the need to modify function interfaces. Specifically, in
- * every call to a function, we can get a pointer to an existing instance of
- * the timer object, avoiding creating a new one. Moreover, since the object
- * is always the same one, the execution times add up, which provides us with
- * an averaged execution time should the call to the function be repeated 
- * iteratively. */
+/*! @class mepls::utils::TimerSingleton
+ * @brief Singleton class to measure execution times. 
+ *
+ * The advantage of using a singleton pattern is that we can measure the 
+ * execution times of any part of the code without the need to modify 
+ * function interfaces. Specifically, in every call to a function, we 
+ * can get a pointer to an existing instance of the timer object, avoiding 
+ * creating a new one. Moreover, since the object is always the same one, 
+ * the execution times add up, which provides us with an averaged execution 
+ * time should the call to the function be repeated iteratively. */
 class TimerSingleton
 {
   public:
@@ -1056,7 +1066,8 @@ TimerSingleton *TimerSingleton::single = NULL;
 
 
 
-/*! This class provides linear interpolations of a 1D function, defined by the
+/*! @class mepls::utils::Interpolator
+ * @brief This class provides linear interpolations of a 1D function, defined by the
  * given x and y data vectors. */
 class Interpolator
 {

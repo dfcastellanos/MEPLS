@@ -27,14 +27,18 @@ class Element;
 }
 
 
-/*! This namespace contains the abstract slip class @ref mepls::slip::Slip<dim>, whcih provides a
+/*! @namespace mepls::slip
+ * @brief This namespace contains the abstract slip class @ref mepls::slip::Slip<dim>, whcih provides a
  * common interface for derived slip classes. */
 namespace slip
 {
 
-/*! Slip objects define the physics of activation of the slip systems within
+/*! @class mepls::slip::Slip
+ * @brief Slip objects define the physics of activation of the slip systems within
  * mesoscale elements. When a slip system becomes active, a local slip event takes place
- * (see \cite DFCastellanos_CRP). This abstract class provides a common interface for derived
+ * (see \cite DFCastellanos_CRP). 
+ * 
+ * This abstract class provides a common interface for derived
  * slip classes, which implement specific activation rules.
  * Essentially, slip systems are defined by a slip plane, an effective shear
  * stress on that plane, and the critical effective shear stress known as the

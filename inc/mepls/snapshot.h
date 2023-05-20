@@ -18,7 +18,8 @@
 namespace mepls
 {
 
-/*! This namespace contains classes for taking snapshots of the state of the 
+/*! @namespace mepls::snapshot
+ * @brief This namespace contains classes for taking snapshots of the state of the 
  * elements composing the system. A snapshot consists of a copy of one of the 
  * mesoscale fields over all the elements of the system into a vector.
  * Moreover, the snapshots store metadata such as the name of the recorded 
@@ -27,16 +28,18 @@ namespace mepls
 namespace snapshot
 {
 
-/*! Snapshot of @ref element::Element.stress. */
+/*! @class mepls::snapshot::Stress 
+ * @brief Snapshot of @ref element::Element.stress. */
 template<int dim>
 class Stress
 {
 
   public:
 
-	/*! This struct is used for output purposes only. It converts a complex
+	/*! @class mepls::snapshot::Stress::DataRow
+	 * @brief This struct is used for output purposes only. It converts a complex
 	 * tensor object into a simple struct of scalar values. In this way, it can
-	 * be easily written into output datasets. */
+	 * be easily written into output datasets. */	
 	struct DataRow
 	{
 		float xx = 0.;
@@ -111,13 +114,15 @@ class Stress
 };
 
 
-/*! Snapshot of @ref element::Element.def_grad. */
+/*! @class mepls::snapshot::DefGrad
+ * @brief Snapshot of @ref element::Element.def_grad. */
 template<int dim>
 class DefGrad
 {
   public:
 
-	/*! This struct is used for output purposes only. It converts a complex
+	/*! @class mepls::snapshot::DefGrad::DataRow
+	 * @brief This struct is used for output purposes only. It converts a complex
 	 * tensor object into a simple struct of scalar values. In this way, it can
 	 * be easily written into output datasets. */
 	struct DataRow
@@ -196,7 +201,8 @@ class DefGrad
 };
 
 
-/*! Snapshot of all the slip thresholds (see @ref mepls::slip::Slip<dim>::threshold)
+/*! @class mepls::snapshot::Threshold
+ * @brief Snapshot of all the slip thresholds (see @ref mepls::slip::Slip<dim>::threshold)
  * in the system. */
 template<int dim>
 class Threshold
@@ -204,7 +210,8 @@ class Threshold
 
   public:
 
-	/*! This struct is used for output purposes only. It converts a complex
+	/*! @class mepls::snapshot::Threshold::DataRow
+	 * @brief This struct is used for output purposes only. It converts a complex
 	 * @ref mepls::slip::Slip<dim> object into a simple struct of scalar values. In this
 	 * way, it can be easily written into output datasets. */
 	struct DataRow
@@ -281,7 +288,8 @@ class Threshold
 };
 
 
-/*! This class decides whether a snapshot should be taken or not based on the
+/*! @class mepls::snapshot::Check
+ * @brief This class decides whether a snapshot should be taken or not based on the
  * value of a certain monitor magnitude, which is compared with the values of an
  * internal list. The values of the list are those values at which we desire to
  * take a snapshot. The comparison of the value of type double is made within 
