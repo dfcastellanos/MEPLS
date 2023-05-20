@@ -609,7 +609,7 @@ void calculate_ext_stress_coefficients(
 {
 	/*! Calculate, using the input elasticity solver, the stress variation
 	 * induced in each element by an external load increment of amplitude 1.0.
-	 * This variation is used as @ref element::Element<dim>::ext_stress_coeff_. */
+	 * This stress variation sets the value of @ref element::Element<dim>::ext_stress_coeff_. */
 
 	// make sure that the solver doesn't have any added load nor eigenstrain
 	// fields, otherwise the computed coefficients won't be the right ones
@@ -636,7 +636,7 @@ void calculate_local_stress_coefficients(
 {
 	/*! Calculate, using the input elascity solver, the rank-4 tensor \f$
 	 * \mathbb{S} \f$ that relates linearly local stress variations and
-	 * eigenstrain increments. This tensor is set as
+	 * eigenstrain increments. This tensor sets the value of
 	 * @ref element::Element<dim>::S_. The tensor is computed individually for
 	 * each element in the input vector. */
 
@@ -722,16 +722,20 @@ void calculate_local_stress_coefficients_central(
 {
 	/*! Calculate, using the input elascity solver, the rank-4 tensor \f$
 	 * \mathbb{S} \f$ that relates linearly local stress variations and
-	 * eigenstrain increments. This tensor is set as
+	 * eigenstrain increments. This tensor sets the value of
 	 * @ref element::Element<dim>::S_. The tensor is computed once for the element
 	 * in the center of the domain and then reused for all the other elements.
 	 * In this way, we avoid the expensive process of computing the tensor for
 	 * every element. This is possible when the system has elastic homogeneous
 	 * properties.
 	 *
-	 * @note the presence of surfaces breaks the material homogeneity since the
-	 * elastic response near the surfaces differs from the bulk. If the system
-	 * is small and does not have periodic boundaries, the presence of the
+	 * @note surfaces, as opposed to periodic boundary conditions, break the 
+	 * material homogeneity since the elastic response near them differs from
+	 * the bulk. If the system is big (i.e, the number of elements far away from
+	 * the surfaces is much bigger than the number of elements near them) the 
+	 * presence of surfaces can for most applications be neglected. However, if 
+	 * the system is small and does not have periodic boundaries (as e.g., if dealing
+	 * with the system patches described in @ref mepls::patches), the presence of the
 	 * surfaces might become important. In this case, it is recommended to use
 	 * @ref calculate_local_stress_coefficients instead. */
 
@@ -855,7 +859,7 @@ struct SetupRow<2>
 };
 
 /*! @typedef mepls::element::Vector
- * @brief An alias to simpily the code. */
+ * @brief An alias for std::vector<mepls::Element<dim>*> to simplify the code. */
 template<int dim> using Vector = typename std::vector<Element<dim> *>;
 
 } // namespace element

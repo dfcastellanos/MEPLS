@@ -42,7 +42,7 @@ namespace system
 {
 
 
-/*! @class mepls::system::System
+/*! @class mepls::system::MacroState
  * @brief This class represents the macroscopic state of the system. Its state is
  * updated by registering the occurence of external load variation events
  * (event::Driving) and plastic activity in the form of slip events
@@ -191,7 +191,7 @@ struct MacroState
 
 
 
-/*! @class mepls::System
+/*! @class mepls::system::System
  * @brief The System class serves as a common interface for the derived system classes.
  * A system represents a solid material that can undergo plastic deformation by discrete localized
  * slip events (see @ref Background, and e.g., @cite DFCastellanos_CRP
@@ -285,7 +285,7 @@ class System
 
 	void solve_elastic_problem()
 	{
-		/*!< This function defines how the elastic fields are computed and delivered
+		/*! This function defines how the elastic fields are computed and delivered
 	 	* to each element. */
 
 	 	std::vector<event::Plastic<dim>> added_yielding;
@@ -361,9 +361,11 @@ class System
 
 
 /*! @class mepls::system::Standard
- * @brief This class implements the most basic and widely-applicable functionality for
- * the system. See @ref solve_elastic_problem() and @ref add() functions for
- * details. */
+ * @brief This class provides basic and widely-applicable functionality for
+ * the @ref mepls::system abstract class. 
+ * See @ref mepls::system::Standard<dim>::solve_elastic_problem() and 
+ * @ref mepls::system::Standard<dim>::add() functions for
+ * details on such functionality. */
 template<int dim>
 class Standard: public System<dim>
 {

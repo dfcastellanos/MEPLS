@@ -32,8 +32,7 @@ namespace event
 
 /*! @class mepls::event::Plastic
  * @brief This class represents a local plastic deformation event. This plastic event is the
- * continuum-mechanics representation of a local slip event, which is the consequence
- * of the activation of a slip system. */
+ * continuum-mechanics representation of a localized slip event in the material's microstructure. */
 template<int dim>
 struct Plastic
 {

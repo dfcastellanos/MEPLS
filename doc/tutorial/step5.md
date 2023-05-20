@@ -787,7 +787,7 @@ which lower thresholds tend to be renewed by higher ones. Due to this bias, the 
  have a higher average. This state with higher thresholds is used as the initial state for the AQS 
 simulation, leading to a stress overshoot and localization into a permanent shear band. The 
 amplitude of the stress overshoot will depend on the temperature, the applied stress and 
-the duration of the creep simulation (but it if reaches the stationary state, it won't 
+the duration of the creep simulation (but if it reaches the stationary state, it won't 
 change anymore). Thus, although the results are similar to @ref Step4, here we have built a model 
 much more powerful, which provides us with a great insight into the effects of a 
 material's thermal and mechanical history on its brittle or ductile response when strain is applied.
