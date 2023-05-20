@@ -50,20 +50,28 @@ namespace mepls
 {
 
 
-/*! This namespace contains the elasticity solvers use to compute elastic strain
- * and stress fields. Those fields are induced in the system by the external
- * loading and the presence of a heterogeneous plastic strain field, and
- * are computed by solving the stress equilibrium equation using the Finite
- * Element Method (FEM). The solver classes are implemented using the
- * <a href="https://www.dealii.org">deal.II</a> library.
+/*! @namespace mepls::elasticity_solver
+ * @brief This namespace contains the elasticity solvers used to compute elastic strain
+ * and stress fields induced by the boundary conditions and the plastic (eigen)strain field.
+ * The elastic fields are computed by solving the stress equilibrium equation using the Finite
+ * Element Method. The solvers are implemented using the <a href="https://www.dealii.org">deal
+ * .II</a> library.
  */
 namespace elasticity_solver
 {
 
+/*! This enum contains values that define the role of the external load. */
+enum ControlMode
+{
+	traction = 0, /*!< The load value controls the applied traction. */
+	displacement = 1, /*!< The load value controls the applied displacement. */
+	stress = 0, /*!< The load value controls the applied external stress. */
+	strain = 1 /*!< The load value controls the applied total strain. */
+};
 
-/*!
- * This abstract class provides a common interface for different specialized
- * solvers.
+/*! @class mepls::elasticity_solver::Solver
+ * @brief This abstract class provides a common interface for different specialized
+ * solver classes.
  *
  * The solver classes compute elastic strain and stress fields induced by
  * the external loading conditions and the plastic strain field (represented by
@@ -72,7 +80,7 @@ namespace elasticity_solver
  * <a href="https://www.dealii.org">deal.II</a> library. The solution is
  * computed assuming linear elastic behavior over a regular quadrilateral grid.
  *  Each finite element is associated with a mesoscale element of the system
- *  (see \ref system::System<dim>::elements). The elastic fields are averaged
+ *  (see @ref system::System<dim>::elements). The elastic fields are averaged
  *  over each finite element, so a single elastic strain and stress tensor is
  *  associated with each element.
  *
@@ -80,7 +88,7 @@ namespace elasticity_solver
  * cell objects, the solver classes here described will alternatively refer to
  * them simply as "elements." The elements will be referred to by a 1D index,
  * which is given by the order in which dealII iterates over the existing cells.
- * This index is the same used in the vector of mesoscale elements, \ref
+ * This index is the same used in the vector of mesoscale elements, @ref
  * system::System<dim>::elements. Moreover, we consider that any property or
  * field defined over the elements is element-wise uniform (as, e.g., elastic
  * stiffness or eigenstrain).
@@ -108,10 +116,12 @@ template<int dim>
 class Solver
 {
 
-	/*!< This struct contains references to the data necessary to assemble FEM
+	/*!
+	 * @class mepls::elasticity_solver::Solver::DataForAssembling
+	 * @brief This struct contains references to the data necessary to assemble FEM
 	 * solvers that share the same elastic properties. Its purpose is to easily give
 	 * access to existing assembly data to new solvers in order to avoid repeating
-	 *  computations. */
+	 * computations. */
 	struct DataForAssembling
 	{
 		DataForAssembling(
@@ -175,6 +185,8 @@ class Solver
 		C.resize(triangulation.n_active_cells());
 
 		impl::setup_default_elastic_properties(C);
+		impl::average_shape_function_gradients<dim>(*this);
+		impl::make_element_maps<dim>(*this);
 
 		const unsigned int dofs_per_cell = fe.dofs_per_cell;
 		cell_matrix_assembly_data.resize(triangulation.n_active_cells(),
@@ -190,14 +202,14 @@ class Solver
 
 	unsigned int get_n_elements() const
 	{
-		/*! Get the number of elements in the grid. */
+		/*! Get the number of elements in the FEM mesh. */
 
 		return triangulation.n_active_cells();
 	}
 
 	void set_elastic_properties(unsigned int n, dealii::SymmetricTensor<4, dim> const &input_C)
 	{
-		/*! Set the stiffness tensor of the element number n. */
+		/*! Set the stiffness tensor of the element number `n`. */
 
 		M_Assert(n < get_n_elements(), "");M_Assert(n < C.size(), "");
 
@@ -207,15 +219,14 @@ class Solver
 
 	void set_stress(unsigned int n, const dealii::SymmetricTensor<2, dim> &input_stress)
 	{
-		/*! Set the stress tensor of the element number n.
+		/*! Set the stress tensor of the element number `n`.
 		 *
 		 * @note although stress
 		 * tensors are computed by the solver, sometimes the stress tensors are
 		 * modified outside the solver, e.g., when a mesoscale element has
-		 * assigned a certain pre-stress. We inform the solver about this change
-		 * so it can be taken into account for further computations such as the
-		 * externally applied stress, which needs to be numerically computed if
-		 * the external loading mechanism is controlling the external strain. */
+		 * a certain pre-stress. With this function, we can inform the solver about
+		 * the updated stress tensor. In this way, when the solver compues the
+		 * external applied stress, it does so taking into account that field. */
 
 		M_Assert(n < get_n_elements(), "");M_Assert(n < stress.size(), "");
 
@@ -230,6 +241,14 @@ class Solver
 		return stress;
 	}
 
+	const std::vector<dealii::Tensor<2, dim> > &get_deformation_gradient()
+	{
+		/*! Get the deformation gradient in all the elements. Each element is characterized
+		 * by a single average tensor. */
+
+		return deformation_gradient;
+	}
+
 	const std::vector<dealii::SymmetricTensor<2, dim> > &get_elastic_strain()
 	{
 		/*! Get the elastic strain in all the elements. Each element is
@@ -242,10 +261,10 @@ class Solver
 	{
 		/*! Get the local eigenstrain in all the elements. Each element is
 		 * characterized by a single tensor, since added eigenstrains are
-		 * assumed as uniform over the elements (see \ref add_eigenstrain).
+		 * assumed as uniform over the elements (see @ref add_eigenstrain).
 		 *
 		 * @note the eigenstrain is generated outside the solver and added to it
-		 * using \ref add_eigenstrain, therefore this function only returns
+		 * using @ref add_eigenstrain, therefore this function only returns
 		 * what it has already been given to the solver but does not make
 		 * any further computation. */
 
@@ -255,11 +274,8 @@ class Solver
 	DataForAssembling get_data_for_assembling() const
 	{
 		/*! Get the data used for assembling the FEM solver. This data can
-		 * be used to assemble other solvers without recomputing it (see \ref
-		 * ShearBoundary<dim>::copy_assembly).
-		 *
-		 * @note to reduced overhead, the returned struct stores only constant
-		 *  references to the original objects in \ref solver::Solver<dim>. */
+		 * be used to assemble other solvers without recomputing it (see @ref
+		 * ShearBoundary<dim>::copy_assembly). */
 
 		return DataForAssembling(C, cell_matrix_assembly_data, unitary_eigenstrains_rhs);
 	}
@@ -281,7 +297,7 @@ class Solver
 		 * load is present. The solver remains assembled so it can be used
 		 * again. */
 
-		M_Assert(already_assembled, "");
+		assert(already_assembled);
 
 		load = 0.;
 		solution.reinit(dof_handler.n_dofs());
@@ -303,7 +319,7 @@ class Solver
 	{
 		/*! Solve the elastic equilibrium equation. i.e., compute the elastic
 		 * strain and stress fields arising from the external load and the
-		 * eigenstrain field. */
+		 * plastic (eigen)strain field. */
 
 		solve_impl();
 	}
@@ -356,14 +372,10 @@ class Solver
 	/*!< Update the load value by adding the input increment. */
 
 	virtual double get_external_stress() = 0;
-	/*!< Get the external stress induced by the load mechanism. If the system is
-	 * traction-controlled, this value is proportional to the imposed load
-	 * value. */
+	/*!< Get the external stress induced by the load. */
 
 	virtual double get_total_strain() = 0;
-	/*!< Get the external strain induced by the load mechanism. If the system is
-	 *  displacement-controlled, this value is proportional to the imposed load
-	 *  value. */
+	/*!< Get the total strain induced by the load mechanism and the plastic strain field. */
 
   private:
   	double element_length = 1.;
@@ -375,7 +387,7 @@ class Solver
 	 * stress tensors in Voigt's notation. In this ways, the value is 3 if dim=2
 	 * and 6 if dim=3. */
 
-	const unsigned int element_order = 1;
+	unsigned int element_order = 1;
 	/*!< Order of the shape functions. */
 	
   protected:
@@ -388,9 +400,7 @@ class Solver
 
 	double load;
 	/*!< Value of the external load. The load represents the mechanism externally
-	 * driving the system. If the system is traction-controlled, the load sets
-	 * the value of the external stress, while if it is displacement-controlled,
-	 * it sets the value of the total external strain. */
+	 * driving the system. See @ref mepls::elasticity_solver::ControlMode. */
 
 	bool already_assembled;
 	/*!< Bool indicating whether the solver has already been assembled or not. */
@@ -430,7 +440,7 @@ class Solver
 	std::vector<std::vector<double> > av_shape_grads_coeff;
 	/*!< Coefficients used to compute the average of the displacement gradient
 	 * in an element as a linear combination of the displacements of the degrees
-	 * of freedom of the element. See \ref impl::get_av_displacement_gradient for
+	 * of freedom of the element. See @ref impl::get_av_displacement_gradient for
 	 * details . */
 
 	std::vector<typename dealii::DoFHandler<dim>::active_cell_iterator> element_to_cell;
@@ -440,7 +450,7 @@ class Solver
 
 	std::map<typename dealii::DoFHandler<dim>::active_cell_iterator, unsigned int> cell_to_element;
 	/*!< Map between dealII's cells and element number. It is the inverse of
-	 * \ref element_to_cell. */
+	 * @ref element_to_cell. */
 
 	std::map<unsigned int, std::vector<typename dealii::DoFHandler<dim>::active_cell_iterator> > boundary_map;
 	/*!< dealII denotes each domain's boundary by a boundadry id, which is an
@@ -471,28 +481,28 @@ class Solver
 	std::vector<std::vector<dealii::Vector<double>>> unitary_eigenstrains_rhs;
 	/*!< This structure contains the assembly data necessary to convert any
 	 * eigenstrain field into body forces. See
-	 * \ref impl::assemble_unitary_eigenstrains and \ref impl::add_eigenstrain.*/
+	 * @ref impl::assemble_unitary_eigenstrains and @ref impl::add_eigenstrain.*/
 
   private:
 
 	virtual void add_eigenstrain_impl(
 		unsigned int element, const dealii::SymmetricTensor<dim, 2> &eigenstrain) = 0;
 	/*!< This function provides the implementation of
-	 * \ref Solver<dim>::add_eigenstrain. */
+	 * @ref Solver<dim>::add_eigenstrain. */
 
 	virtual void clear_impl() = 0;
 	/*!< This function provides the implementation of
-	 * \ref Solver<dim>::add_eigenstrain. */
+	 * @ref Solver<dim>::clear. */
 
 	virtual void solve_impl() = 0;
 
-	/*!< This function provides the implementation of \ref Solver<dim>::solve. */
+	/*!< This function provides the implementation of @ref Solver<dim>::solve. */
 
 	virtual void set_elastic_properties_impl(
 		unsigned int element, dealii::SymmetricTensor<4, dim> const &CC)
 	{
 		/* This function provides the implementation of
-		 * \ref Solver<dim>::set_elastic_properties. */
+		 * @ref Solver<dim>::set_elastic_properties. */
 
 		C[element] = CC;
 	};
@@ -506,6 +516,8 @@ class Solver
 	friend void impl::calculate_stress(Solver<D> &solver);
 	template<int D>
 	friend void impl::assemble_unitary_eigenstrains(Solver<D> &solver);
+	template<int D>
+	friend void impl::assemble_unitary_eigenstrains_unique(Solver<D> &solver);
 	template<int D>
 	friend void impl::assemble_eigenstrain_rhs(
 		dealii::SymmetricTensor<2, D> &eigenstrain,
@@ -552,23 +564,16 @@ class Solver
 };
 
 
-/* This solver computes elastic fields with periodic boundary conditions in
- * systems representing the full material domain (in contrast with
- * the local patches which represent subdomains, see \ref patches). The
+/*! @class mepls::elasticity_solver::LeesEdwards
+ *  @brief This solver computes elastic fields with periodic boundary conditions. The
  * external loading conditions are pure shear with principal axes oriented along
  * \f$ \pm \pi/4\f$. The system is driven under strain-controlled conditions.
  *
- *   However, since we are dealing with periodic boundary condition, the strain
- *   induced in the system cannot be computed by prescribing a displacement to
- *   the surfaces. Normally, this is not an issue because we are dealing with
- *   trivial loading conditions leading to homogeneous external strain fields.
- *   However, we want, in this case, to compute the solution when elastic
- *   heterogeneities are present. As shown by, e.g., "Effective properties of
- *   composite materials with periodic microstructure: a computational approach",
- *    J.C. Michel, H. Moulinec, P. Suquet (Comput. Methods Appl. Mech. Engrg. 172
- *    (1999) 109-143), the solution can be obtained by considering that the
- *    external load induces an average strain in the system, over which a periodic
- *    fluctuation is added. While the average deformation is obtained
+ *   Since we are dealing with periodic boundary condition, the strain
+ *   induced in the system cannot be contolled by prescribing displacement on
+ *   the surfaces. As shown by, e.g., @cite MICHEL1999109, the solution can be obtained by
+ *   considering that the external load induces an average strain in the system, over which a
+ *   periodic fluctuation is added. While the average deformation is obtained
  *    straightforwardly from the loading mode, the fluctuations within the
  *    system induced by the load (as is the case if elastic heterogeneities are
  *    present) are obtained by solving an equivalent problem, namely a
@@ -582,8 +587,9 @@ template<int dim>
 class LeesEdwards: public Solver<dim>
 {
 
-	/* This struct stores the solution to a given solid mechanics problem
-	 * computed with an external load value of 1.0. */
+	/*! @class mepls::elasticity_solver::LeesEdwards::SolutionToUnitLoad
+	 * @brief This struct stores the solution computed with an external load value of 1.0
+	 * when no plastic (eigen)strain is present. */
 	struct SolutionToUnitLoad
 	{
 		dealii::SymmetricTensor<2, dim> unit_external_strain;
@@ -605,14 +611,63 @@ class LeesEdwards: public Solver<dim>
 		/*!< Vector containing the elastic strain of each element. */
 	};
 
+	/*! @class mepls::elasticity_solver::LeesEdwards::State
+	 * @brief This struct contains the information about the internal state of the
+	 * solver, so the state of a solver can be modified and then reverted back
+	 * to a previous one.
+	 *
+	 * @note this object stores only those data members that are cleaned when
+	 * @ref Solver<dim>::clear() is called. */
+	struct State
+	{
+		double load;
+		dealii::Vector<double> solution;
+		std::vector<dealii::SymmetricTensor<2, dim> > elastic_strain;
+		std::vector<dealii::SymmetricTensor<2, dim> > stress;
+		std::vector<dealii::Tensor<2, dim> > deformation_gradient;
+		std::vector<dealii::SymmetricTensor<2, dim> > strain;
+		std::vector<dealii::SymmetricTensor<2, dim> > local_eigenstrain;
+		dealii::SymmetricTensor<2, dim> total_eigenstrain;
+		dealii::Vector<double> global_displacement;
+		dealii::Vector<double> rhs_load;
+		dealii::Vector<double> rhs_eigenstrain;
+		dealii::Vector<double> system_rhs;
+		dealii::SymmetricTensor<2, dim> external_strain;
+		dealii::SymmetricTensor<2, dim> external_stress;
+		std::vector<dealii::SymmetricTensor<4, dim>> C;
+	};
+
   public:
 
-	LeesEdwards(unsigned int Nx_, unsigned int Ny_);
+	LeesEdwards(unsigned int Nx, unsigned int Ny, ControlMode control_mode = ControlMode::strain);
 	/*!< Constructor.
 	*
 	* @param Nx number of elements in the x-direction
 	* @param Ny number of elements in the y-direction
 	*/
+
+	State get_state() const;
+	/*!< Get the internal state of the solver. This state can be used to revert
+	 * its state at a later stage. */
+
+	void set_state(const State &state);
+	/*!< Set the internal state of the solver. This state can be used to revert
+	 * its state at a later stage. */
+
+	void reassemble_with_new_stiffness(const dealii::SymmetricTensor<4,dim> &input_C);
+	/*!< This function assembles the solver using homogeneous elastic properties
+	 * given by the input stiffness tensor. Its purpose is the variation of the
+	 * global effective elastic properties during a simulatino run. For this
+	 * reason the assembly is optimized to leverage the homogeneity of the
+	 * properties and does not change the current plastic field and applied load.
+	 * The elastic strain and stress are recomputed accordingly using the new elastic
+	 * properties.
+	 * @warning Use this function only if the elastic properties are homogeneous. */
+
+	void set_control_mode(ControlMode control_mode);
+	/*!< Set the control model (stress or strain-controlled). */
+
+
 
 	void setup_and_assembly() override;
 	void add_load_increment(double load_increment) override;
@@ -637,7 +692,7 @@ class LeesEdwards: public Solver<dim>
 	void solve_for_case(
 		const dealii::Vector<double> &rhs, const dealii::Vector<double> &global_displacement);
 	/*!< Solve the FEM problem using the external load defined by
-	 * \ref active_loading_mode. */
+	 * @ref active_loading_mode. */
 
 	virtual void clear_impl() override;
 	virtual void solve_impl() override;
@@ -709,7 +764,7 @@ class LeesEdwards: public Solver<dim>
 	 * the external load. */
 
 	dealii::SparsityPattern sparsity_pattern;
-	/*!< Object storing which elements of the \ref system_matrix are nonzero.
+	/*!< Object storing which elements of the @ref system_matrix are nonzero.
 	 * See
 	 * <a href="https://www.dealii.org">deal.II</a>.*/
 
@@ -726,7 +781,7 @@ class LeesEdwards: public Solver<dim>
 
 	std::map<std::string, SolutionToUnitLoad> solution_to_loads;
 	/*!< Solution for an external unit load under different loading modes (this
-	 * includes the \ref global_displacement, \ref rhs_load and the elastic
+	 * includes the @ref global_displacement, @ref rhs_load and the elastic
 	 * fields). The available modes are "xy" (pure shear with direction xy);
 	 * "xx" (tension with direction x); "yy" (tension with direction y). Since
 	 * we are using linear elasticity, the solution for any other load value
@@ -736,26 +791,103 @@ class LeesEdwards: public Solver<dim>
 	dealii::SymmetricTensor<4, dim> global_C_eff;
 	/*!< System-scale effective stiffness*/
 
+	dealii::SymmetricTensor<2, dim> external_stress;
+	/*<! External stress. */
+
 	dealii::SymmetricTensor<2, dim> external_strain;
-	/*<! Externally imposed strain. */
+	/*<! External strain. */
+
+	ControlMode control_mode;
+	/*<! Defines the controlled mode (stress or strain). */
+
 };
 
 
 template<int dim>
-LeesEdwards<dim>::LeesEdwards(unsigned int Nx_, unsigned int Ny_)
+LeesEdwards<dim>::LeesEdwards(unsigned int Nx_, unsigned int Ny_, ControlMode control_mode_)
 	:
-	Solver<dim>(Nx_, Ny_)
+	Solver<dim>(Nx_, Ny_),
+	control_mode(control_mode_)
 {
-	solution.reinit(dof_handler.n_dofs());
 	global_displacement.reinit(dof_handler.n_dofs());
 	rhs_eigenstrain.reinit(dof_handler.n_dofs());
 	rhs_load.reinit(dof_handler.n_dofs());
 	system_rhs.reinit(dof_handler.n_dofs());
 	active_loading_mode = "xy";
-
-	impl::make_element_maps<dim>(*this);
-	impl::average_shape_function_gradients<dim>(*this);
 };
+
+
+template<int dim>
+typename LeesEdwards<dim>::State LeesEdwards<dim>::get_state() const
+{
+	State state;
+	state.load = load;
+	state.solution = solution;
+	state.elastic_strain = elastic_strain;
+	state.stress = stress;
+	state.deformation_gradient = deformation_gradient;
+	state.strain = strain;
+	state.local_eigenstrain = local_eigenstrain;
+	state.total_eigenstrain = total_eigenstrain;
+	state.C = C;
+	state.global_displacement = global_displacement;
+	state.rhs_load = rhs_load;
+	state.rhs_eigenstrain = rhs_eigenstrain;
+	state.system_rhs = system_rhs;
+	state.external_strain = external_strain;
+	state.external_stress = external_stress;
+
+	return state;
+}
+
+template<int dim>
+void LeesEdwards<dim>::set_state(const LeesEdwards<dim>::State &state)
+{
+	load = state.load;
+	solution = state.solution;
+	elastic_strain = state.elastic_strain;
+	stress = state.stress;
+	deformation_gradient = state.deformation_gradient;
+	strain = state.strain;
+	local_eigenstrain = state.local_eigenstrain;
+	total_eigenstrain = state.total_eigenstrain;
+	C = state.C;
+	global_displacement = state.global_displacement;
+	rhs_load = state.rhs_load;
+	rhs_eigenstrain = state.rhs_eigenstrain;
+	system_rhs = state.system_rhs;
+	external_strain = state.external_strain;
+	external_stress = state.external_stress;
+}
+
+
+template<int dim>
+void LeesEdwards<dim>::set_control_mode(ControlMode control_mode_)
+{
+	unsigned int i, j;
+	loading_mode_components(i, j);
+
+	if(control_mode == control_mode_)
+	{
+		return;
+	}
+	else if(control_mode == ControlMode::strain)
+	{
+		// displacement is changed by traction
+		load = external_stress[i][j];
+	}
+	else if(control_mode == ControlMode::stress)
+	{
+		// traction is changed by displacement
+		load = external_strain[i][j];
+	}
+	else
+	{
+		abort();
+	}
+
+	control_mode = control_mode_;
+}
 
 
 template<int dim>
@@ -800,9 +932,6 @@ void LeesEdwards<dim>::assemble_external_strain_load(
 template<int dim>
 void LeesEdwards<dim>::setup_and_assembly()
 {
-	assert(
-		active_loading_mode == "xx" or active_loading_mode == "yy" or active_loading_mode == "xy");
-
 	// create PBC constraints and fix left-bottom node to avoid
 	// rigid body motions
 	constraints.clear();
@@ -815,6 +944,7 @@ void LeesEdwards<dim>::setup_and_assembly()
 
 
 	// assemble FEM system
+	system_matrix.clear();
 	dealii::DynamicSparsityPattern dsp(dof_handler.n_dofs(), dof_handler.n_dofs());
 	dealii::DoFTools::make_sparsity_pattern(dof_handler, dsp, constraints, true);
 	sparsity_pattern.copy_from(dsp);
@@ -845,70 +975,121 @@ void LeesEdwards<dim>::setup_and_assembly()
 
 	impl::assemble_unitary_eigenstrains<dim>(*this);
 
+	// within this call the solution to the unitary load is computed (this is
+	// a fundamental step)
+
 	already_assembled = true;
 
+	compute_global_effective_stiffness();
 
-	// compute the solution to the unitary loads under the 3 different
-	// loading modes considered. The solution to the external load is not
-	// trivial event if we impose homogeneous loadings since elastic
-	// heterogeneities can be present
+	// after assembling the system, the loading mode is set to pure shear xy
+	active_loading_mode = "xy";
+}
+
+
+template<int dim>
+void LeesEdwards<dim>::reassemble_with_new_stiffness(const dealii::SymmetricTensor<4,dim> &input_C)
+{
+	for(unsigned int element = 0; element < triangulation.n_cells(); ++element)
+		Solver<dim>::set_elastic_properties(element, input_C);
+
+	/* ------ stiffness matrix assembly ------*/
+
+	if(not already_assembled)
+	{
+		constraints.clear();
+		std::vector<double> node = {0., 0.};
+		impl::fix_node<dim>(node, 0, constraints, *this);
+		impl::fix_node<dim>(node, 1, constraints, *this);
+		dealii::DoFTools::make_periodicity_constraints(dof_handler, 0, 1, 0, constraints);
+		dealii::DoFTools::make_periodicity_constraints(dof_handler, 2, 3, 1, constraints);
+		constraints.close();
+
+		dealii::DynamicSparsityPattern dsp(dof_handler.n_dofs(), dof_handler.n_dofs());
+		dealii::DoFTools::make_sparsity_pattern(dof_handler, dsp, constraints, true);
+		sparsity_pattern.copy_from(dsp);
+	}
+
+	system_matrix.clear();
+	system_matrix.reinit(sparsity_pattern);
+
+	dealii::FEValues<dim> fe_values(fe, quadrature_formula,
+									dealii::update_values | dealii::update_gradients |
+									dealii::update_quadrature_points | dealii::update_JxW_values);
+	const unsigned int dofs_per_cell = fe.dofs_per_cell;
+	std::vector<dealii::SymmetricTensor<2, dim> > symmetric_gradient(dofs_per_cell);
+
+	// assembly only one cell of the FEM system, and use it to assemble the rest
+	unsigned int element = 0;
+	impl::assemble_cell_system_matrix(element_to_cell[element], fe_values,
+									  cell_matrix_assembly_data[element], symmetric_gradient,
+									  C[element], *this);
+
+	// copy here because it will be used when we copy the assembly into patch solver
+	for(unsigned int element = 1; element < triangulation.n_cells(); ++element)
+		cell_matrix_assembly_data[element] = cell_matrix_assembly_data[0];
+
+	std::vector<dealii::types::global_dof_index> local_dof_indices(dofs_per_cell);
+	typename dealii::DoFHandler<dim>::active_cell_iterator cell;
+	for(cell = dof_handler.begin_active(); cell != dof_handler.end(); ++cell, ++element)
+	{
+		cell->get_dof_indices(local_dof_indices);
+		constraints.distribute_local_to_global(cell_matrix_assembly_data[0],
+											   local_dof_indices, system_matrix);
+	}
+
+	A_direct.initialize(system_matrix);
+
+
+	/* ------ eigenstrain RHS assembly ------*/
+
+	impl::assemble_unitary_eigenstrains_unique<dim>(*this);
+
+
+	/* ------ external load RHS assembly ------*/
+
 	dealii::Vector<double> displacement, rhs;
+	dealii::SymmetricTensor<2,dim> external_strain__;
 	{
-		external_strain.clear();
-		external_strain[0][0] = 1;
-		assemble_external_strain_load(external_strain, displacement, rhs);
+		external_strain__[0][1] = 1; // meaning of load value
+		assemble_external_strain_load(external_strain__, displacement, rhs);
 
 		SolutionToUnitLoad solution_to_load;
 		solution_to_load.displacement = displacement;
 		solution_to_load.rhs = rhs;
-		solution_to_load.unit_external_strain = external_strain;
-
-		solve_for_case(rhs, displacement);
-		solution_to_load.stress = stress;
-		solution_to_load.elastic_strain = elastic_strain;
-		solution_to_loads["xx"] = solution_to_load;
-		clear();
-	}
-	{
-		external_strain.clear();
-		external_strain[1][1] = 1;
-		assemble_external_strain_load(external_strain, displacement, rhs);
-
-		SolutionToUnitLoad solution_to_load;
-		solution_to_load.displacement = displacement;
-		solution_to_load.rhs = rhs;
-		solution_to_load.unit_external_strain = external_strain;
-
-		solve_for_case(rhs, displacement);
-		solution_to_load.stress = stress;
-		solution_to_load.elastic_strain = elastic_strain;
-		solution_to_loads["yy"] = solution_to_load;
-		clear();
-	}
-	{
-		external_strain.clear();
-		external_strain[0][1] = 1; // meaning of load value
-		assemble_external_strain_load(external_strain, displacement, rhs);
-
-		SolutionToUnitLoad solution_to_load;
-		solution_to_load.displacement = displacement;
-		solution_to_load.rhs = rhs;
-		solution_to_load.unit_external_strain = external_strain;
+		solution_to_load.unit_external_strain = external_strain__;
 
 		solve_for_case(rhs, displacement);
 		solution_to_load.stress = stress;
 		solution_to_load.elastic_strain = elastic_strain;
 		solution_to_loads["xy"] = solution_to_load;
-		clear();
 	}
 
-	// we use the solutions to the 3 indep. loading modes to compute the global
-	// effective stifness
-	compute_global_effective_stiffness();
+
+	/* ------ set the right solver state ------*/
 
 	// after assembling the system, the loading mode is set to pure shear xy
 	active_loading_mode = "xy";
-	external_strain.clear();
+
+	// we want to change the elastic properties and recompute the elastic fields
+	// using the same eigenstrain and external loads that were already present
+	auto &rhs_unit_load = solution_to_loads.at(active_loading_mode).rhs;
+	auto &global_displacement_unit_load = solution_to_loads.at(active_loading_mode).displacement;
+	for(unsigned int i = 0; i < solution.size(); ++i)
+	{
+		rhs_load[i] = load * rhs_unit_load[i];
+		global_displacement[i] = load * global_displacement_unit_load[i];
+	}
+
+	rhs_eigenstrain.reinit(rhs_eigenstrain.size());
+	for(unsigned int element = 0; element < triangulation.n_cells(); ++element)
+		impl::add_eigenstrain<dim>(element, local_eigenstrain[element], rhs_eigenstrain,
+		constraints, *this);
+
+	solve();
+
+
+	already_assembled = true;
 }
 
 
@@ -937,13 +1118,36 @@ void LeesEdwards<dim>::add_load_increment(double load_increment)
 {
 	M_Assert(already_assembled, "");
 
+	// the solver is implemented using strain-controlled conditions, however after it
+	// has been assembled, we can also do stress-controlled since we know the global effective
+	// stiffness. To do this, we will compute a strain-equivalent load, which is the one that we
+	// will use for computing rhs_load and global_displacement. If we use strain controleld
+	// conditions, the strain-equivalent load is simply the load
+
+	load += load_increment;
+
 	// depending on the active loading mode, we must update a certain component
 	// of the applied external strain
 	unsigned int i, j;
 	loading_mode_components(i, j);
-	external_strain[i][j] += load_increment;
 
-	load += load_increment;
+	dealii::SymmetricTensor<2,dim> external_strain_incr;
+	dealii::SymmetricTensor<2,dim> external_stress_incr;
+
+	if(control_mode == ControlMode::strain)
+	{
+		external_strain_incr[i][j] = load_increment;
+		external_stress_incr = global_C_eff * external_strain_incr;
+	}
+	else
+	{
+		external_stress_incr[i][j] = load_increment;
+		external_strain_incr = dealii::invert(global_C_eff) * external_stress_incr;
+	}
+
+	external_strain += external_strain_incr;
+	external_stress += external_stress_incr;
+	double eq_strain_load_increment = external_strain_incr[i][j];
 
 	// the rhs and global displacement are updated using the solution to the
 	// unit load problem for the active loading mode
@@ -952,8 +1156,8 @@ void LeesEdwards<dim>::add_load_increment(double load_increment)
 
 	for(unsigned int i = 0; i < solution.size(); ++i)
 	{
-		rhs_load[i] += load_increment * rhs_unit_load[i];
-		global_displacement[i] += load_increment * global_displacement_unit_load[i];
+		rhs_load[i] += eq_strain_load_increment * rhs_unit_load[i];
+		global_displacement[i] += eq_strain_load_increment * global_displacement_unit_load[i];
 	}
 }
 
@@ -986,6 +1190,11 @@ void LeesEdwards<dim>::solve_for_case(
 		solution[i] += global_displacement[i];
 
 	impl::calculate_strain<dim>(solution, *this);
+
+	if(control_mode == ControlMode::stress)
+		for(unsigned int element=0; element < triangulation.n_active_cells(); ++element)
+			strain[element] += total_eigenstrain / double(triangulation.n_active_cells());
+
 	impl::calculate_stress<dim>(*this);
 }
 
@@ -993,7 +1202,65 @@ void LeesEdwards<dim>::solve_for_case(
 template<int dim>
 void LeesEdwards<dim>::compute_global_effective_stiffness()
 {
-	// local tensor in each finite element, obtained with 3 different loading modes
+	// compute the solution to the unitary loads under the 3 different
+	// loading modes considered. The solution to the external load is not
+	// trivial even if we impose homogeneous loadings since elastic
+	// heterogeneities can be present. Use the solutions to those loading
+	// modes to compute the global effective stiffness. Those solutions
+	// are stored and will be used to solve other problems when calling
+	// solve()
+
+	dealii::SymmetricTensor<2,dim> external_strain__;
+	dealii::Vector<double> displacement, rhs;
+	{
+		external_strain__.clear();
+		external_strain__[0][0] = 1;
+		assemble_external_strain_load(external_strain__, displacement, rhs);
+
+		SolutionToUnitLoad solution_to_load;
+		solution_to_load.displacement = displacement;
+		solution_to_load.rhs = rhs;
+		solution_to_load.unit_external_strain = external_strain__;
+
+		solve_for_case(rhs, displacement);
+		solution_to_load.stress = stress;
+		solution_to_load.elastic_strain = elastic_strain;
+		solution_to_loads["xx"] = solution_to_load;
+		clear();
+	}
+	{
+		external_strain__.clear();
+		external_strain__[1][1] = 1;
+		assemble_external_strain_load(external_strain__, displacement, rhs);
+
+		SolutionToUnitLoad solution_to_load;
+		solution_to_load.displacement = displacement;
+		solution_to_load.rhs = rhs;
+		solution_to_load.unit_external_strain = external_strain__;
+
+		solve_for_case(rhs, displacement);
+		solution_to_load.stress = stress;
+		solution_to_load.elastic_strain = elastic_strain;
+		solution_to_loads["yy"] = solution_to_load;
+		clear();
+	}
+	{
+		external_strain__.clear();
+		external_strain__[0][1] = 1; // meaning of load value
+		assemble_external_strain_load(external_strain__, displacement, rhs);
+
+		SolutionToUnitLoad solution_to_load;
+		solution_to_load.displacement = displacement;
+		solution_to_load.rhs = rhs;
+		solution_to_load.unit_external_strain = external_strain__;
+
+		solve_for_case(rhs, displacement);
+		solution_to_load.stress = stress;
+		solution_to_load.elastic_strain = elastic_strain;
+		solution_to_loads["xy"] = solution_to_load;
+		clear();
+	}
+
 	auto &stress_a = solution_to_loads["xx"].stress;
 	auto &strain_a = solution_to_loads["xx"].elastic_strain;
 
@@ -1068,6 +1335,11 @@ void LeesEdwards<dim>::loading_mode_components(unsigned int &i, unsigned int &j)
 template<int dim>
 double LeesEdwards<dim>::get_external_stress()
 {
+	// since the load imposes homogeneous elastic fields, we can compute the
+	// external stress as the average over the system, instead of on the
+	// loaded surface. When the system is traction controlled, the external
+	//stress is the load, but when it is displacement controlled we must compute it
+
 	unsigned int i, j;
 	loading_mode_components(i, j);
 
@@ -1084,11 +1356,22 @@ double LeesEdwards<dim>::get_external_stress()
 template<int dim>
 double LeesEdwards<dim>::get_total_strain()
 {
-	// since it is strain-controlled, the total strain is what we imposed.
-	// Instead of returning the external_strain tensor, we return the load,
-	// which corresponds to the relevant component (e.g., for the pure shear xy
-	// mode, we return the xy component, whose value is the current load)
-	return load;
+	// since the load imposes homogeneous elastic fields, we can compute the
+	// total strain as the average over the system, instead of on the
+	// loaded surface. When the system is displacement controlled, the total
+	// strain is the load, but when it is traction controlled we must compute it
+	// taking into account the eigenstrain
+
+	unsigned int i, j;
+	loading_mode_components(i, j);
+
+	// compute the external stress as the average stress of the relevant
+	// stress tensor component (depending on the active loading mode)
+	double S = 0.;
+	for(unsigned int n = 0; n < strain.size(); ++n)
+		S += strain[n][i][j];
+
+	return S / double(strain.size());
 };
 
 
@@ -1100,33 +1383,38 @@ void LeesEdwards<dim>::clear_impl()
 	rhs_load.reinit(dof_handler.n_dofs());
 	global_displacement.reinit(dof_handler.n_dofs());
 	external_strain.clear();
+	external_stress.clear();
 }
 
 
-/* This solver computes elastic fields with non-periodic boundary conditions in
- * patch systems that represent subsets of the material domain. The
- * external loading conditions are pure shear with an amplitude and orientation
- * that can be varied by the user. The system is driven under strain-controlled
- * conditions. */
+/*! @class mepls::elasticity_solver::ShearBoundary
+ * @brief This solver computes elastic fields with non-periodic boundary conditions under
+ * an external applied shear strain. The amplitude of the shear strain and its orientation can be
+ * controlled by the user
+ * @note this solver is designed to operate on patches (see @ref mepls::patches), but can be used
+ * on full systems as any other solver, since it inherits from @ref
+ * mepls::elasticity_solver::Solver<dim>.
+  */
 template<int dim>
 class ShearBoundary: public Solver<dim>
 {
 
-	/*! This class provides the values of the displacements that induce a shear
+	/*! @class mepls::elasticity_solver::ShearBoundary::ShearBoundaryFunc
+	 * @brief This class provides the values of the displacements that induce a shear
 	 * strain along the orientation theta. */
 	class ShearBoundaryFunc: public dealii::Function<dim>
 	{
 	  public:
-		ShearBoundaryFunc(double load_ = 1., double theta_ = 0.)
+		ShearBoundaryFunc(double load = 1., double theta = 0.)
 			:
 			dealii::Function<dim>(2)
 		{
-			/*! Constructur.
+			/*! Constructor.
 			 *
-			 * @params load_ set the amplitude of the shear strain.
-			 * @params theta_ set the orientation of the shear strain.  */
+			 * @param load set the amplitude of the shear strain.
+			 * @param theta set the orientation of the shear strain.  */
 
-			set_shear(load_, theta_);
+			set_shear(load, theta);
 		}
 
 		void vector_value(const dealii::Point<dim> &p, dealii::Vector<double> &value) const
@@ -1140,8 +1428,8 @@ class ShearBoundary: public Solver<dim>
 
 		void set_shear(double load_, double theta_)
 		{
-			/*! Create the strain tensor from its amplitude \ref load and
-			 * shear orientation \ref theta. */
+			/*! Create the strain tensor from its amplitude @ref load and
+			 * shear orientation @ref theta. */
 
 			load = load_;
 			theta = theta_;
@@ -1206,7 +1494,7 @@ class ShearBoundary: public Solver<dim>
 	/*!< Force at each degree of freedom induced by the external loading. */
 
 	dealii::SparsityPattern sparsity_pattern;
-	/*!< Object storing which elements of the \ref system_matrix are nonzero.
+	/*!< Object storing which elements of the @ref system_matrix are nonzero.
 	 * See <a href="https://www.dealii.org">deal.II</a>.*/
 
 	dealii::SparseDirectUMFPACK A_direct;
@@ -1261,7 +1549,7 @@ class ShearBoundary: public Solver<dim>
 		unsigned int element, const dealii::SymmetricTensor<2, dim> &eigenstrain);
 
 	void perform_matrix_assembly_with_existing_data(std::vector<dealii::FullMatrix<double>> &cell_matrix_assembly_data);
-	/*!< Assemble the FEM stiffness matix \ref system_matrix using the input
+	/*!< Assemble the FEM stiffness matix @ref system_matrix using the input
 	 * assembly data. */
 };
 
@@ -1275,13 +1563,6 @@ ShearBoundary<dim>::ShearBoundary(unsigned int Nx_, unsigned int Ny_)
 
 	system_rhs.reinit(dof_handler.n_dofs());
 	rhs_unit_load.reinit(dof_handler.n_dofs());
-
-	const unsigned int dofs_per_cell = fe.dofs_per_cell;
-	cell_matrix_assembly_data.resize(triangulation.n_active_cells(),
-									 dealii::FullMatrix<double>(dofs_per_cell, dofs_per_cell));
-
-	impl::make_element_maps<dim>(*this);
-	impl::average_shape_function_gradients<dim>(*this);
 }
 
 

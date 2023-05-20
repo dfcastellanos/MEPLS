@@ -14,27 +14,16 @@
 
 #include <deal.II/base/symmetric_tensor.h>
 
+#include <mepls/slip.h>
 #include <mepls/utils.h>
+#include <mepls/history.h>
 
+/*! @namespace mepls
+ * @brief 
+ * The top level namespace of MEPLS. Here are contained all the namespaces and classes belonging
+ * to MEPLS. */
 namespace mepls
 {
-
-namespace element
-{
-template<int dim>
-class Element;
-
-template<int dim> using Vector = typename std::vector<Element<dim> *>;
-}
-
-namespace event
-{
-template<int dim>
-class RenewSlip;
-
-template<int dim>
-class Plastic;
-}
 
 namespace elasticity_solver
 {
@@ -42,141 +31,23 @@ template<int dim>
 class Solver;
 }
 
-/*! This namespace contains the abstract slip class slip::Slip, which servers as
- * the interface for slip objects. Slip objects contain the physics of the
- * activation of slip system within mesoscale elements (see \ref element). */
-namespace slip
-{
-
-/*! Slip objects contain the physics of the activation of the slip system within
- * mesoscale elements. This abstract class provides an interface for the slip
- * objects and specific activation rules are implemented in derived classes.
- * Essentially, slip systems are defined by a slip plane, an effective shear
- * stress on that plane, and the critical effective shear stress known as the
- * threshold that defines when the system becomes mechanically activated. The
- * interplay between these quantities is implemented by derived classes.
- *
- * @note this class defines only the slip activation rules but **does not**
- * represent an active slip event, which is represented by event::Plastic.
- */
-template<int dim>
-class Slip
-{
-  public:
-
-	Slip()
-		:
-		eff_shear_stress(0.),
-		pressure(0.),
-		threshold(0.),
-		barrier(0.),
-		activation_rate(0.),
-		angle(0.)
-	{
-		/*! Constructor. Initialize members zero. */
-	}
-
-	virtual ~Slip()
-	{
-		/*! Virtual destructor. */
-	}
-
-	virtual void update() = 0;
-	/*!< Update the state of the slip object using on the state of the parent
-	 * mesoscale element, \ref parent. */
-
-	virtual double get_critical_load_increment() = 0;
-	/*!< Calculate the necessary external load increment needed to make the slip
-	 * activation barrier vanish. */
-
-	virtual dealii::SymmetricTensor<2, dim> get_eigenstrain_increment() = 0;
-
-	/*!< Calculate the plastic strain increment tensor that represents, at the
-	 * mesoscale, the local deformation induced by the slip event. */
-
-	virtual Slip<dim> *make_copy()
-	{
-		/*! Return a pointer to a dynamically allocated copy of the slip object.
-		 * The dynamic type of the object is that of the derived class.
-		 *
-		 * @warning the user is responsible for deleting the allocated copy. */
-
-		M_Assert(false, "make_copy() not implemented for the current slip object.");
-	}
-
-	double eff_shear_stress;
-	/*!< Effective shear stress \f$ \tau \f$ in the slip system. It is
-	 * responsible for lowering the slip activation barrier, \ref barrier. */
-
-	double pressure;
-	/*!< Hydrostatic pressure, computed from the parent element stress tensor
-	 * element::\ref stress_ as
-	 * \f$ p = \frac{1}{dim}\textrm{tr}( \boldsymbol{\Sigma} )\f$.
-	 *
-	 * @note the pressure is the same for all the slip objects contained within
-	 * the same parent element, since the pressure is anisotropic and only a
-	 * single stress tensor per element is considered. */
-
-	double threshold;
-	/*!< Local yield threshold \f$ \hat{\tau} \f$, i.e. the effective shear
-	 * stress \ref eff_shear_stress necessary for a slip system to become
-	 * mechanically unstable. */
-
-	double barrier;
-	/*!< Stress barrier \f$ \hat{\tau} - \tau \f$ neccesary to be overcome
-	 * before the slip system becomes mechanically activated. */
-
-	double activation_rate;
-	/*!< Rate \f$ \nu \f$ for thermal slip activation. */
-
-	double angle;
-	/*!< Orientation of the slip plane (in radians). */
-
-	element::Element<dim> *parent;
-	/*!< Parent mesoscale element element::Element to which the slip object
-	 * belongs. When the state of the slip oject is updated via \ref update(),
-	 * this element is accessed.
-	 *
-	 * @warning parent elements contain pointers to the owned slip objects, thus
-	 * deletion of slips objects must be done carefully. Usually, allocation and
-	 * deletion of slip objects is only done within the implementation of
-	 * element::Element objects. */
-};
-
-} // namespace slip
-
-
-/*! Element objects represent mesoscale regions of a material. This namespace
- * contains the abstract element class element::Element, which serves as the
- * interface for different element objects. It also contains free functions
- * extending its interface */
+/*! @namespace mepls::element
+ * @brief 
+ * This namespace contains the abstract element class element::Element, which serves as
+ * a common interface for the element classes that represent specific material microstrucures. 
+ * (see @ref Background, and e.g., @cite DFCastellanos_CRP @cite FernandezCastellanos2019 
+ * @cite nicolas_deformation_2018)*/
 namespace element
 {
 
-/*! This struct carries the information about how the microstructural properties
- * must be renewed within a mesoscale element after a slip event has taken
- * place within that element. */
-template<int dim>
-struct RenewInstruct
-{
-	bool slip_properties = true;
-	/*!< Renew the slip systems owned by the element. */
-
-	bool elastic_properties = false;
-	/*!< Renew the elastic properties of the element. */
-
-	event::Plastic<dim> plastic_event;
-	/*!< Plastic event responsible of the change of microstructural properties.
-	 * Its details, such as, e.g., the amplitude of the plastic deformation, can
-	 * be taken into account during the renewal process. */
-};
-
-
-/*! Element objects represent local mesoscale regions of a material. The state
- * of an element is defined by continuum mechanics magnitudes (stress, strain
+/*! @class mepls::element::Element
+ * @brief The Element class represent local mesoscale regions of a material. The
+ *  state of an element is defined by continuum mechanics magnitudes (stress, strain
  * and eigenstrain tensors) and slip systems present in the represented mesoscale
- * region. Each element has associated a single tensor for each magnitude. The
- * behavior of the slip systems (defined by objects of class slip::Slip) define
+ * region. 
+ * 
+ * Each element has associated a single tensor for each magnitude.
+ * The behavior of the slip systems (defined by objects of class slip::Slip) define
  * the plastic response of an element. The local element microstructural
  * properties are defined by the element's elastic properties and the existing
  * slip systems. Although from a physical perspective, each mesocale element has
@@ -186,11 +57,8 @@ struct RenewInstruct
  * material discretized in a lattice of mesoscale elements can be represented
  * as a 1D vector of element objects, while spatial information is present only
  * during the  computation of the elastic fields, which is performed outside
- * the element objects.
- *
- * This abstract class provides an interface for element objects and specific
- * implementations are defined by derived classes. */
-
+ * the element objects. This class serves as a common interface for the element classes.
+ * that represent specific material microstructures. */
 template<int dim>
 class Element
 {
@@ -199,9 +67,7 @@ class Element
 	Element()
 	{
 		/*! Constructor. Initialize the default values of the class members. */
-		integrated_vm_eigenstrain_ = 0.;
-		S_already_is_set = false;
-		ext_stress_coeff_is_set = false;
+
 		this->type("element");
 	}
 
@@ -228,44 +94,33 @@ class Element
 		}
 	}
 
-	void renew_structural_properties(RenewInstruct<dim> &renew_instruct)
+	void renew_structural_properties(mepls::event::Plastic<dim> &plastic_event)
 	{
 		/*! Renew the structural properties of the element (e.g., renewing slip
 		 * thresholds, slip angles, elastic properties, etc.). Specific renewal
-		 * rules are defined in derived classes by implementing \ref
+		 * rules are defined in derived classes by implementing @ref
 		 * renew_structural_properties_impl. The input RenewInstruct object
 		 * carries information that might be taken into account when renewing
 		 * the properties. */
 
-		renew_structural_properties_impl(renew_instruct);
+		renew_structural_properties_impl(plastic_event);
 	}
 
 	void renew_structural_properties()
 	{
-		/*! Overloaded version of \ref renew_structural_properties which, for
+		/*! Overloaded version of @ref renew_structural_properties which, for
 		 * conviniency, takes no input. It wraps the original function and
 		 * passes to it a default-initialised RenewInstruct object. */
 
-		RenewInstruct<dim> renew_instruct;
-		renew_structural_properties(renew_instruct);
+		mepls::event::Plastic<dim> plastic_event;
+		renew_structural_properties(plastic_event);
 	}
 
-	virtual void renew_structural_properties_impl(RenewInstruct<dim> &renew_instruct) = 0;
+	virtual void renew_structural_properties_impl(mepls::event::Plastic<dim> &plastic_event) = 0;
 
 	/*!< Define how the element slip and elastic properties are to be renewed
-	 * when \ref renew_structural_properties is called. This abstract function
+	 * when @ref renew_structural_properties is called. This abstract function
 	 * is to be implemented by derived classes. */
-
-	virtual mepls::element::Element<dim> *make_copy_impl()
-	{
-		/*! Specify how the members of a derived element class must be copied
-		 * when \ref make_copy is called. */
-
-		M_Assert(false, "Copying of the current type of element not implemented.");
-
-		abort();
-	}
-
 
 	mepls::element::Element<dim> *make_copy()
 	{
@@ -274,33 +129,50 @@ class Element
 		 *
 		 * @warning the user is responsible for deleting the allocated copy. */
 
-		mepls::element::Element<dim> *element_copy = make_copy_impl();
+		return make_copy_impl();
+	}
 
-		element_copy->C(C_);
-		element_copy->S(S_);
-		element_copy->eigenstrain(eigenstrain_);
-		element_copy->integrated_vm_eigenstrain(integrated_vm_eigenstrain_);
-		element_copy->ext_stress_coeff(ext_stress_coeff_);
-		element_copy->prestress(prestress_);
-		element_copy->elastic_stress(elastic_stress_);
-		element_copy->def_grad(def_grad_);
-		element_copy->type(type_);
-		element_copy->number(number_);
+	void make_copy(mepls::element::Element<dim> * input_element)
+	{
+		/*! Copy member-wise the full state of the input element. */
 
-		for(auto &slip : *this)
-			element_copy->add_slip_system(slip->make_copy());
+		eigenstrain_ = input_element->eigenstrain_;
+		integrated_vm_eigenstrain_ = input_element->integrated_vm_eigenstrain_;
+		prestress_ = input_element->prestress_;
+		elastic_stress_ = input_element->elastic_stress_;
+		stress_ = input_element->stress_;
+		def_grad_ = input_element->def_grad_;
+		S_ = input_element->S_;
+		J_ = input_element->J_;
+		C_ = input_element->C_;
+		ext_stress_coeff_ = input_element->ext_stress_coeff_;
+		energy_el_ = input_element->energy_el_;
+		energy_conf_ = input_element->energy_conf_;
+		energy_ = input_element->energy_;
+		number_ = input_element->number_;
+		type_ = input_element->type_;
+		S_already_is_set = input_element->S_already_is_set;
+		ext_stress_coeff_is_set = input_element->ext_stress_coeff_is_set;
 
-		return element_copy;
+		// The slip_systems vector cannot be just copied since it contains pointers.
+		// What we do is create copies of the input element slip objects and fill this
+		// element with them. The element might have slips already since they might
+		// be added by default when the object is created. To make sure the state
+		// is exactly the same as in the input element, firtst we remove
+		// exisint slips.
+		remove_slip_systems();
+		for(auto &slip : *input_element)
+			this->add_slip_system( slip->make_copy() );
 	}
 
 	void add_eigenstrain(const dealii::SymmetricTensor<2, dim> &eigenstrain_increment)
 	{
 		/*! Add an eigenstrain increment
 		 * \f$ \Delta\boldsymbol{\epsilon}_{\rm pl} \f$ to the element. Thus,
-		 * the element's eigenstrain \ref eigenstrain_ is updated as
+		 * the element's eigenstrain is updated as
 		 * \f$ \boldsymbol{\epsilon}_{\rm pl} +=
 		 * \Delta \boldsymbol{\epsilon}_{\rm pl}\f$ and the integrated von Mises
-		 * eigenstrain \ref integrated_vm_eigenstrain_ as \f$ \epsilon_{\rm VM}
+		 * eigenstrain as \f$ \epsilon_{\rm VM}
 		 * += \sqrt{\frac{1}{2} \Delta \boldsymbol{\epsilon}^{\prime}_{\rm pl}:
 		 * \Delta \boldsymbol{\epsilon}^{\prime}_{\rm pl}} \f$, where primed
 		 * magnitudes refer to deviatoric tensors. */
@@ -309,32 +181,50 @@ class Element
 		integrated_vm_eigenstrain_ += utils::get_von_mises_equivalent_strain(eigenstrain_increment);
 	}
 
-	double integrated_vm_eigenstrain() const
-	{
-		/*! Return the value of the integrated von Mises eigenstrain
-		 * \ref integrated_vm_eigenstrain_. */
-
-		return integrated_vm_eigenstrain_;
-	}
-
 	const dealii::SymmetricTensor<2, dim> &eigenstrain() const
 	{
-		/*! Return a reference to the accumlated eigenstrain tensor
-		 * \ref eigenstrain_. */
+		/*! Return the accumlated eigenstrain tensor. */
 
 		return eigenstrain_;
 	}
 
+	void eigenstrain(const dealii::SymmetricTensor<2, dim> &eigenstrain)
+	{
+		/*! Set a new eigenstrain tensor. This calls sets the value of the
+		 * integrated von Mises_eigenstrain using the input eigenstrain tensor. */
+
+		eigenstrain_ = eigenstrain;
+		integrated_vm_eigenstrain_ = utils::get_von_mises_equivalent_strain(eigenstrain_);
+
+	}
+
+	double integrated_vm_eigenstrain() const
+	{
+		/*! Return the integrated von Mises eigenstrain. */
+
+		return integrated_vm_eigenstrain_;
+	}
+
+	void integrated_vm_eigenstrain(double input_integrated_vm_eigenstrain)
+	{
+		/*! Set a new value for integrated von Mises eigenstrain.
+		 * @note in most situations, the user controls the eigenstrain only
+		 * through @ref add_eigenstrain and this function doesn't need
+		 * to be called. */
+
+		integrated_vm_eigenstrain_ = input_integrated_vm_eigenstrain;
+	}
+
 	const dealii::SymmetricTensor<2, dim> &prestress() const
 	{
-		/*! Return a reference to the prestress tensor \ref presstress_. */
+		/*! Return the prestress tensor. */
 
 		return prestress_;
 	}
 
 	void prestress(const dealii::SymmetricTensor<2, dim> &prestress)
 	{
-		/*! Set a new prestress tensor \ref presstress_. The total stress is
+		/*! Set a new prestress tensor. The total stress is
 		 * updated afterwards. */
 
 		prestress_ = prestress;
@@ -344,24 +234,22 @@ class Element
 
 	const dealii::SymmetricTensor<2, dim> &stress() const
 	{
-		/*! Return a reference to the total stress tensor \ref stress_. */
+		/*! Return the total stress tensor. */
 
 		return stress_;
 	}
 
 	const dealii::SymmetricTensor<2, dim> &elastic_stress() const
 	{
-		/*! Return a reference to the elastic stress tensor
-		 * \ref elastic_stress_. */
+		/*! Return the elastic stress tensor. */
 
 		return elastic_stress_;
 	}
 
 	void elastic_stress(const dealii::SymmetricTensor<2, dim> &input_elastic_stress)
 	{
-		/*! Set a new elastic stress tensor \ref elastic_stress_. The total
-		 * stress is updated afterwards as defined
-		 * by \ref update_stress. */
+		/*! Set a new elastic stress tensor. The total stress is updated afterwards as defined
+		 * in @ref update_stress. */
 
 		elastic_stress_ = input_elastic_stress;
 
@@ -370,22 +258,21 @@ class Element
 
 	const dealii::Tensor<2, dim> &def_grad() const
 	{
-		/*! Return a reference to the deformation grandient tensor,
-		 * \ref def_grad_. */
+		/*! Return the deformation grandient tensor. */
 
 		return def_grad_;
 	}
 
 	void def_grad(const dealii::Tensor<2, dim> &input_def_grad)
 	{
-		/*! Set a new deformation gradient tensor, \ref def_grad_. */
+		/*! Set a new deformation gradient tensor. */
 
 		def_grad_ = input_def_grad;
 	}
 
 	void S(const dealii::SymmetricTensor<4, dim> &input_S)
 	{
-		/*! Set a new \ref S_ tensor. */
+		/*! Set a new @ref S_ tensor. */
 
 		S_ = input_S;
 		S_already_is_set = true;
@@ -393,7 +280,7 @@ class Element
 
 	const dealii::SymmetricTensor<4, dim> &S() const
 	{
-		/*! Return a reference to the \ref S_ tensor. */
+		/*! Return the @ref S_ tensor. */
 
 		M_Assert(S_already_is_set, "Local strain coeffs. have not been set yet");
 
@@ -402,23 +289,33 @@ class Element
 
 	void C(const dealii::SymmetricTensor<4, dim> &input_C)
 	{
-		/*! Set a new \ref C_ tensor. */
+		/*! Set a new stiffness tensor. */
 
 		C_ = input_C;
 
-		update_stress();
+		J_ = dealii::invert(C_);
+
+		// the elastic energy depends on C
+		update_energy();
 	}
 
 	const dealii::SymmetricTensor<4, dim> &C() const
 	{
-		/*! Return a reference to the \ref C_ tensor. */
+		/*! Return the stiffness tensor. */
 
 		return C_;
 	}
 
+	const dealii::SymmetricTensor<4, dim> &J() const
+	{
+		/*! Return the compliance tensor. */
+
+		return J_;
+	}
+
 	const dealii::SymmetricTensor<2, dim> &ext_stress_coeff() const
 	{
-		/*! Return a reference to the \ref ext_stress_coeff_ tensor. */
+		/*! Return the @ref ext_stress_coeff_ tensor. */
 
 		M_Assert(ext_stress_coeff_is_set, "Ext. stress coeffs. have not been set yet");
 
@@ -427,7 +324,7 @@ class Element
 
 	void ext_stress_coeff(const dealii::SymmetricTensor<2, dim> &ext_stress_coeff)
 	{
-		/*! Set a new \ref ext_stress_coeff_ tensor. */
+		/*! Set a new @ref ext_stress_coeff_ tensor. */
 
 		ext_stress_coeff_ = ext_stress_coeff;
 		ext_stress_coeff_is_set = true;
@@ -456,7 +353,7 @@ class Element
 		 *
 		 * @warning the slip objects added to an element must be dynamically
 		 * allocated, since they will be deleted when calling
-		 * \ref remove_slip_systems. */
+		 * @ref remove_slip_systems. */
 
 		// inform the slip object about its parent
 		slip->parent = this;
@@ -480,11 +377,9 @@ class Element
 		slip_systems_.clear();
 	}
 
-	slip::Slip<dim> *operator[](unsigned int n)
+	slip::Slip<dim> *slip(unsigned int n)
 	{
-		/*! Return the slip system number n, as stored in \ref slip_systems_.
-		 * It is recommended to accesses slip systems by iterating over the
-		 * element instead of indexing. */
+		/*! Return the slip system number n, as stored in @ref slip_systems_. */
 
 		M_Assert(n < slip_systems_.size(), "");
 
@@ -527,18 +422,47 @@ class Element
 		return type_;
 	}
 
-	void set_zero_deformation()
+	double energy() const
 	{
-		/*! Reset the deformation history of the element, but not its structural
-		 * properties. Thus, eigenstrain, integrated von Mises eigenstrain,
-		 * stress, elastic stress, prestress, and deformation gradient are set
-		 * to 0. The slip system and elastic properties are not modified,
-		 * however, the slip systems are informed about the new parent's stress
-		 * state. */
+		/*! Return the energy of the element. */
+
+		return energy_;
+	}
+
+	double energy_el() const
+	{
+		/*! Return the elastic energy of the element. */
+
+		return energy_el_;
+	}
+
+	double energy_conf() const
+	{
+		/*! Return the configuration energy of the element. */
+
+		return energy_conf_;
+	}
+
+	void energy_conf(const double energy_conf_input)
+	{
+		/*! Set the value of the configurational energy. The total energy
+		 * is updated. */
+
+		energy_conf_ = energy_conf_input;
+
+		update_energy();
+	}
+
+	void state_to_prestress()
+	{
+		/*! Set the current total stress as prestress and clean the rest of
+		 * the deformation history, i.e. the eigenstrain, integrated von Mises
+		 * eigenstrain, elastic stress, and deformation gradient. */
+
+		prestress_ = stress_;
 
 		eigenstrain_.clear();
 		integrated_vm_eigenstrain_ = 0.;
-		prestress_.clear();
 		elastic_stress_.clear();
 		stress_.clear();
 		def_grad_.clear();
@@ -546,17 +470,28 @@ class Element
 		update_stress();
 	}
 
+	void clear_eigenstrain()
+	{
+		/*! Clear the eigenstrain of the element. Its elastic state remains
+		 *  unchanged.
+		 *  @note this calls sets the integrated von Mises eigenstrain to
+		 *  zero. */
+
+		eigenstrain_.clear();
+		integrated_vm_eigenstrain_ = 0.;
+	}
+
   private:
 
 	dealii::SymmetricTensor<2, dim> eigenstrain_;
 	/*!< Eigenstrain \f$ \boldsymbol{\epsilon}_{\rm pl} \f$ of the element. It
 	 * is the acumulation of the eigenstrain increments added with
-	 * \ref add_eigenstrain(). */
+	 * @ref add_eigenstrain(). */
 
-	double integrated_vm_eigenstrain_;
+	double integrated_vm_eigenstrain_ = 0.;
 	/*!< The sum of von Mises eigenstrain increments. The increments are
 	 * computed from each eigenstrain tensorial increment added with
-	 * \ref add_eigenstrain(). */
+	 * @ref add_eigenstrain(). */
 
 	dealii::SymmetricTensor<2, dim> prestress_;
 	/*!< Stress \f$ \boldsymbol{\Sigma}_{\rm 0} \f$ that the element has prior
@@ -590,6 +525,9 @@ class Element
 	 * (\mathbb{E}-\mathbb{I}) \f$, where \f$ \mathbb{I} \f$ is the rank-4
 	 * identity tensor. */
 
+	dealii::SymmetricTensor<4, dim> J_;
+	/*!< The inverse of the rank-4 stiffness tensor (also known as complience). */
+
 	dealii::SymmetricTensor<4, dim> C_;
 	/*!< rank-4 stiffness tensor \f$ \mathbb{C} \f$ characterising the element's
 	 * linear elastic response, i.e., \f$ \boldsymbol{\Sigma}_{\rm el} =
@@ -604,62 +542,74 @@ class Element
 	/*!< Vector containing the pointers to the slip objects owned by the
 	 * element. */
 
-	unsigned int number_;
+	double energy_el_ = 0.;
+	/*!< Elastic energy stored in the element. */
+
+	double energy_conf_ = 0.;
+	/*!< Configurational energy stored in the element. */
+
+	double energy_ = 0.;
+	/*!< Total energy stored in the element. */
+
+	unsigned int number_ = 0;
 	/*!< Element number. */
 
-	std::string type_;
+	std::string type_ = "";
 	/*!< String containing the type of element object.*/
 
-	bool S_already_is_set;
-	/*!< Indicates wheter the \ref S_ tensor has already been set. */
+	bool S_already_is_set = false;
+	/*!< Indicates wheter the @ref S_ tensor has already been set. */
 
-	bool ext_stress_coeff_is_set;
+	bool ext_stress_coeff_is_set = false;
 
 	/*!< Indicates whether the ext_stress_coeff_ tensor has already been set. */
 
+	void update_energy()
+	{
+		/*! Compute the elastic energy using the stress, the stiffness tensor
+		 * and linear elasticity. Compute the total energy as the sum of the
+		 * configurational and the elastic energies. */
+
+		// since the element has, by definition, a length of 1.0, the computed
+		// energy density corresponds also to the energy value
+		energy_el_ =  0.5 * J_ * stress_ * stress_;
+
+		energy_ = energy_conf_ + energy_el_;
+	}
+
 	void update_stress()
 	{
-		/*! Compute the total stres, which is a superposition of the prestress
-		 * and the elastic stress, i.e., \f$ \boldsymbol{\Sigma} =
-		 * \boldsymbol{\Sigma}_{\rm 0} +
-		 * \boldsymbol{\Sigma}_{\rm el}\f$. Afterwards, update the stress state
-		 * of the slip systems owned by the element. */
+		/*! Compute the total stres (which is a superposition of the prestress
+		 * and the elastic stress). Afterwards, update
+		 * the the slip systems owned by the element. */
 
-		stress_ = this->prestress() + this->elastic_stress();
+		stress_ = prestress_ + elastic_stress_;
+
+		update_energy();
 
 		for(auto &slip : *this)
 			slip->update();
 	}
 
-	void eigenstrain(const dealii::SymmetricTensor<2, dim> &eigenstrain)
+	virtual mepls::element::Element<dim> *make_copy_impl()
 	{
-		/*! Set a new eigenstrain tensor. Since the user controls the
-		 * eigenstrain only through \ref add_eigenstrain, this function is only
-		 * used for setting the state of the eigenstrain member when an element
-		 * object is copied. */
+		/*! Dynamically allocate a new object of the derive class type and
+		 * return a pointer to it. */
 
-		eigenstrain_ = eigenstrain;
-	}
+		M_Assert(false, "Copying of the current type of element not implemented.");
 
-	void integrated_vm_eigenstrain(double input_integrated_vm_eigenstrain)
-	{
-		/*! Set a new value for integrated_vm_eigenstrain_. Since the user
-		 * controls the eigenstrain only through \ref add_eigenstrain, this
-		 * function is only used for setting the state of the
-		 * integrated_vm_eigenstrain_ member when a element object is copied. */
-
-		integrated_vm_eigenstrain_ = input_integrated_vm_eigenstrain;
+		abort();
 	}
 };
 
 
 template<int dim>
 void calculate_ext_stress_coefficients(
-	element::Vector<dim> &elements, elasticity_solver::Solver<dim> &solver)
+	std::vector<Element<dim> *> &elements, elasticity_solver::Solver<dim> &solver)
 {
 	/*! Calculate, using the input elasticity solver, the stress variation
 	 * induced in each element by an external load increment of amplitude 1.0.
-	 * This variation is used as \ref element::Element<dim>.ext_stress_coeff_. */
+	 * This stress variation sets the value of @ref element::Element<dim>::ext_stress_coeff_. */
 
 	// make sure that the solver doesn't have any added load nor eigenstrain
 	// fields, otherwise the computed coefficients won't be the right ones
@@ -682,12 +632,12 @@ void calculate_ext_stress_coefficients(
 
 template<int dim>
 void calculate_local_stress_coefficients(
-	element::Vector<dim> &elements, elasticity_solver::Solver<dim> &solver)
+	std::vector<Element<dim> *> &elements, elasticity_solver::Solver<dim> &solver)
 {
 	/*! Calculate, using the input elascity solver, the rank-4 tensor \f$
 	 * \mathbb{S} \f$ that relates linearly local stress variations and
-	 * eigenstrain increments. This tensor is set as
-	 * \ref element::Element<dim>::S_. The tensor is computed individually for
+	 * eigenstrain increments. This tensor sets the value of
+	 * @ref element::Element<dim>::S_. The tensor is computed individually for
 	 * each element in the input vector. */
 
 	// See the documentation of mepls::utils::compute_voigts_stiffness for a
@@ -768,22 +718,26 @@ void calculate_local_stress_coefficients(
 
 template<int dim>
 void calculate_local_stress_coefficients_central(
-	element::Vector<dim> &elements, elasticity_solver::Solver<dim> &solver)
+	std::vector<Element<dim> *> &elements, elasticity_solver::Solver<dim> &solver)
 {
 	/*! Calculate, using the input elascity solver, the rank-4 tensor \f$
 	 * \mathbb{S} \f$ that relates linearly local stress variations and
-	 * eigenstrain increments. This tensor is set as
-	 * \ref element::Element<dim>::S_. The tensor is computed once for the element
+	 * eigenstrain increments. This tensor sets the value of
+	 * @ref element::Element<dim>::S_. The tensor is computed once for the element
 	 * in the center of the domain and then reused for all the other elements.
 	 * In this way, we avoid the expensive process of computing the tensor for
 	 * every element. This is possible when the system has elastic homogeneous
 	 * properties.
 	 *
-	 * @note the presence of surfaces breaks the material homogeneity since the
-	 * elastic response near the surfaces differs from the bulk. If the system
-	 * is small and does not have periodic boundaries, the presence of the
+	 * @note surfaces, as opposed to periodic boundary conditions, break the 
+	 * material homogeneity since the elastic response near them differs from
+	 * the bulk. If the system is big (i.e, the number of elements far away from
+	 * the surfaces is much bigger than the number of elements near them) the 
+	 * presence of surfaces can for most applications be neglected. However, if 
+	 * the system is small and does not have periodic boundaries (as e.g., if dealing
+	 * with the system patches described in @ref mepls::patches), the presence of the
 	 * surfaces might become important. In this case, it is recommended to use
-	 * \ref calculate_local_stress_coefficients instead. */
+	 * @ref calculate_local_stress_coefficients instead. */
 
 	// NOTE see calculate_local_stress_coefficients(...) for further
 	// documentation
@@ -848,60 +802,65 @@ void calculate_local_stress_coefficients_central(
 }
 
 
-/*! This struct is used for output purposes only. It dumps a complex 
- * \ref element::Element object into a simple struct of scalar values, which
+/*! @class mepls::element::SetupRow
+ * @brief This struct is used for output purposes only. It dumps a complex 
+ * @ref element::Element object into a simple struct of scalar values, which
  * contains the configuration with which a certain element was created. In this
- * way, it can be easily written into, e.g., hdf5 datasets. */
+ * way, it can be easily written into an output file. */
 template<int dim>
 struct SetupRow;
 
-/*! Instantiation of ElementSetupRow for dimension 2. */
+/*! @class mepls::element::SetupRow<2>
+* @brief Instantiation of ElementSetupRow for dimension 2. */
 template<>
 struct SetupRow<2>
 {
 	unsigned int type;
-	/*!< Element type. See \ref element::Element<dim>.type_. */
+	/*!< Element type. See @ref element::Element<dim>::type_. */
 
 	float prestress_00;
-	/*!< Component 00 of \ref element::Element<dim>.prestress_. */
+	/*!< Component 00 of @ref element::Element<dim>::prestress_. */
 
 	float prestress_11;
-	/*!< Component 11 of \ref element::Element<dim>.prestress_ . */
+	/*!< Component 11 of @ref element::Element<dim>::prestress_ . */
 
 	float prestress_01;
-	/*!< Component 01 of \ref element::Element<dim>.prestress_. */
+	/*!< Component 01 of @ref element::Element<dim>::prestress_. */
 
 	float ext_stress_coeff_00;
-	/*!< Component 00 of \ref element::Element<dim>.ext_stress_coeff_. */
+	/*!< Component 00 of @ref element::Element<dim>::ext_stress_coeff_. */
 
 	float ext_stress_coeff_11;
-	/*!< Component 11 of \ref element::Element<dim>.ext_stress_coeff_. */
+	/*!< Component 11 of @ref element::Element<dim>::ext_stress_coeff_. */
 
 	float ext_stress_coeff_01;
-	/*!< Component 01 of \ref element::Element<dim>.ext_stress_coeff_. */
+	/*!< Component 01 of @ref element::Element<dim>::ext_stress_coeff_. */
 
 	float C_00;
-	/*!< Component 00 of \ref element::Element<dim>.C_. */
+	/*!< Component 00 of @ref element::Element<dim>::C_. */
 
 	float C_01;
-	/*!< Component 01 of \ref element::Element<dim>.C_. */
+	/*!< Component 01 of @ref element::Element<dim>::C_. */
 
 	float C_02;
-	/*!< Component 02 of \ref element::Element<dim>.C_. */
+	/*!< Component 02 of @ref element::Element<dim>::C_. */
 
 	float C_11;
-	/*!< Component 11 of \ref element::Element<dim>.C_. */
+	/*!< Component 11 of @ref element::Element<dim>::C_. */
 
 	float C_12;
-	/*!< Component 12 of \ref element::Element<dim>.C_. */
+	/*!< Component 12 of @ref element::Element<dim>::C_. */
 
 	float C_22;
-	/*!< Component 22 of \ref element::Element<dim>.C_. */
+	/*!< Component 22 of @ref element::Element<dim>::C_. */
 
 	unsigned int number;
 	/*!< Element number. */
 };
 
+/*! @typedef mepls::element::Vector
+ * @brief An alias for std::vector<mepls::Element<dim>*> to simplify the code. */
+template<int dim> using Vector = typename std::vector<Element<dim> *>;
 
 } // namespace element
 

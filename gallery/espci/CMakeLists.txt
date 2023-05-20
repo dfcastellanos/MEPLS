@@ -8,17 +8,22 @@ set(TARGET run_sim)
 project(${TARGET})
 add_executable(${TARGET} main.cc)
 
-# include headers common to all models
-set(COMMON_INCLUDE_DIR "../common/")
+# include MEPLS
+set(MEPLS_DIR $ENV{MEPLS_DIR})
 
-# Include mepls headers
-set(MEPLS_INCLUDE_DIR "../../inc/")
+if (NOT DEFINED MEPLS_DIR)
+    message(FATAL_ERROR "\n"
+            "*** Could not locate MEPLS ***\n\n"
+            "You need to set an environment variable MEPLS_DIR with the path to the MEPLS root directory ($ export MEPLS_DIR=\"/path/to/MEPLS\"), or pass a flag -DMEPLS_DIR=/path/to/MEPLS to cmake.\n"
+            )
+endif ()
+
+set(MEPLS_INCLUDE_DIR "${MEPLS_DIR}/inc")
 include_directories(${MEPLS_INCLUDE_DIR})
-include_directories(${COMMON_INCLUDE_DIR})
 target_include_directories(${TARGET} PUBLIC ${MEPLS_INCLUDE_DIR})
 
 # Link to deal.II
-find_package(deal.II 8.0 QUIET HINTS ${deal.II_DIR} ${DEAL_II_DIR} ../ ../../ $ENV{DEAL_II_DIR})
+find_package(deal.II 9.0 REQUIRED QUIET HINTS ${deal.II_DIR} ${DEAL_II_DIR} ../ ../../ $ENV{DEAL_II_DIR})
 
 if (NOT ${deal.II_FOUND})
     message(FATAL_ERROR "\n"
@@ -43,8 +48,10 @@ option(DEFINE_DEBUG "Build the project using debugging code" OFF)
 if (DEFINE_DEBUG)
     add_definitions(-DDEBUG)
     set(CMAKE_BUILD_TYPE Debug)
+    message("-- Build type is debug")
+else()
+    message("-- Build type is release")
 endif (DEFINE_DEBUG)
-message("-- Build type is " ${CMAKE_BUILD_TYPE})
 
 # Set OPENMP macro with -DOPENMP=on
 option(OPENMP "Enable openMP parallelization" ON)
@@ -55,7 +62,7 @@ else ()
     message("-- OPENMP is disabled...")
 endif (OPENMP)
 
-# maximum gcc optiization and enable openMP
+# maximum gcc optimization and enable openMP
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -fopenmp")
 
 # create ./results directory

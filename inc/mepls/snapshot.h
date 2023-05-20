@@ -18,7 +18,8 @@
 namespace mepls
 {
 
-/*! This namespace contains classes for taking snapshots of the state of the 
+/*! @namespace mepls::snapshot
+ * @brief This namespace contains classes for taking snapshots of the state of the 
  * elements composing the system. A snapshot consists of a copy of one of the 
  * mesoscale fields over all the elements of the system into a vector.
  * Moreover, the snapshots store metadata such as the name of the recorded 
@@ -27,16 +28,18 @@ namespace mepls
 namespace snapshot
 {
 
-/*! Snapshot of \ref element::Element.stress. */
+/*! @class mepls::snapshot::Stress 
+ * @brief Snapshot of @ref element::Element.stress. */
 template<int dim>
 class Stress
 {
 
   public:
 
-	/*! This struct is used for output purposes only. It converts a complex
+	/*! @class mepls::snapshot::Stress::DataRow
+	 * @brief This struct is used for output purposes only. It converts a complex
 	 * tensor object into a simple struct of scalar values. In this way, it can
-	 * be easily written into, e.g., hdf5 datasets. */
+	 * be easily written into output datasets. */	
 	struct DataRow
 	{
 		float xx = 0.;
@@ -54,19 +57,19 @@ class Stress
 		monitor_name(monitor_mag_),
 		desired_target(desired_target_),
 		recorded_target(recorded_target_),
-		output_index(system.event_history->index)
+		output_index(system.history->index())
 	{
 		/*! Take and store the snapshot.
 		 *
 		 * @param system system from where the snapshot is taken
-		 * @param monitor_mag name of the magnitude used to check whether the
+		 * @param monitor_mag_ name of the magnitude used to check whether the
 		 * snapshot should be taken or not
-		 * @param desired_target value of the \ref monitor_name at which we
+		 * @param desired_target_ value of the @ref monitor_name at which we
 		 * desired to take the snapshot
-		 * @param recorded_target value of the \ref monitor_name at which the
+		 * @param recorded_target_ value of the @ref monitor_name at which the
 		 * snapshot is actually taken */
 
-		for(auto &element : system.elements)
+		for(auto &element : system)
 		{ M_Assert(element->number() == data.size(), "Element data not written in the right order");
 
 			DataRow row;
@@ -81,24 +84,23 @@ class Stress
 	/*!< Container to store the copied field. */
 
 	std::string recorded_mag;
-	/*!< Name of the field storaged in \ref data. */
+	/*!< Name of the field storaged in @ref data. */
 
 	std::string monitor_name;
 	/*!< Name of the magnitude used to check whether the snapshot should be taken
 	 * or not. */
 
 	double desired_target;
-	/*!< Value of the \ref monitor_name at which we desired to take the
+	/*!< Value of the @ref monitor_name at which we desired to take the
 	 * snapshot. */
 
 	double recorded_target;
-	/*!< Value of the \ref monitor_name at which the snapshot is actually
+	/*!< Value of the @ref monitor_name at which the snapshot is actually
 	 * taken. */
 
 	unsigned int output_index;
-
-	/*!< Global event index from the \ref event::History at which the snapshot is
-	 * taken. */
+	/*!< Global event index from the history (see @ref mepls::history::History<dm>)
+	 * at which the snapshot is taken. */
 
 	typename std::vector<DataRow>::iterator begin()
 	{
@@ -112,15 +114,17 @@ class Stress
 };
 
 
-/*! Snapshot of \ref element::Element.def_grad. */
+/*! @class mepls::snapshot::DefGrad
+ * @brief Snapshot of @ref element::Element.def_grad. */
 template<int dim>
 class DefGrad
 {
   public:
 
-	/*! This struct is used for output purposes only. It converts a complex
+	/*! @class mepls::snapshot::DefGrad::DataRow
+	 * @brief This struct is used for output purposes only. It converts a complex
 	 * tensor object into a simple struct of scalar values. In this way, it can
-	 * be easily written into, e.g., hdf5 datasets. */
+	 * be easily written into output datasets. */
 	struct DataRow
 	{
 		float xx = 0.;
@@ -139,19 +143,19 @@ class DefGrad
 		monitor_name(monitor_mag_),
 		desired_target(desired_target_),
 		recorded_target(recorded_target_),
-		output_index(system.event_history->index)
+		output_index(system.history->index())
 	{
 		/*! Take and store the snapshot.
 		 *
 		 * @param system system from where the snapshot is taken
-		 * @param monitor_mag name of the magnitude used to check whether the
+		 * @param monitor_mag_ name of the magnitude used to check whether the
 		 * snapshot should be taken or not
-		 * @param desired_target value of the \ref monitor_name at which we
+		 * @param desired_target_ value of the @ref monitor_name at which we
 		 * desired to take the snapshot
-		 * @param recorded_target value of the \ref monitor_name at which the
+		 * @param recorded_target_ value of the @ref monitor_name at which the
 		 * snapshot is actually taken */
 
-		for(auto &element : system.elements)
+		for(auto &element : system)
 		{ M_Assert(element->number() == data.size(), "Element data not written in the right order");
 
 			DataRow row;
@@ -167,24 +171,23 @@ class DefGrad
 	/*!< Container to store the copied field. */
 
 	std::string recorded_mag;
-	/*!< Name of the field storaged in \ref data. */
+	/*!< Name of the field storaged in @ref data. */
 
 	std::string monitor_name;
 	/*!< Name of the magnitude used to check whether the snapshot should be taken
 	 * or not. */
 
 	double desired_target;
-	/*!< Value of the \ref monitor_name at which we desire to take the
+	/*!< Value of the @ref monitor_name at which we desire to take the
 	 * snapshot. */
 
 	double recorded_target;
-	/*!< Value of the \ref monitor_name at which the snapshot is actually
+	/*!< Value of the @ref monitor_name at which the snapshot is actually
 	 * taken. */
 
 	unsigned int output_index;
-
-	/*!< Global event index from the \ref event::History at which the snapshot is
-	 * taken. */
+	/*!< Global event index from the history (see @ref mepls::history::History<dm>)
+	 * at which the snapshot is taken. */
 
 	typename std::vector<DataRow>::iterator begin()
 	{
@@ -198,16 +201,19 @@ class DefGrad
 };
 
 
-/*! Snapshot of all the \ref base::Slip.threshold in the \ref System. */
+/*! @class mepls::snapshot::Threshold
+ * @brief Snapshot of all the slip thresholds (see @ref mepls::slip::Slip<dim>::threshold)
+ * in the system. */
 template<int dim>
 class Threshold
 {
 
   public:
 
-	/*! This struct is used for output purposes only. It converts a complex \ref
-	 * base::Slip object into a simple struct of scalar values. In this way, it
-	 * can be easily written into, e.g., hdf5 datasets. */
+	/*! @class mepls::snapshot::Threshold::DataRow
+	 * @brief This struct is used for output purposes only. It converts a complex
+	 * @ref mepls::slip::Slip<dim> object into a simple struct of scalar values. In this
+	 * way, it can be easily written into output datasets. */
 	struct DataRow
 	{
 		unsigned int element = 0;
@@ -225,19 +231,19 @@ class Threshold
 		monitor_name(monitor_mag_),
 		desired_target(desired_target_),
 		recorded_target(recorded_target_),
-		output_index(system.event_history->index)
+		output_index(system.history->index())
 	{
 		/*! Take and store the snapshot.
 		 *
 		 * @param system system from where the snapshot is taken
-		 * @param monitor_mag name of the magnitude used to check whether the
+		 * @param monitor_mag_ name of the magnitude used to check whether the
 		 * snapshot should be taken or not
-		 * @param desired_target value of the \ref monitor_name at which we
+		 * @param desired_target_ value of the @ref monitor_name at which we
 		 * desired to take the snapshot
-		 * @param recorded_target value of the \ref monitor_name at which the
+		 * @param recorded_target_ value of the @ref monitor_name at which the
 		 * snapshot is actually taken */
 
-		for(auto &element : system.elements)
+		for(auto &element : system)
 			for(auto &slip : *element)
 			{
 				DataRow row;
@@ -252,24 +258,23 @@ class Threshold
 	/*!< Container to store the slip thresholds followed and slip angles.*/
 
 	std::string recorded_mag;
-	/*!< Name of the field storaged in \ref data. */
+	/*!< Name of the field storaged in @ref data. */
 
 	std::string monitor_name;
 	/*!< Name of the magnitude used to check whether the snapshot should be taken
 	 * or not. */
 
 	double desired_target;
-	/*!< Value of the \ref monitor_name at which we desired to take the
+	/*!< Value of the @ref monitor_name at which we desired to take the
 	 * snapshot. */
 
 	double recorded_target;
-	/*!< Value of the \ref monitor_name at which the snapshot is actually
+	/*!< Value of the @ref monitor_name at which the snapshot is actually
 	 * taken. */
 
 	unsigned int output_index;
-
-	/*!< Global event index from the \ref event::History at which the snapshot is
-	 * taken. */
+	/*!< Global event index from the history (see @ref mepls::history::History<dm>)
+	 * at which the snapshot is taken. */
 
 	typename std::vector<DataRow>::iterator begin()
 	{
@@ -283,7 +288,8 @@ class Threshold
 };
 
 
-/*! This class decides whether a snapshot should be taken or not based on the
+/*! @class mepls::snapshot::Check
+ * @brief This class decides whether a snapshot should be taken or not based on the
  * value of a certain monitor magnitude, which is compared with the values of an
  * internal list. The values of the list are those values at which we desire to
  * take a snapshot. The comparison of the value of type double is made within 
@@ -294,8 +300,8 @@ class Check
   public:
 	Check(double min, double max, double interval, double sensitivity)
 	{
-		/*! Create a list of value from \ref min to \ref max, in intervals of
-		 * lenght \ref interval. Set the value of \ref sensitivity. */
+		/*! Constructure. Create a list of value from `min` to `max`, in intervals of
+		 * length `interval`. The sensitivity of is set to `sensitivity`. */
 
 		double v = min;
 		while(v < max)
@@ -312,11 +318,11 @@ class Check
 	{
 		/*! Return true if a snapshot must be taken, false otherwise. A snapshot
 		 * must be taken if the input value matches, within a tolerance given by
-		 * \ref sensitivity, one of the values in \ref target_values. When there
+		 * @ref sensitivity, one of the values in @ref target_values. When there
 		 * is a match true is returned, and true is set in the corresponding index
-		 * of \ref already_recorded, so no future snapshots will be taken again
+		 * of @ref already_recorded, so no future snapshots will be taken again
 		 * with the same value (this can happen if future input values still
-		 * match the same \ref target_value with the given \ref sensitivity).
+		 * match the same target value with the given @ref sensitivity).
 		 *
 		 * @note to which magnitude (e.g., plastic strain, time, etc.) the input
 		 * value corresponds does not matter to this class. */
@@ -334,7 +340,7 @@ class Check
 
 	double sensitivity;
 	/*!< Numerical tolerance to decide whether a double matches one of the double
-	 * values in \ref target_values. */
+	 * values in @ref target_values. */
 
 	std::vector<double> target_values;
 	/*!< List of values were at which snapshots should be taken. */
@@ -344,7 +350,7 @@ class Check
 	 * taking snapshot again at the same value. */
 
 	double desired_value;
-	/*!< Value at which we desire to take the snapshot (thus it is one in \ref
+	/*!< Value at which we desire to take the snapshot (thus it is one in @ref
 	 * target_values). */
 };
 

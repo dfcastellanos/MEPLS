@@ -50,12 +50,14 @@ namespace mepls
 {
 
 
-/*! This namespace contains tools for creating and testing patches. Patches are
+/*! @namespace mepls::patches
+ * @brief This namespace contains tools for creating and testing patches. Patches are
  * connected sub-domains of the full system, which are cut-out and mechanically
- * shear-tested in isolation. Within this framework, patches are
- * composed by mesoscale elements and represented as a \ref system::System
- * object, with the same properties and evolution laws as the full-size system
- * from where they are cut-out. Performing shear tests on individual patches
+ * shear-tested in isolation (see @cite DFCastellanos_CRP @cite Patinet2016 @cite Barbot2018).
+ * 
+ *  In elasto-plastic models, patches are composed by mesoscale elements and
+ *  represented as a @ref system::System object, with the same properties and evolution laws as
+ *  the full-size system from where they are cut-out. Performing shear tests on individual patches
  * provides statistical information about the spatially-fluctuating local
  * mechanical response of the system. While full systems can be periodic or
  * non-periodic patches are, by definition, non-periodic. Therefore, computing
@@ -76,7 +78,8 @@ namespace patches
 {
 
 
-/*! A struct containing the properties that are measured when a patch is 
+/*! @class mepls::patches::PatchPropertiesTensorial
+ * @brief A struct containing the properties that are measured when a patch is 
  * tested. */
 template<int dim>
 struct PatchPropertiesTensorial
@@ -87,7 +90,7 @@ struct PatchPropertiesTensorial
 
 	double theta = 0.;
 	/*!< Orientation of the shear test performed on the patch. This angle is
-	 * the same used in \ref utils::tensor::schmid. */
+	 * the same used in @ref utils::tensor::make_schmid. */
 
 	dealii::SymmetricTensor<2, dim> stress_ss;
 	/*!< Stress tensor averaged over the elements composing the patch. The
@@ -103,18 +106,30 @@ struct PatchPropertiesTensorial
 
 	double resolved_elastic_shear_strain_oi;
 	/*!< Elastic shear strain applied to the patch, with shear orientation
-	 * \ref theta, to reach the oi-state from the initial ss-state. */
+	 * @ref theta, to reach the oi-state from the initial ss-state. */
 
-	double energy_ss = 0.;
+	double energy_el_ss = 0.;
 	/*!< Elastic energy averaged over the elements composing the patch. The
 	 * operation is performed in the ss-state. */
 
-	double energy_oi = 0.;
+	double energy_el_oi = 0.;
 	/*!< Elastic energy averaged over the elements composing the patch. The
 	 * operation is performed in the oi-state. */
 
-	double energy_ee = 0.;
+	double energy_el_ee = 0.;
 	/*!< Elastic energy averaged over the elements composing the patch. The
+	 * operation is performed in the ee-state. */
+
+	double energy_conf_ss = 0.;
+	/*!< Configurational energy averaged over the elements composing the patch. The
+	 * operation is performed in the ss-state. */
+
+	double energy_conf_oi = 0.;
+	/*!< Configurational energy averaged over the elements composing the patch. The
+	 * operation is performed in the oi-state. */
+
+	double energy_conf_ee = 0.;
+	/*!< Configurational energy averaged over the elements composing the patch. The
 	 * operation is performed in the ee-state. */
 
 	std::vector<double> coords;
@@ -233,7 +248,7 @@ inline void select_patch_elements(
 	  --------------
 	 * @endcode
 	 *
-	 * Thus, the vector of elements \ref system::System<dim>.elements in the
+	 * Thus, the vector of elements @ref system::System<dim>.elements in the
 	 * patch system has the elements ordered as [18,19,15,23,24,20,3,4,0]
 	 */
 
@@ -351,34 +366,27 @@ std::map<unsigned int, std::vector<std::vector<unsigned int>>> make_patch_to_ele
 
 
 template<int dim>
-inline dealii::SymmetricTensor<2, dim> get_average_stress(element::Vector<dim> &elements)
+inline void get_averages(const element::Vector<dim> &elements,
+						dealii::SymmetricTensor<2, dim> &av_stress,
+						double &av_energy_el,
+						double &av_energy_conf)
 {
-	/*! Compute the average stress tensor over the input elements. */
+	/*! Compute the average properties over the input elements. */
 
-	dealii::SymmetricTensor<2, dim> av_stress;
+	av_stress.clear();
+	av_energy_el = 0.;
+	av_energy_conf = 0.;
 
 	for(auto &element : elements)
+	{
 		av_stress += element->stress();
+		av_energy_el += element->energy_el();
+		av_energy_conf += element->energy_conf();
+	}
 
 	av_stress /= double(elements.size());
-
-	return av_stress;
-}
-
-
-template<int dim>
-inline double get_average_energy(element::Vector<dim> &elements)
-{
-	/*! Compute the average elastic energy over the input elements. */
-
-	double av_energy = 0.;
-
-	for(auto &element : elements)
-		av_energy += 0.5 * dealii::invert(element->C()) * element->stress() * element->stress();
-
-	av_energy /= double(elements.size());
-
-	return av_energy;
+	av_energy_el /= double(elements.size());
+	av_energy_conf /= double(elements.size());
 }
 
 
@@ -394,13 +402,13 @@ void apply_patch_shear_test(
 	 * shear strain increments along with a certain orientation. The properties
 	 * of the system at the ss- oi- and ee-states are computed.
 	 *
-	 * @param results of the shear test
-	 * @param system on which we apply the shear test
+	 * @param patch_system system on which we apply the shear test
 	 * @param do_ee if false, compute only the ss- and oi-state. If true, compute
 	 * also the ee-state
-	 * @param dgamma amplitude of the discrete external shear strain increments
-	 * @param Nx number of elements in the input system along direction x
-	 * @param Ny number of elements in the input system along direction y
+	 * @param dgamma amplitude of the discrete shear strain increments. This value is used
+	 * for calling @ref mepls::dynamics::finite_extremal_dynamics_step
+	 *
+	 * @return results of the shear test
 	 *
 	 * @note this function is normally used on systems representing patches,
 	 * but can be used, in general, on any system.
@@ -410,15 +418,15 @@ void apply_patch_shear_test(
 	auto &solver = patch_system.solver;
 
 	// stable state
-	patch_properties.stress_ss = get_average_stress(elements);
-	patch_properties.energy_ss = get_average_energy(elements);
+	get_averages(elements, patch_properties.stress_ss, patch_properties.energy_el_ss,
+	             patch_properties.energy_conf_ss);
 
 	// onset instability state: drive the system until it becomes unstable
 	// (i.e., a slip system has reached its threshold).
 	double deps = 0.5 * dgamma;
 	dynamics::finite_extremal_dynamics_step(deps, patch_system);
-	patch_properties.stress_oi = get_average_stress(elements);
-	patch_properties.energy_oi = get_average_energy(elements);
+	get_averages(elements, patch_properties.stress_oi, patch_properties.energy_el_oi,
+	             patch_properties.energy_conf_oi);
 	patch_properties.resolved_elastic_shear_strain_oi = solver.get_total_strain();
 
 	if(do_ee)
@@ -426,15 +434,16 @@ void apply_patch_shear_test(
 		// ee-state: we let the system relax by performing the slip event
 		// triggered in the oi-state (and possibly, other events triggered
 		// induced by it)
-		dynamics::relaxation(patch_system, 10, continue_shear_test);
-		patch_properties.stress_ee = get_average_stress(elements);
-		patch_properties.energy_ee = get_average_energy(elements);
+		dynamics::relaxation(patch_system, continue_shear_test);
+	    get_averages(elements, patch_properties.stress_ee, patch_properties.energy_el_ee,
+	                 patch_properties.energy_conf_ee);
 	}
 	else
 	{
 		// use oi as ee, so the variation from one to the other is zero
 		patch_properties.stress_ee = patch_properties.stress_oi;
-		patch_properties.energy_ee = patch_properties.energy_oi;
+		patch_properties.energy_el_ee = patch_properties.energy_el_oi;
+		patch_properties.energy_conf_ee = patch_properties.energy_conf_oi;
 	}
 }
 
@@ -448,7 +457,7 @@ void analyze_patch_ensemble(
 	bool do_ee)
 {
 	/*! Apply shear tests to an ensemble of patches of size N. A patch of
-	 * size N is created for each reference element (see \ref
+	 * size N is created for each reference element (see @ref
 	 * select_patch_elements for the interpretation) considered. Reference
 	 * elements are defined by iterating over all the elements in the system and
 	 * selecting a reference element for every N/2 elements. In this way, we
@@ -456,7 +465,7 @@ void analyze_patch_ensemble(
 	 *
 	 * @param data_patch vector containing the properties measured for each patch
 	 * @param system from where the patches are created
-	 * @param N patch size (see \ref select_patch_elements)
+	 * @param N patch size (see @ref select_patch_elements)
 	 * @param theta_list vector with the shear orientations along which shear
 	 * tests are to be performed
 	 * @param do_ee if false, compute only the ss- and oi-state. If true, compute
@@ -469,7 +478,7 @@ void analyze_patch_ensemble(
 	auto &generator = system.generator;
 	auto &elements = system.elements;
 
-	// pointers to elements composing the set which is to be probed
+	// pointers to elements composing the patch which is to be tested
 	element::Vector<dim> patch_elements;
 
 	// pointers to copies of the probing elements to avoid modifying the
@@ -485,14 +494,20 @@ void analyze_patch_ensemble(
 
 		/* ------- make patches and test them ------- */
 
-		// do not make a patch for every element, just every N/2 elements.
-		// This reduces patch overlap and increases performance
-		unsigned int di = int(N / 2);
-		di = di >= 1 ? di : 1;
+		// we select random non-repeated reference elements. We build a patch using the
+		// reference element's neighborhood using select_patch_elements(). The number of
+		// elements per patch is N^2, therefore number of elements in the system divided by N^2
+		// gives a number of patches such that their overlap is, on average, not too big
+		unsigned int n_patches = int( double(elements.size())/double(N*N) );
+		assert(n_patches >= 1);
 
-		for(unsigned int i = 0; i < elements.size(); i += di)
+		mepls::element::Vector<dim> reference_elements;
+
+   		 std::sample(elements.begin(), elements.end(), std::back_inserter(reference_elements),
+   		             n_patches, generator);
+
+		for(auto &reference_element : reference_elements)
 		{
-			auto &reference_element = elements[i];
 			select_patch_elements<dim>(patch_elements, patch_center_coords, reference_element,
 									   elements, Nx, Ny, N);
 
@@ -506,6 +521,8 @@ void analyze_patch_ensemble(
 			{
 				auto element = patch_elements[n];
 				auto element_copy = element->make_copy();
+
+				element_copy->state_to_prestress();
 
 				original_element_numbers[n] = element->number();
 
@@ -523,7 +540,7 @@ void analyze_patch_ensemble(
 
 			element::calculate_ext_stress_coefficients(patch_elements_copy, probring_solver);
 
-			// \ref element::Element<dim>.S_ needs to be computed only if plastic
+			// @ref element::Element<dim>.S_ needs to be computed only if plastic
 			// deformation takes place. This is only the case if we change from
 			// oi- to the ee-state
 			if(do_ee)
@@ -545,7 +562,7 @@ void analyze_patch_ensemble(
 								   dgamma);
 
 #ifdef DEBUG
-			dealii::SymmetricTensor<2,dim> M = utils::make_schmidt_tensor<dim>(theta);
+			dealii::SymmetricTensor<2,dim> M = utils::tensor::make_schmid<dim>(theta);
 			double eff_ss = M*patch_properties.stress_ss;
 			double eff_oi = M*patch_properties.stress_oi;
 			M_Assert(eff_oi>eff_ss, "resolved shear stress on the shearing plane at the onset of instability is lower than at the stable state");
@@ -585,17 +602,17 @@ void analyze_patch_ensemble_opt(
 	const std::vector<double> &theta_list,
 	bool do_ee)
 {
-	/*! It does the same as \ref analyze_patch_ensemble, but precalculates
-	 * \ref element::Element<dim>.ext_stress_coeff_and \ref element::Element<dim>
-	 * .S_ once and is reused for all the patches. This optimization is only
-	 * valid under the same conditions discussed for \ref
-	 * element::calculate_local_stress_coefficients_central, namely the full
+	/*! It does the same as @ref analyze_patch_ensemble, but precalculates
+	 * @ref element::Element<dim>.ext_stress_coeff_ and @ref element::Element<dim>::S
+	 * once and is reused for all the patches. This optimization is only
+	 * valid under the same conditions discussed for
+	 * @ref element::calculate_local_stress_coefficients_central, namely the full
 	 * system has elastic homogeneous properties and periodic boundary
 	 * conditions.
 	 */
 
 
-	// see \ref analyze_patch_ensemble for a more detailed documentation
+	// see @ref analyze_patch_ensemble for a more detailed documentation
 
 	const auto &full_system_solver = system.solver;
 	const unsigned int Nx = full_system_solver.get_Nx();
@@ -656,14 +673,22 @@ void analyze_patch_ensemble_opt(
 
 		}
 
-		/* ------- proceed as in \ref analyze_patch_ensemble ------- */
+		/* ------- proceed as in @ref analyze_patch_ensemble ------- */
 
-		unsigned int di = int(N / 2);
-		di = di >= 1 ? di : 1;
+		// we select random non-repeated reference elements. We build a patch using the
+		// reference element's neighborhood using select_patch_elements(). The number of
+		// elements per patch is N^2, therefore number of elements in the system divided by N^2
+		// gives a number of patches such that their overlap is, on average, not too big
+		unsigned int n_patches = int( double(elements.size())/double(N*N) );
+		assert(n_patches >= 1);
 
-		for(unsigned int i = 0; i < elements.size(); i += di)
+		mepls::element::Vector<dim> reference_elements;
+
+   		 std::sample(elements.begin(), elements.end(), std::back_inserter(reference_elements),
+   		             n_patches, generator);
+
+		for(auto &reference_element : reference_elements)
 		{
-			auto &reference_element = elements[i];
 			select_patch_elements<dim>(patch_elements, patch_center_coords, reference_element,
 									   elements, Nx, Ny, N);
 
@@ -675,8 +700,7 @@ void analyze_patch_ensemble_opt(
 				auto element = patch_elements[n];
 				auto element_copy = element->make_copy();
 
-				element_copy->set_zero_deformation();
-				element_copy->prestress(element->stress());
+				element_copy->state_to_prestress();
 
 				element_copy->number(n);
 
@@ -735,7 +759,7 @@ void analyze_patch_ensemble_opt(
 
 
 #ifdef DEBUG
-			dealii::SymmetricTensor<2,dim> M = utils::make_schmidt_tensor<dim>(theta);
+			dealii::SymmetricTensor<2,dim> M = utils::tensor::make_schmid<dim>(theta);
 			double eff_ss = M*patch_properties.stress_ss;
 			double eff_oi = M*patch_properties.stress_oi;
 			M_Assert(eff_oi>eff_ss, "resolved shear stress on the shearing plane at the onset of instability is lower than at the stable state");
@@ -766,16 +790,18 @@ void analyze_patch_ensemble_opt(
 }
 
 
-/*! Snapshot of patch local properties. */
+/*! @class mepls::patches::PatchPropertiesSnapshot
+ * @brief Snapshot of patch local properties. */
 template<int dim>
 class PatchPropertiesSnapshot
 {
   public:
 
-	/*! This struct is used for output purposes only. It converts the struct
-	 * \ref PatchPropertiesTensorial<dim>, which contains complex objects, into
+	/*! @class mepls::patches::PatchPropertiesSnapshot::DataRow
+	 * @brief This struct is used for output purposes only. It converts the struct
+	 * @ref mepls::patches::PatchPropertiesTensorial<dim>, which contains complex objects, into
 	 * a plain struct of scalar values. In this way, it can be easily written
-	 * into, e.g., hdf5 datasets. */
+	 * into output datasets. */
 	struct DataRow
 	{
 		unsigned int ref_element = 0;
@@ -784,59 +810,71 @@ class PatchPropertiesSnapshot
 
 		float theta = 0.;
 		/*!< Orientation of the shear test performed on the patch. This angle is
-		 * the same used in \ref utils::tensor::schmid. */
+		 * the same used in @ref utils::tensor::make_schmid. */
 
-		float ss_xx = 0.;
+		float stress_ss_00 = 0.;
 		/*!< Component xx of the stress tensor averaged over the elements composing
 		 * the patch. The operation is performed in the ss-state. */
 
-		float ss_yy = 0.;
+		float stress_ss_11 = 0.;
 		/*!< Component yy of the stress tensor averaged over the elements composing
 		 * the patch. The operation is performed in the ss-state. */
 
-		float ss_xy = 0.;
+		float stress_ss_01 = 0.;
 		/*!< Component xy of the stress tensor averaged over the elements composing
 		 * the patch. The operation is performed in the ss-state. */
 
-		float ee_xx = 0.;
+		float stress_ee_00 = 0.;
 		/*!< Component xx of the stress tensor averaged over the elements composing
 		 * the patch. The operation is performed in the ee-state. */
 
-		float ee_yy = 0.;
+		float stress_ee_11 = 0.;
 		/*!< Component yy of the stress tensor averaged over the elements composing
 		 * the patch. The operation is performed in the ee-state. */
 
-		float ee_xy = 0.;
+		float stress_ee_01 = 0.;
 		/*!< Component xy of the stress tensor averaged over the elements composing
 		 * the patch. The operation is performed in the ee-state. */
 
-		float oi_xx = 0.;
+		float stress_oi_00 = 0.;
 		/*!< Component xx of the stress tensor averaged over the elements composing
 		 * the patch. The operation is performed in the oi-state. */
 
-		float oi_yy = 0.;
+		float stress_oi_11 = 0.;
 		/*!< Component yy of the stress tensor averaged over the elements composing
 		 * the patch. The operation is performed in the oi-state. */
 
-		float oi_xy = 0.;
+		float stress_oi_01 = 0.;
 		/*!< Component xy of the stress tensor averaged over the elements composing
 		 * the patch. The operation is performed in the oi-state. */
 
-		double ss_pe = 0.;
+		float energy_el_ss = 0.;
 		/*!< Elastic energy averaged over the elements composing the patch. The
 		 * operation is performed in the ss-state. */
 
-		double oi_pe = 0.;
+		float energy_el_oi = 0.;
 		/*!< Elastic energy averaged over the elements composing the patch. The
 		 * operation is performed in the oi-state. */
 
-		double ee_pe = 0.;
+		float energy_el_ee = 0.;
 		/*!< Elastic energy averaged over the elements composing the patch. The
 		 * operation is performed in the ee-state. */
 
-		float oi_eps = 0.;
+		float energy_conf_ss = 0.;
+		/*!< Configurational energy averaged over the elements composing the patch. The
+		 * operation is performed in the ss-state. */
+
+		float energy_conf_oi = 0.;
+		/*!< Configurational energy averaged over the elements composing the patch. The
+		 * operation is performed in the oi-state. */
+
+		float energy_conf_ee = 0.;
+		/*!< Configurational energy averaged over the elements composing the patch. The
+		 * operation is performed in the ee-state. */
+
+		float shear_strain_oi = 0.;
 		/*!< Elastic shear strain applied to the patch, with shear orientation
-		* \ref theta, to reach the oi-state from the initial ss-state. */
+		* @ref theta, to reach the oi-state from the initial ss-state. */
 
 		float x = 0.;
 		/*!< x-coordinate of the center of the patch. */
@@ -861,22 +899,29 @@ class PatchPropertiesSnapshot
 		bool optimized,
 		bool do_ee)
 		:
-		recorded_mag("local_probe"),
+		recorded_mag("patches"),
 		monitor_name(monitor_mag_),
 		desired_target(desired_target_),
 		recorded_target(recorded_target_),
-		output_index(system.event_history->index),
+		output_index(system.history->index()),
 		N(N_)
 	{
 
 		/*! Take and store the snapshot from the input system.
 		 *
 		 * @param system from where the patches are created and analyzed
-		 * @param data_patch vector containing the properties measured for each
 		 * patch
-		 * @param N patch size (see \ref select_patch_elements)
+		 * @param monitor_mag_ name of the magnitude used to check whether the
+		 * snapshot should be taken or not
+		 * @param desired_target_ value of the @ref monitor_name at which we
+		 * desired to take the snapshot
+		 * @param recorded_target_ value of the @ref monitor_name at which the
+		 * snapshot is actually taken
+		 * @param N_  patch size (see @ref select_patch_elements)
 		 * @param theta_list vector with the shear orientations along which shear
 		 * tests are to be performed
+		 * @param optimized it true, use an optimized version that runs faster. This
+		 * is only valid for homogeneous systems and structured FE meshes.
 		 * @param do_ee if false, compute only the ss- and oi-state. If true,
 		 * compute also the ee-state
 		 */
@@ -893,19 +938,22 @@ class PatchPropertiesSnapshot
 			DataRow row;
 			row.ref_element = d.ref_element;
 			row.theta = d.theta;
-			row.ss_xx = d.stress_ss[0][0];
-			row.ss_yy = d.stress_ss[1][1];
-			row.ss_xy = d.stress_ss[0][1];
-			row.oi_xx = d.stress_oi[0][0];
-			row.oi_yy = d.stress_oi[1][1];
-			row.oi_xy = d.stress_oi[0][1];
-			row.oi_eps = d.resolved_elastic_shear_strain_oi;
-			row.ee_xx = d.stress_ee[0][0];
-			row.ee_yy = d.stress_ee[1][1];
-			row.ee_xy = d.stress_ee[0][1];
-			row.ss_pe = d.energy_ss;
-			row.oi_pe = d.energy_oi;
-			row.ee_pe = d.energy_ee;
+			row.stress_ss_00 = d.stress_ss[0][0];
+			row.stress_ss_11 = d.stress_ss[1][1];
+			row.stress_ss_01 = d.stress_ss[0][1];
+			row.stress_oi_00 = d.stress_oi[0][0];
+			row.stress_oi_11 = d.stress_oi[1][1];
+			row.stress_oi_01 = d.stress_oi[0][1];
+			row.shear_strain_oi = d.resolved_elastic_shear_strain_oi;
+			row.stress_ee_00 = d.stress_ee[0][0];
+			row.stress_ee_11 = d.stress_ee[1][1];
+			row.stress_ee_01 = d.stress_ee[0][1];
+			row.energy_el_ss = d.energy_el_ss;
+			row.energy_el_oi = d.energy_el_oi;
+			row.energy_el_ee = d.energy_el_ee;
+			row.energy_conf_ss = d.energy_conf_ss;
+			row.energy_conf_oi = d.energy_conf_oi;
+			row.energy_conf_ee = d.energy_conf_ee;
 			row.x = d.coords[0];
 			row.y = d.coords[1];
 			row.failed = d.failed;
@@ -918,26 +966,26 @@ class PatchPropertiesSnapshot
 	/*!< Container to store the recorde data. */
 
 	std::string recorded_mag;
-	/*!< Name of the field storaged in \ref data. */
+	/*!< Name of the field storaged in @ref data. */
 
 	std::string monitor_name;
 	/*!< Name of the magnitude used to check whether the snapshot should be taken
 	 * or not. */
 
 	double desired_target;
-	/*!< Value of the \ref monitor_name at which we desired to take the
+	/*!< Value of the @ref monitor_name at which we desired to take the
 	 * snapshot. */
 
 	double recorded_target;
-	/*!< Value of the \ref monitor_name at which the snapshot is actually
+	/*!< Value of the @ref monitor_name at which the snapshot is actually
 	 * taken. */
 
 	unsigned int output_index;
-	/*!< Global event index from the \ref event::History at which the snapshot
+	/*!< Global event index from the @ref mepls::history::History<dim> at which the snapshot
 	 * is taken. */
 
 	unsigned int N;
-	/*!< Patch size (see \ref select_patch_elements) */
+	/*!< Patch size (see @ref select_patch_elements) */
 
 };
 

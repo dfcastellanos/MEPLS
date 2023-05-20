@@ -13,15 +13,21 @@
 #define RUN_SIM_UTILS_H
 
 #include <iostream>
+#include <fstream>
 #include <random>
 #include <math.h>
 #include <algorithm>
 #include <set>
 #include <regex>
+#include <string>
+
 #include <deal.II/base/symmetric_tensor.h>
 #include <deal.II/base/timer.h>
 #include <deal.II/lac/full_matrix.h>
 
+#if defined(OPENMP)
+#include <omp.h>
+#endif
 
 #ifndef _COLORS_
 #define _COLORS_
@@ -66,6 +72,10 @@ namespace mepls
 {
 
 
+/*!
+ * @namespace mepls::test
+ * @brief This namespce contains tools for testing.
+ */
 namespace test
 {
 
@@ -81,7 +91,7 @@ std::string test_is_passed(bool b)
 }
 
 template<int dim>
-void assert_test_result(
+void assert_result(
 	std::string name,
 	dealii::SymmetricTensor<4, dim> &actual,
 	dealii::SymmetricTensor<4, dim> &expected,
@@ -91,7 +101,7 @@ void assert_test_result(
 	/*! Evaluate if the input "actual" equals the input "expected", up to the
 	 * given tolerance (in percentage). A message showing the input name is
 	 * printed to output_stream summarizing the result
-	 * (see \ref test_is_passed). */
+	 * (see @ref test_is_passed). */
 
 	double z = 100 * (actual - expected).norm() / expected.norm();
 	output_stream << " * " << name << " ---- " << z << "% -> " << test_is_passed(z < tol_percent)
@@ -99,7 +109,7 @@ void assert_test_result(
 }
 
 template<int dim>
-void assert_test_result(
+void assert_result(
 	std::string name,
 	dealii::SymmetricTensor<2, dim> &actual,
 	dealii::SymmetricTensor<2, dim> &expected,
@@ -109,15 +119,16 @@ void assert_test_result(
 	/*! Evaluate if the input "actual" equals the input "expected", up to the
 	 * given tolerance (in percentage). A message showing the input name is
 	 * printed to output_stream summarizing the result
-	 * (see \ref test_is_passed). */
+	 * (see @ref test_is_passed). */
 
 	double z = 100 * (actual - expected).norm() / expected.norm();
-	output_stream << " * " << name << ": " << actual << " ---- " << z << "% -> "
+	output_stream << " * " << name << ": val = " << actual << "  |  expected = " << expected << "  |  "
+																					"result"
+																				 " = "
 				  << test_is_passed(z < tol_percent) << std::endl;
 }
 
-template<int dim>
-void assert_test_result(
+void assert_result(
 	std::string name,
 	double actual,
 	double expected,
@@ -127,16 +138,22 @@ void assert_test_result(
 	/*! Evaluate if the input "actual" equals the input "expected", up to the
 	 * given tolerance (in percentage). A message showing the input name is
 	 * printed to output_stream summarizing the result
-	 * (see \ref test_is_passed). */
+	 * (see @ref test_is_passed). */
 
 	double z = 100 * std::abs((actual - expected) / expected);
-	output_stream << " * " << name << ": " << actual << " ---- " << z << "% -> "
+	output_stream << " * " << name << ": val = " << actual << "  |  expected = " << expected <<
+	"  |  result"
+																				 " = "
 				  << test_is_passed(z < tol_percent) << std::endl;
 }
 
 } // namespace test
 
 
+/*!
+ * @namespace mepls::utils
+ * @brief This namespce contains utilities that come in handy in different situations.
+ */
 namespace utils
 {
 
@@ -153,7 +170,7 @@ inline double get_von_mises_equivalent_strain(const dealii::SymmetricTensor<2, d
 template<>
 inline double get_von_mises_equivalent_stress(const dealii::SymmetricTensor<2, 2> &stress)
 {
-	/*! Specialization for 2D of the template function \ref
+	/*! Specialization for 2D of the template function @ref
 	 * get_von_mises_equivalent_stress(const dealii::SymmetricTensor<2,dim> &)
 	 *
 	 * @note the von Mises strain \f$ \Sigma_{\rm VM} \f$ is defined here as
@@ -170,7 +187,7 @@ inline double get_von_mises_equivalent_stress(const dealii::SymmetricTensor<2, 2
 template<>
 inline double get_von_mises_equivalent_strain(const dealii::SymmetricTensor<2, 2> &strain)
 {
-	/*! Specialization for 2D of the template function \ref
+	/*! Specialization for 2D of the template function @ref
 	 * get_von_mises_equivalent_strain(const dealii::SymmetricTensor<2,dim> &)
 	 *
 	 * @note the von Mises strain \f$ \epsilon_{\rm VM} \f$ is defined here as
@@ -186,8 +203,9 @@ inline double get_von_mises_equivalent_strain(const dealii::SymmetricTensor<2, 2
 
 
 
-/*! This namespace contains utility functions to work with tensors, mainly to 
- * create and manipulate 4-rank stiffness tensors. */
+/*! @namespace mepls::utils::tensor
+ * @brief This namespace contains utility functions to work with tensors, with a great focus 
+ * on creating and manipulating 4-rank stiffness tensors. */
 namespace tensor
 {
 
@@ -206,7 +224,7 @@ inline dealii::SymmetricTensor<4, dim> voigt_to_standard_rank4(
 template<>
 inline dealii::SymmetricTensor<4, 2> voigt_to_standard_rank4(dealii::SymmetricTensor<2, 3> const &C)
 {
-	/*! Template specialization of \ref
+	/*! Template specialization of @ref
 	 * voigt_to_standard_rank4(dealii::SymmetricTensor<2,3*(dim-1)> const &)
 	 * for dim=2. */
 
@@ -235,7 +253,7 @@ template<>
 inline dealii::SymmetricTensor<4, 2> mandel_to_standard_rank4(
 	dealii::SymmetricTensor<2, 3> const &C)
 {
-	/*! Template specialization of \ref
+	/*! Template specialization of @ref
 	 * mandel_to_standard_rank4(dealii::SymmetricTensor<2,3*(dim-1)> const &)
 	 * for dim=2. */
 
@@ -264,7 +282,7 @@ template<>
 inline dealii::SymmetricTensor<2, 3> standard_rank4_to_voigt(
 	dealii::SymmetricTensor<4, 2> const &CC)
 {
-	/*! Template specialization of \ref
+	/*! Template specialization of @ref
 	 * standard_rank4_to_voigt(dealii::SymmetricTensor<4,2> const &) for dim=2.*/
 
 	dealii::SymmetricTensor<2, 3> C;
@@ -292,7 +310,7 @@ inline void rotate_matrix(dealii::SymmetricTensor<2, dim> &A, double theta);
 template<>
 inline void rotate_matrix(dealii::SymmetricTensor<2, 2> &A, double theta)
 {
-	/*! Template specialization of \ref
+	/*! Template specialization of @ref
 	 * rotate_matrix(dealii::SymmetricTensor<2,dim> &, double) for dim=2. */
 
 	dealii::Tensor<2, 2> R;
@@ -323,7 +341,7 @@ inline dealii::SymmetricTensor<2, dim> make_schmid(double theta);
 template<>
 inline dealii::SymmetricTensor<2, 2> make_schmid<2>(double angle)
 {
-	/*! Template specialization of \ref make_schmid<dim>(double theta) for dim=2.
+	/*! Template specialization of @ref make_schmid<dim>(double theta) for dim=2.
 	 * Specifically, this function creates a Schmid tensor for a slip plane
 	 * forming an angle theta with the horizontal axis. */
 
@@ -349,7 +367,7 @@ inline dealii::SymmetricTensor<4, dim> make_isotropic_stiffness(double G, double
 template<>
 inline dealii::SymmetricTensor<4, 2> make_isotropic_stiffness<2>(double G, double nu)
 {
-	/*! Template specialization of \ref make_isotropic_stiffness(double G,
+	/*! Template specialization of @ref make_isotropic_stiffness(double G,
 	 * double nu) for dim=2. */
 
 	dealii::SymmetricTensor<2, 3> CC;
@@ -384,7 +402,7 @@ template<>
 inline dealii::SymmetricTensor<2, 3> make_mandel_anisotropic_stiffness<2>(
 	double K, double G1, double G2, double theta)
 {
-	/*! Template specialization of \ref make_mandel_anisotropic_stiffness(double,
+	/*! Template specialization of @ref make_mandel_anisotropic_stiffness(double,
 	 * double, double, double) for dim=2. */
 
 	// see in Nicholas et al., Journal of the Mechanics and Physics of Solids 78
@@ -458,7 +476,7 @@ inline dealii::SymmetricTensor<2, 3> compute_voigts_stiffness(
 	dealii::Vector<double> &u,
 	dealii::FullMatrix<double> &M)
 {
-	/*! Template specialization of \ref compute_voigts_stiffness<dim>(...) for
+	/*! Template specialization of @ref compute_voigts_stiffness<dim>(...) for
 	 * dim=2. */
 
 	// Compute the stiffness tensor CC in Voigt's notation from the input elastic
@@ -569,7 +587,8 @@ inline dealii::SymmetricTensor<2, 3> compute_voigts_stiffness(
 
 
 
-/*! This namespace contains utility functions to generate random numbers 
+/*! @namespace mepls::utils::rand
+ * @brief This namespace contains utility functions to generate random numbers 
  * according to specific probability distributions. */
 namespace rand
 {
@@ -637,7 +656,7 @@ inline std::vector<std::vector<double>> draw_multivariate_gaussian_sample<2>(
 	unsigned int N,
 	std::mt19937 &generator)
 {
-	/*! Template specialization of \ref
+	/*! Template specialization of @ref
 	 * draw_multivariate_gaussian_sample<dim>(...) for dim=2. */
 
 	int d = mu.size();
@@ -770,7 +789,8 @@ std::piecewise_linear_distribution<double> *create_distribution(
 
 
 
-/*! This namespace contains utility functions to parse and generate strings. */
+/*! @namespace mepls::utils::str
+ * @brief This namespace contains utility functions to parse and generate strings. */
 namespace str
 {
 
@@ -820,34 +840,53 @@ std::vector<int> parse_list_integers(const std::string &str)
 }
 
 
-bool read_from_file(std::vector<double> &x, const std::string &file_name)
+void read_csv(std::vector<double> &xData, std::vector<double> &yData, std::string filename,
+				unsigned int skip=0)
 {
-	/*! Read a file containing a column of numerical values and parse it into a
-	 * vector of doubles. */
+	/*! Read a text file that contains two columns of numerical values. The columns
+	 * are parsed into two vectors of doubles.
+	 *
+	 * @param xData vector to store column #1
+	 * @param yData vector to store column #2
+	 * @param filename path tot the file
+	 * @param skip number of rows to skip
+	 * */
 
-	// from https://stackoverflow.com/a/40669705/5147363
+	// adapted from https://stackoverflow.com/a/30181684
 
-	std::ifstream read_file(file_name);
+	std::ifstream ifile(filename);
 
-	bool file_open = read_file.is_open();
+	std::string line; // we read the full line here
 
-	if(file_open)
+	// skip these first lines
+	for(unsigned int n=0; n < skip; ++n)
+		std::getline(ifile, line);
+
+	while (std::getline(ifile, line)) // read the current line
 	{
-		std::copy(std::istream_iterator<double>(read_file), std::istream_iterator<double>(),
-				  std::back_inserter(x));
+		std::istringstream iss{line}; // construct a string stream from line
 
-		read_file.close();
+		// read the tokens from current line separated by comma
+		std::vector<std::string> tokens; // here we store the tokens
+		std::string token; // current token
+		while (std::getline(iss, token, ','))
+			tokens.push_back(token); // add the token to the vector
+
+		xData.push_back( std::stof(tokens[0]) );
+		yData.push_back( std::stof(tokens[1]) );
 	}
 
-	return file_open;
 }
 
 } // namespace string
 
 
 
-/*! This class controls whether a simulation should continue running or should 
- * stop. When the object is called using the call operator with some input 
+/*! @class mepls::utils::ContinueSimulation
+ * @brief This class controls whether a simulation should continue running or should 
+ * stop based on user defined-criteria.
+ * 
+ * When the object is called using the call operator with some input 
  * condition, if the condition evaluates to false, the object changes its 
  * internal state to false. That state is not changed anymore during the 
  * object's life. When the object is called without input conditions, we query
@@ -937,14 +976,17 @@ inline double mod(double a, double b)
 }
 
 
-/*! Singleton class to measure execution times. The advantage of using a 
- * singleton pattern is that we can measure the execution times of any part of
- * the code without the need to modify function interfaces. Specifically, in
- * every call to a function, we can get a pointer to an existing instance of
- * the timer object, avoiding creating a new one. Moreover, since the object
- * is always the same one, the execution times add up, which provides us with
- * an averaged execution time should the call to the function be repeated 
- * iteratively. */
+
+/*! @class mepls::utils::TimerSingleton
+ * @brief Singleton class to measure execution times. 
+ *
+ * The advantage of using a singleton pattern is that we can measure the 
+ * execution times of any part of the code without the need to modify 
+ * function interfaces. Specifically, in every call to a function, we 
+ * can get a pointer to an existing instance of the timer object, avoiding 
+ * creating a new one. Moreover, since the object is always the same one, 
+ * the execution times add up, which provides us with an averaged execution 
+ * time should the call to the function be repeated iteratively. */
 class TimerSingleton
 {
   public:
@@ -1021,6 +1063,64 @@ class TimerSingleton
 bool TimerSingleton::instanceFlag = false;
 
 TimerSingleton *TimerSingleton::single = NULL;
+
+
+
+/*! @class mepls::utils::Interpolator
+ * @brief This class provides linear interpolations of a 1D function, defined by the
+ * given x and y data vectors. */
+class Interpolator
+{
+  public:
+
+	Interpolator(std::vector<double> &xData_, std::vector<double> &yData_)
+		:
+	xData(xData_),
+	yData(yData_)
+	{
+		/*! Constructor. */
+	}
+
+	double operator()(double x)
+	{
+		/*! Returns the value of the function, interpolated at the input value x. */
+
+		// adapted from http://www.cplusplus.com/forum/general/216928/
+
+	   int size = xData.size();
+
+		// find left end of interval for interpolation
+	   int i = 0;
+	   // special case: beyond right end
+	   if ( x >= xData[size - 2] )
+	   {
+		  i = size - 2;
+	   }
+	   else
+	   {
+		  while ( x > xData[i+1] ) i++;
+	   }
+	   // points on either side (unless beyond ends)
+	   double xL = xData[i], yL = yData[i], xR = xData[i+1], yR = yData[i+1];
+
+ 	   if ( x < xL ) yR = yL;
+  	   if ( x > xR ) yL = yR;
+
+		// gradient
+	   double dydx = ( yR - yL ) / ( xR - xL );
+
+ 		// linear interpolation
+	   return yL + dydx * ( x - xL );
+	}
+
+  private:
+
+	std::vector<double> xData;
+	/*!< Discrete x values of the interpolated function. */
+
+	std::vector<double> yData;
+	/*!< Discrete y values of the interpolated function. */
+};
 
 
 } // namespace utils
