@@ -237,24 +237,6 @@ void write_data(
 	data_tree.put("Parameters.k", p.k);
 	data_tree.put("Parameters.strain_limit", p.strain_limit);
 
-
-	// write some metadata, such as a simulation name and description
-	data_tree.put("Name", "Step4");
-	data_tree.put("Description", "System driven in the athermal quasistatic limit");
-
-	// write the simulation parameters
-	data_tree.put("Parameters.dim", 2);
-	data_tree.put("Parameters.seed", p.seed);
-	data_tree.put("Parameters.Nx", p.Nx);
-	data_tree.put("Parameters.Ny", p.Ny);
-	data_tree.put("Parameters.G", p.G);
-	data_tree.put("Parameters.nu", p.nu);
-	data_tree.put("Parameters.gamma", p.gamma);
-	data_tree.put("Parameters.lambda_renew", p.lambda_renew);
-	data_tree.put("Parameters.lambda_init", p.lambda_init);
-	data_tree.put("Parameters.k", p.k);
-	data_tree.put("Parameters.strain_limit", p.strain_limit);
-
 	// We write the event histories with CSV format to a string.
 	// Here, we write only the columns of interest, but there are more available (see the
 	// documentation).
@@ -741,24 +723,6 @@ void write_data(
 	const mepls::history::History<dim> &sim_history, const Parameters &p)
 {
 	boost::property_tree::ptree data_tree;
-
-	// write some metadata, such as a simulation name and description
-	data_tree.put("Name", "Step4");
-	data_tree.put("Description", "System driven in the athermal quasistatic limit");
-
-	// write the simulation parameters
-	data_tree.put("Parameters.dim", 2);
-	data_tree.put("Parameters.seed", p.seed);
-	data_tree.put("Parameters.Nx", p.Nx);
-	data_tree.put("Parameters.Ny", p.Ny);
-	data_tree.put("Parameters.G", p.G);
-	data_tree.put("Parameters.nu", p.nu);
-	data_tree.put("Parameters.gamma", p.gamma);
-	data_tree.put("Parameters.lambda_renew", p.lambda_renew);
-	data_tree.put("Parameters.lambda_init", p.lambda_init);
-	data_tree.put("Parameters.k", p.k);
-	data_tree.put("Parameters.strain_limit", p.strain_limit);
-
 
 	// write some metadata, such as a simulation name and description
 	data_tree.put("Name", "Step4");
